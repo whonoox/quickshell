@@ -10,10 +10,10 @@ PanelWindow {
     implicitWidth: 300
 
     Text{
-        id: "clock"
+        id: clock
         anchors.centerIn: parent
         Process {
-            id: "dateProcess"
+            id: dateProcess
             command: ["date"]
             running: true
             stdout: StdioCollector {
