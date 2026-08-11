@@ -5,12 +5,21 @@ import QtQuick
 
 Scope{  
     id: root
-    property string time
+    readonly property string time: {
+        Qt.formatDateTime(clock.date, "ddd MMM d hh:mm:ss AP yyyy")
+    }
+
+    SystemClock {
+        id: clock
+        precision: SystemClock.Seconds
+    }
 
     Variants {
         model: Quickshell.screens
 
         PanelWindow {
+            required property var modelData
+            screen: modelData
             anchors {
                 top:true
             }
@@ -22,19 +31,5 @@ Scope{
                 anchors.centerIn: parent
             }
         }
-    }
-    Process {
-        id: dateProcess
-        command: ["date"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: root.time = this.text
-        }
-    }
-    Timer {
-        interval: 1000
-        running: true
-        repeat: true
-        onTriggered: dateProcess.running = true
     }
 }
