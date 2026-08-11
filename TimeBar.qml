@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import Quickshell.Hyprland
 
 
 Scope{  
@@ -9,9 +10,30 @@ Scope{
         Qt.formatDateTime(clock.date, "hh:mm:ss AP")
     }
 
+    property bool hideBar: false
+
     SystemClock {
         id: clock
         precision: SystemClock.Seconds
+    }
+
+    GlobalShortcut{
+        name: "timeToggle"
+        description: "Show the current time with the panel window"
+        appid: "quickshell"
+        onPressed: {
+            root.hideBar = !root.hideBar
+            clock.precision = SystemClock.Seconds
+        }
+    }
+
+    Timer {
+        interval: 3000
+        running: !root.hideBar
+        onTriggered: {
+            root.hideBar = true
+            clock.precision = SystemClock.Hours
+        }
     }
 
     Variants {
@@ -19,14 +41,15 @@ Scope{
 
         PanelWindow {
             required property var modelData
-            property bool hideBar: false
             property real padding: 24
+           
             screen: modelData
             anchors {
                 top:true
             }
+
             exclusionMode: ExclusionMode.Normal
-            margins.top: hideBar ? implicitHeight * -1 : 0
+            margins.top: root.hideBar ? implicitHeight * -1 : 0
 
             implicitHeight: child.height + padding
             implicitWidth: child.width + padding
@@ -37,6 +60,7 @@ Scope{
             Rectangle{
                 anchors.fill: parent
                 color: "black"
+                opacity: 0.9
                 bottomLeftRadius: 12
                 bottomRightRadius: 12
             }
