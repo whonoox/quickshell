@@ -52,17 +52,23 @@ Scope{
             margins.top: root.hideBar ? implicitHeight * -1 : 0
 
             implicitHeight: child.height + padding
-            implicitWidth: child.width + padding
+            implicitWidth: child.width + 3 * padding
 
             color: "transparent"
 
 
             Rectangle{
                 anchors.fill: parent
+                anchors.leftMargin: padding
+                anchors.rightMargin: padding
                 color: "black"
-                opacity: 0.9
-                bottomLeftRadius: 12
-                bottomRightRadius: 12
+                bottomLeftRadius: padding
+                bottomRightRadius: padding
+            }
+
+            ScoopShape{
+                size: padding
+                leftArc: true
             }
 
 
@@ -74,6 +80,11 @@ Scope{
                 font.family: "Nuuxfont"
                 font.pixelSize: 28
                 font.weight: Font.Bold
+            }
+            ScoopShape{
+                size: padding
+                anchors.right: parent.right
+                leftArc: false
             }
             
         }
