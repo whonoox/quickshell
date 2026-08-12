@@ -41,7 +41,9 @@ Scope{
 
         PanelWindow {
             required property var modelData
-            property real padding: 24
+            property real blockPadding: 28
+            property real inlinePadding: 32
+            property int rounding: 24
            
             screen: modelData
             anchors {
@@ -51,24 +53,24 @@ Scope{
             exclusionMode: ExclusionMode.Normal
             margins.top: root.hideBar ? implicitHeight * -1 : 0
 
-            implicitHeight: child.height + padding
-            implicitWidth: child.width + 3 * padding
+            implicitHeight: child.height + blockPadding
+            implicitWidth: child.width + 3 * inlinePadding
 
             color: "transparent"
 
 
             Rectangle{
                 anchors.fill: parent
-                anchors.leftMargin: padding
-                anchors.rightMargin: padding
+                anchors.leftMargin: rounding
+                anchors.rightMargin: rounding
                 color: "black"
-                bottomLeftRadius: padding
-                bottomRightRadius: padding
+                bottomLeftRadius: rounding
+                bottomRightRadius: rounding
             }
 
             ScoopShape{
-                size: padding
-                leftArc: true
+                size: rounding
+                cornerPosition: scoopPosition.bottomLeft
             }
 
 
@@ -78,13 +80,13 @@ Scope{
                 color: "green"
                 anchors.centerIn: parent
                 font.family: "Nuuxfont"
-                font.pixelSize: 28
+                font.pixelSize: blockPadding
                 font.weight: Font.Bold
             }
             ScoopShape{
-                size: padding
+                size: rounding
                 anchors.right: parent.right
-                leftArc: false
+                cornerPosition: scoopPosition.bottomRight
             }
             
         }
