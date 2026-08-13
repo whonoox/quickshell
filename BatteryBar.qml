@@ -20,13 +20,13 @@ Scope{
         }
     }
 
-    Timer {
-        interval: 3000
-        running: !root.hideBar
-        onTriggered: {
-            root.hideBar = true
-        }
-    }
+    // Timer {
+    //     interval: 3000
+    //     running: !root.hideBar
+    //     onTriggered: {
+    //         root.hideBar = true
+    //     }
+    // }
 
     Variants {
             model: Quickshell.screens
@@ -102,7 +102,7 @@ Scope{
                 Text {
                     anchors.centerIn: parent
                     anchors.horizontalCenterOffset: spacing / 2
-                    text: (battery.percentage * 100).toString().split('').join('\n')
+                    text: (root.battery.percentage * 100).toString().split('').slice(0,2).join('\n')
                     color: Theme.bgc
                     font.family: "Nuuxfont"
                     font.pixelSize: 32
