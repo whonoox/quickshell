@@ -11,22 +11,35 @@ Scope{
     
     property bool hideBar: false
 
+    readonly property int batteryState: UPower.displayDevice.state
+    readonly property bool criticalBattery: battery.percentage <= 0.20
+    readonly property bool lowBattery: battery.percentage <= 0.25
+    readonly property bool mediumBattery: battery.percentage <= 0.50
+    readonly property bool highBattery: battery.percentage <= 0.75
+    readonly property bool fullBattery: battery.percentage === 1.00
+
     GlobalShortcut{
         name: "batteryToggle"
         description: "Show the current battery information with the panel window"
         appid: "quickshell"
         onPressed: {
-            root.hideBar = !root.hideBar
+            if(!criticalBattery){
+                hideBar = !hideBar
+            }
         }
     }
 
-    // Timer {
-    //     interval: 3000
-    //     running: !root.hideBar
-    //     onTriggered: {
-    //         root.hideBar = true
-    //     }
-    // }
+    onBatteryStateChanged: {
+        root.hideBar = false
+    }
+
+    Timer {
+        interval: 3000
+        running: !hideBar && !criticalBattery
+        onTriggered: {
+            hideBar = true
+        }
+    }
 
     Variants {
             model: Quickshell.screens
@@ -47,7 +60,7 @@ Scope{
                  margins.right: root.hideBar ? implicitWidth * -1 : 0
 
                 Component.onCompleted: {
-                    console.log(root.battery.percentage)
+                    console.log(root.battery.state === UPowerDeviceState.Charging)
                 }
 
                 ScoopShape{
@@ -66,7 +79,7 @@ Scope{
                 }
 
                 FlexboxLayout {
-                    id: flexLayout
+                    id: batteryFlex
                     anchors.fill: parent
                     anchors.topMargin: Theme.rounding + Theme.spacing
                     anchors.bottomMargin: Theme.rounding + Theme.spacing
@@ -81,16 +94,16 @@ Scope{
                         topRightRadius: Theme.spacing
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: root.battery.percentage >= 0.75 ? Theme.brand : Theme.brandBgc
+                        color: root.highBattery ? Theme.brandBgc : Theme.brand
                     }
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: root.battery.percentage >= 0.5 ? Theme.brand : Theme.brandBgc
+                        color: root.mediumBattery ? Theme.brandBgc : Theme.brand
                     }
                     Text {
                         text: Math.round(root.battery.percentage * 100)
-                        color: root.battery.percentage >= 0.20 ? Theme.brand : "red"
+                        color: root.criticalBattery ? "red" : Theme.brand
                         font.family: "Nuuxfont"
                         font.pixelSize: Theme.rounding
                         font.weight: Font.Bold  
@@ -98,29 +111,27 @@ Scope{
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: root.battery.percentage >= 0.25 ? Theme.brand : Theme.brandBgc
+                        color: root.lowBattery ? Theme.brandBgc : Theme.brand
                     }
                     Rectangle {
+                        id: batteryBottom
                         bottomLeftRadius: Theme.rounding
                         bottomRightRadius: Theme.spacing
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: root.battery.percentage >= 0.20 ? Theme.brand : "red"
+                        color: root.criticalBattery ? "red" : Theme.brand
                     }
+                    
                 }
 
-                // Text {
-                //     anchors.centerIn: parent
-                //     anchors.horizontalCenterOffset: Theme.spacing / 2
-                //     text: (root.battery.percentage * 100).toString().split('').slice(0,2).join('\n')
-                //     color: Theme.brand
-                //     font.family: "Nuuxfont"
-                //     font.pixelSize: 32
-                //     font.weight: Font.Bold
-                //     style: Text.Outline
-                //     styleColor: Theme.bgc
-                //     lineHeight: 0.8             
-                // }
+                Text {
+                    anchors.bottom: batteryFlex.bottom
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.horizontalCenterOffset: Theme.spacing / 2
+                    text: root.battery.state === UPowerDeviceState.Charging ? "⚡️":""
+                    color: root.battery.percentage >= 0.20 ? Theme.brand : "red"
+                    font.pixelSize: Theme.rounding
+                }
 
                 ScoopShape{
                     anchors.bottom: parent.bottom
