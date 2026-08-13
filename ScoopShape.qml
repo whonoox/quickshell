@@ -9,17 +9,15 @@ Item{
         "bottomLeft": 2,
         "bottomRight": 3
     }
-    
-    required property int cornerPosition
-    required property real size
-    property color color: 'black'
 
-    implicitWidth: size
-    implicitHeight: size
+    required property int cornerPosition
+
+    implicitWidth: Theme.rounding
+    implicitHeight: Theme.rounding
 
     transform: Scale {
-        origin.x: width / 2 
-        origin.y: height / 2 
+        origin.x: implicitWidth / 2 
+        origin.y: implicitHeight / 2 
         xScale: cornerPosition === scoopPosition.bottomRight || cornerPosition === scoopPosition.topRight ? -1 : 1
         yScale: cornerPosition === scoopPosition.topLeft || cornerPosition === scoopPosition.topRight ? -1 : 1
     }
@@ -28,10 +26,10 @@ Item{
         anchors.fill: parent
         ShapePath {
             strokeWidth: 0
-            fillColor: color
+            fillColor: Theme.bgc
             startX: 0; startY: 0
-            PathArc { x: size; y: size; radiusX: size; radiusY: size}
-            PathLine { x: size; y: 0 }
+            PathArc { x: Theme.rounding; y: Theme.rounding; radiusX: Theme.rounding; radiusY: Theme.rounding}
+            PathLine { x: Theme.rounding; y: 0 }
         }
     }
 }

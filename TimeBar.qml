@@ -3,7 +3,6 @@ import Quickshell.Io
 import QtQuick
 import Quickshell.Hyprland
 
-
 Scope{  
     id: root
     readonly property string time: {
@@ -41,9 +40,8 @@ Scope{
 
         PanelWindow {
             required property var modelData
-            property real blockPadding: 28
+            property real blockPadding: 24
             property real inlinePadding: 32
-            property int rounding: 24
            
             screen: modelData
             anchors {
@@ -58,18 +56,16 @@ Scope{
 
             color: "transparent"
 
-
             Rectangle{
                 anchors.fill: parent
-                anchors.leftMargin: rounding
-                anchors.rightMargin: rounding
-                color: "black"
-                bottomLeftRadius: rounding
-                bottomRightRadius: rounding
+                anchors.leftMargin: Theme.rounding
+                anchors.rightMargin: Theme.rounding
+                color: Theme.bgc
+                bottomLeftRadius: Theme.rounding
+                bottomRightRadius: Theme.rounding
             }
 
             ScoopShape{
-                size: rounding
                 cornerPosition: scoopPosition.bottomLeft
             }
 
@@ -77,14 +73,13 @@ Scope{
             Text{
                 id: child
                 text: root.time
-                color: "green"
+                color: Theme.brand
                 anchors.centerIn: parent
                 font.family: "Nuuxfont"
-                font.pixelSize: blockPadding
+                font.pixelSize: inlinePadding
                 font.weight: Font.Bold
             }
             ScoopShape{
-                size: rounding
                 anchors.right: parent.right
                 cornerPosition: scoopPosition.bottomRight
             }
