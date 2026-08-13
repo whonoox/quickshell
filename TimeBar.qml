@@ -25,14 +25,14 @@ Scope{
         }
     }
 
-    // Timer {
-    //     interval: 3000
-    //     running: !root.hideBar
-    //     onTriggered: {
-    //         root.hideBar = true
-    //         clock.precision = SystemClock.Hours
-    //     }
-    // }
+    Timer {
+        interval: 3000
+        running: !root.hideBar
+        onTriggered: {
+            root.hideBar = true
+            clock.precision = SystemClock.Hours
+        }
+    }
 
     Variants {
         model: Quickshell.screens
