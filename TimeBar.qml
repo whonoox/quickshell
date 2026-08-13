@@ -1,5 +1,4 @@
 import Quickshell
-import Quickshell.Io
 import QtQuick
 import Quickshell.Hyprland
 
@@ -26,22 +25,22 @@ Scope{
         }
     }
 
-    Timer {
-        interval: 3000
-        running: !root.hideBar
-        onTriggered: {
-            root.hideBar = true
-            clock.precision = SystemClock.Hours
-        }
-    }
+    // Timer {
+    //     interval: 3000
+    //     running: !root.hideBar
+    //     onTriggered: {
+    //         root.hideBar = true
+    //         clock.precision = SystemClock.Hours
+    //     }
+    // }
 
     Variants {
         model: Quickshell.screens
 
         PanelWindow {
             required property var modelData
-            property real blockPadding: 24
-            property real inlinePadding: 32
+            property real blockPadding: Theme.rounding
+            property real inlinePadding: Theme.rounding
            
             screen: modelData
             anchors {
@@ -58,11 +57,23 @@ Scope{
 
             Rectangle{
                 anchors.fill: parent
-                anchors.leftMargin: Theme.rounding
+                anchors.leftMargin: Theme.rounding 
                 anchors.rightMargin: Theme.rounding
                 color: Theme.bgc
                 bottomLeftRadius: Theme.rounding
                 bottomRightRadius: Theme.rounding
+            }
+
+            Rectangle{
+                anchors.fill: parent
+                anchors.leftMargin: Theme.rounding + Theme.spacing
+                anchors.rightMargin: Theme.rounding + Theme.spacing
+                anchors. bottomMargin: Theme.spacing
+                color: Theme.brandBgc
+                bottomLeftRadius: Theme.rounding - Theme.spacing
+                bottomRightRadius: Theme.rounding - Theme.spacing
+                topRightRadius: Theme.spacing
+                topLeftRadius: Theme.spacing
             }
 
             ScoopShape{
@@ -76,7 +87,7 @@ Scope{
                 color: Theme.brand
                 anchors.centerIn: parent
                 font.family: "Nuuxfont"
-                font.pixelSize: inlinePadding
+                font.pixelSize: 28
                 font.weight: Font.Bold
             }
             ScoopShape{

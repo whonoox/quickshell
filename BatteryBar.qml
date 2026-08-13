@@ -33,7 +33,6 @@ Scope{
 
             PanelWindow {
                 required property var modelData
-                property real spacing: 6
 
                 screen: modelData
 
@@ -42,7 +41,7 @@ Scope{
                 exclusionMode: ExclusionMode.Normal
 
                 implicitWidth: 30
-                implicitHeight: 120 + spacing * 4
+                implicitHeight: 120 + Theme.spacing * 4
                 color:"transparent"
 
                  margins.right: root.hideBar ? implicitWidth * -1 : 0
@@ -62,55 +61,66 @@ Scope{
                     anchors.topMargin: Theme.rounding
                     anchors.bottomMargin: Theme.rounding
                     color: Theme.bgc
-                    bottomLeftRadius: Theme.rounding - spacing
-                    topLeftRadius: Theme.rounding - spacing
+                    bottomLeftRadius: Theme.rounding - Theme.spacing
+                    topLeftRadius: Theme.rounding - Theme.spacing
                 }
 
                 FlexboxLayout {
                     id: flexLayout
                     anchors.fill: parent
-                    anchors.topMargin: Theme.rounding + spacing
-                    anchors.bottomMargin: Theme.rounding + spacing
-                    anchors.leftMargin: spacing
+                    anchors.topMargin: Theme.rounding + Theme.spacing
+                    anchors.bottomMargin: Theme.rounding + Theme.spacing
+                    anchors.leftMargin: Theme.spacing
+                    // anchors.rightMargin: Theme.spacing / 2
                     direction: FlexboxLayout.Column
-                    gap: spacing / 2
+                    alignItems: FlexboxLayout.AlignCenter
+                    gap: Theme.spacing / 2
 
                     Rectangle {
                         topLeftRadius: Theme.rounding
+                        topRightRadius: Theme.spacing
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: Theme.brand
+                        color: root.battery.percentage >= 0.75 ? Theme.brand : Theme.brandBgc
                     }
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: Theme.brand
+                        color: root.battery.percentage >= 0.5 ? Theme.brand : Theme.brandBgc
+                    }
+                    Text {
+                        text: Math.round(root.battery.percentage * 100)
+                        color: root.battery.percentage >= 0.20 ? Theme.brand : "red"
+                        font.family: "Nuuxfont"
+                        font.pixelSize: Theme.rounding
+                        font.weight: Font.Bold  
                     }
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: Theme.brand
+                        color: root.battery.percentage >= 0.25 ? Theme.brand : Theme.brandBgc
                     }
                     Rectangle {
                         bottomLeftRadius: Theme.rounding
+                        bottomRightRadius: Theme.spacing
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: Theme.brand
+                        color: root.battery.percentage >= 0.20 ? Theme.brand : "red"
                     }
                 }
 
-                Text {
-                    anchors.centerIn: parent
-                    anchors.horizontalCenterOffset: spacing / 2
-                    text: (root.battery.percentage * 100).toString().split('').slice(0,2).join('\n')
-                    color: Theme.bgc
-                    font.family: "Nuuxfont"
-                    font.pixelSize: 32
-                    font.weight: Font.Bold
-                    style: Text.Outline
-                    styleColor: Theme.brand
-                    lineHeight: 0.8             
-                }
+                // Text {
+                //     anchors.centerIn: parent
+                //     anchors.horizontalCenterOffset: Theme.spacing / 2
+                //     text: (root.battery.percentage * 100).toString().split('').slice(0,2).join('\n')
+                //     color: Theme.brand
+                //     font.family: "Nuuxfont"
+                //     font.pixelSize: 32
+                //     font.weight: Font.Bold
+                //     style: Text.Outline
+                //     styleColor: Theme.bgc
+                //     lineHeight: 0.8             
+                // }
 
                 ScoopShape{
                     anchors.bottom: parent.bottom
