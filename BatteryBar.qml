@@ -33,13 +33,13 @@ Scope{
         root.hideBar = false
     }
 
-    Timer {
-        interval: 3000
-        running: !hideBar && !criticalBattery
-        onTriggered: {
-            hideBar = true
-        }
-    }
+    // Timer {
+    //     interval: 3000
+    //     running: !hideBar && !criticalBattery
+    //     onTriggered: {
+    //         hideBar = true
+    //     }
+    // }
 
     Variants {
             model: Quickshell.screens
@@ -53,11 +53,10 @@ Scope{
 
                 exclusionMode: ExclusionMode.Normal
 
-                implicitWidth: 30
+                implicitWidth: 36
                 implicitHeight: 120 + Theme.spacing * 4
                 color:"transparent"
-
-                 margins.right: root.hideBar ? implicitWidth * -1 : 0
+                margins.right: root.hideBar ? implicitWidth * -1 : 0
 
                 Component.onCompleted: {
                     console.log(root.battery.state === UPowerDeviceState.Charging)
@@ -119,7 +118,7 @@ Scope{
                         bottomRightRadius: Theme.spacing
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: root.criticalBattery ? "red" : Theme.brand
+                        color: root.criticalBattery ? "red" : root.lowBattery ? "orange" : Theme.brand
                     }
                     
                 }
@@ -130,7 +129,7 @@ Scope{
                     anchors.horizontalCenterOffset: Theme.spacing / 2
                     text: root.battery.state === UPowerDeviceState.Charging ? "⚡️":""
                     color: root.battery.percentage >= 0.20 ? Theme.brand : "red"
-                    font.pixelSize: Theme.rounding
+                    font.pixelSize: Theme.spacing * 2
                 }
 
                 ScoopShape{

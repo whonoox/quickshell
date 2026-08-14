@@ -3,7 +3,7 @@ import QtQuick
 
 QtObject {
     readonly property color brand: '#00946c'
-    readonly property color brandBgc: '#4800946c'
+    readonly property color brandBgc: '#2900946c'
     readonly property color bgc: "black"
     readonly property color fgc: "white"
     readonly property int rounding: 20
