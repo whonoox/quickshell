@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Shapes
 
 Item{
+    id: root
     readonly property var scoopPosition: {
         "topLeft": 0,
         "topRight": 1,
@@ -11,6 +12,7 @@ Item{
     }
 
     required property int cornerPosition
+    property color bgColor: Theme.bgc
 
     implicitWidth: Theme.rounding
     implicitHeight: Theme.rounding
@@ -26,7 +28,7 @@ Item{
         anchors.fill: parent
         ShapePath {
             strokeWidth: 0
-            fillColor: Theme.bgc
+            fillColor: root.bgColor
             startX: 0; startY: 0
             PathArc { x: Theme.rounding; y: Theme.rounding; radiusX: Theme.rounding; radiusY: Theme.rounding}
             PathLine { x: Theme.rounding; y: 0 }

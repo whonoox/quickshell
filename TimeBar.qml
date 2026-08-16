@@ -64,17 +64,17 @@ Scope{
                 bottomRightRadius: Theme.rounding
             }
 
-            Rectangle{
-                anchors.fill: parent
-                anchors.leftMargin: Theme.rounding + Theme.spacing
-                anchors.rightMargin: Theme.rounding + Theme.spacing
-                anchors. bottomMargin: Theme.spacing
-                color: Theme.brandBgc
-                bottomLeftRadius: Theme.rounding - Theme.spacing
-                bottomRightRadius: Theme.rounding - Theme.spacing
-                topRightRadius: Theme.spacing
-                topLeftRadius: Theme.spacing
-            }
+            // Rectangle{
+            //     anchors.fill: parent
+            //     anchors.leftMargin: Theme.rounding + Theme.spacing
+            //     anchors.rightMargin: Theme.rounding + Theme.spacing
+            //     anchors.bottomMargin: Theme.spacing
+            //     color: Theme.brandBgc
+            //     bottomLeftRadius: Theme.rounding - Theme.spacing
+            //     bottomRightRadius: Theme.rounding - Theme.spacing
+            //     topRightRadius: Theme.spacing
+            //     topLeftRadius: Theme.spacing
+            // }
 
             ScoopShape{
                 cornerPosition: scoopPosition.bottomLeft

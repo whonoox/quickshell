@@ -9,8 +9,6 @@ Scope{
     id: root
     
     property bool hideBar: false
-    // property var wifiDevice: null
-    // property var connectedNetwork: null
     readonly property NetworkDevice connectedWifiDevice: Networking.devices.values.find(
         dev => dev.type === DeviceType.Wifi && dev.state === ConnectionState.Connected
     )
@@ -20,8 +18,9 @@ Scope{
     )
 
     property var weakSignal: connectedNetwork.signalStrength >= 0
-    property var mediumSignal: connectedNetwork.signalStrength >= 0.33
-    property var strongSignal: connectedNetwork.signalStrength >= 0.66
+    property var mediumSignal: connectedNetwork.signalStrength >= 0.25
+    property var strongSignal: connectedNetwork.signalStrength >= 0.5
+    property var veryStrongSignal: connectedNetwork.signalStrength >= 0.75
 
     GlobalShortcut{
         name: "wifiToggle"
@@ -32,13 +31,13 @@ Scope{
         }
     }
 
-    // Timer {
-    //     interval: 3000
-    //     running: !hideBar
-    //     onTriggered: {
-    //         hideBar = true
-    //     }
-    // }
+    Timer {
+        interval: 3000
+        running: !hideBar
+        onTriggered: {
+            hideBar = true
+        }
+    }
 
     Variants {
             model: Quickshell.screens
@@ -78,7 +77,9 @@ Scope{
                 Text{
                     id: wifiName
                     anchors.left: background.left
-                    anchors.verticalCenter: background.verticalCenter
+                    anchors.top: background.top
+                    anchors.topMargin: Theme.spacing
+                    // anchors.verticalCenter: background.verticalCenter
                     anchors.leftMargin: Theme.spacing
                     text: connectedNetwork.name
                     color: Theme.brand
@@ -92,6 +93,18 @@ Scope{
                     anchors.top: parent.top
                     implicitWidth: Theme.spacing * 4.5
                     implicitHeight: implicitWidth
+                    color: root.veryStrongSignal ? Theme.brand : Theme.brandBgc
+                    radius: Theme.spacing
+                    bottomLeftRadius: Theme.rounding + Theme.spacing
+                    border.width: Theme.spacing / 2
+                    border.color: Theme.bgc
+                }
+
+                Rectangle {
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    implicitWidth: Theme.spacing * 3.5
+                    implicitHeight: implicitWidth
                     color: root.strongSignal ? Theme.brand : Theme.brandBgc
                     radius: Theme.spacing
                     bottomLeftRadius: Theme.rounding + Theme.spacing
@@ -102,7 +115,7 @@ Scope{
                 Rectangle {
                     anchors.right: parent.right
                     anchors.top: parent.top
-                    implicitWidth: Theme.spacing * 3.25
+                    implicitWidth: Theme.spacing * 2.5
                     implicitHeight: implicitWidth
                     color: root.mediumSignal ? Theme.brand : Theme.brandBgc
                     radius: Theme.spacing
@@ -114,7 +127,7 @@ Scope{
                 Rectangle {
                     anchors.right: parent.right
                     anchors.top: parent.top
-                    implicitWidth: Theme.spacing * 2
+                    implicitWidth: Theme.spacing * 1.5
                     implicitHeight: implicitWidth
                     color: root.weakSignal ? Theme.brand : Theme.brandBgc
                     radius: Theme.spacing
