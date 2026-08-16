@@ -3,12 +3,14 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell.Networking
 import Quickshell.Hyprland
+import Quickshell.Io
 
 
 Scope{  
     id: root
     
-    property bool hideBar: false
+    property bool hideBar: true
+    property bool nmtuiRunning: false
     readonly property NetworkDevice connectedWifiDevice: Networking.devices.values.find(
         dev => dev.type === DeviceType.Wifi && dev.state === ConnectionState.Connected
     )
@@ -27,13 +29,38 @@ Scope{
         description: "Show the current wifi information with the panel window"
         appid: "quickshell"
         onPressed: {
-            hideBar = !hideBar
+            if(hideBar){
+                hideBar = !hideBar
+            }
+            else{
+                if(nmtuiRunning){
+                    nmtuiRunning = false
+                    nmtuiKiller.running = true
+                }
+                else{
+                    nmtuiRunning = true
+                    nmtui.running = true
+                }
+            }
         }
+    }
+
+    Process {
+        id: nmtui
+        running: false
+        command: ["hyprctl", "dispatch", "exec", "[float; size 750 500; center] ghostty -e nmtui"]
+        // command: Hyprland.dispatch("exec [float; size 750 500; center] ghostty -e nmtui")
+    }
+
+    Process {
+        id: nmtuiKiller
+        running: false
+        command: ["pkill", "nmtui"]
     }
 
     Timer {
         interval: 3000
-        running: !hideBar
+        running: !hideBar && !nmtuiRunning
         onTriggered: {
             hideBar = true
         }

@@ -9,8 +9,6 @@ Scope{
     id: root
     
     property bool hideBar: false
-    // property var wifiDevice: null
-    // property var connectedNetwork: null
     readonly property BluetoothDevice connectedBluetoothDevice: Bluetooth.devices.values.find(
         dev => dev.connected === true
     )
@@ -72,7 +70,7 @@ Scope{
                     anchors.left: background.left
                     anchors.verticalCenter: background.verticalCenter
                     anchors.leftMargin: Theme.spacing
-                    text: connectedBluetoothDevice.name
+                    text: connectedBluetoothDevice.name + " " + connectedBluetoothDevice.battery * 100
                     color: Theme.brand
                     font.family: "Nuuxfont"
                     font.pixelSize: Theme.rounding
