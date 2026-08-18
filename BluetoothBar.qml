@@ -3,12 +3,14 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell.Bluetooth
 import Quickshell.Hyprland
+import Quickshell.Io
 
 
 Scope{  
     id: root
     
-    property bool hideBar: false
+    property bool hideBar: true
+    property bool bluemanRunning: false
     readonly property BluetoothDevice connectedBluetoothDevice: Bluetooth.devices.values.find(
         dev => dev.connected === true
     )
@@ -18,17 +20,43 @@ Scope{
         description: "Show the current bluetooth information with the panel window"
         appid: "quickshell"
         onPressed: {
-            hideBar = !hideBar
+            if(hideBar){
+                hideBar = !hideBar
+            }
+            else{
+                if(bluemanRunning){
+                    bluemanRunning = false
+                    bluemanKiller.running = true
+                }
+                else{
+                    bluemanRunning = true
+                    blueman.running = true
+                }
+            }
         }
+    }
+
+    Process {
+        id: blueman
+        running: false
+        command: ["hyprctl", "dispatch", "exec", "[float; size 750 500; center] blueman-manager"]
+        // command: Hyprland.dispatch("exec [float; size 750 500; center] blueman-manager")
+    }
+
+    Process {
+        id: bluemanKiller
+        running: false
+        command: ["pkill", "blueman-manager"]
     }
 
     Timer {
         interval: 3000
-        running: !hideBar
+        running: !hideBar && !bluemanbRunning
         onTriggered: {
             hideBar = true
         }
     }
+
 
     Variants {
             model: Quickshell.screens
