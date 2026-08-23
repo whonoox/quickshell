@@ -1,11 +1,94 @@
 pragma Singleton
 import QtQuick
+import Quickshell
+import Quickshell.Io
 
 QtObject {
-    readonly property color brand: '#00946c'
-    readonly property color brandBgc: '#3f00946c'
-    readonly property color bgc: "black"
-    readonly property color fgc: "white"
+    id: root
+
+    readonly property string home: Quickshell.env("HOME")
+    readonly property string colorsPath: home + "/.local/state/omarchy/current/theme/colors.toml"
+
+    // Primary Accents
+    property color accent: "#82FB9C"
+    property color brand: accent
+    readonly property color brandBgc: Qt.rgba(accent.r, accent.g, accent.b, 0.25)
+
+    // Full Palette Colors
+    property color red: "#50f872"
+    property color yellow: "#50f7d4"
+    property color orange: "#50f7a3"
+    property color green: "#00946d"
+    property color cyan: "#7cf8f7"
+    property color blue: "#829dd4"
+    property color magenta: "#86a7df"
+    property color brown: "#287b51"
+
+    // Surfaces & Depth
+    property color background: "#0B0C16"
+    property color bgc: background
+    property color darkBackground: "#080910"
+    property color darkerBackground: "#06060c"
+    property color lighterBackground: "#151828"
+    property color surface: lighterBackground
+    property color selection: "#1f253a"
+
+    // Text & Hierarchy
+    property color foreground: "#ddf7ff"
+    property color fgc: foreground
+    property color brightForeground: "#ddf7ff"
+    property color lightForeground: "#b5c5db"
+    property color darkForeground: "#6a6e95"
+    property color muted: "#2d3450"
+    property color urgent: red
+
+    // Dimensions
     readonly property int rounding: 20
     readonly property real spacing: 6
+
+    function parseToml(raw) {
+        var map = {}
+        var lines = String(raw || "").split("\n")
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim()
+            if (!line || line.startsWith("#") || line.startsWith("[")) continue
+            var idx = line.indexOf("=")
+            if (idx === -1) continue
+            var k = line.substring(0, idx).trim()
+            var v = line.substring(idx + 1).trim().replace(/^["']|["']$/g, "")
+            map[k] = v
+        }
+        return map
+    }
+
+    function loadColors(text) {
+        var d = parseToml(text)
+        if (d.accent) root.accent = d.accent
+        if (d.background) root.background = d.background
+        if (d.dark_background) root.darkBackground = d.dark_background
+        if (d.darker_background) root.darkerBackground = d.darker_background
+        if (d.lighter_background) root.lighterBackground = d.lighter_background
+        if (d.selection) root.selection = d.selection
+        if (d.foreground) root.foreground = d.foreground
+        if (d.bright_foreground) root.brightForeground = d.bright_foreground
+        if (d.light_foreground) root.lightForeground = d.light_foreground
+        if (d.dark_foreground) root.darkForeground = d.dark_foreground
+        if (d.muted) root.muted = d.muted
+        if (d.red) root.red = d.red
+        if (d.yellow) root.yellow = d.yellow
+        if (d.orange) root.orange = d.orange
+        if (d.green) root.green = d.green
+        if (d.cyan) root.cyan = d.cyan
+        if (d.blue) root.blue = d.blue
+        if (d.magenta) root.magenta = d.magenta
+        if (d.brown) root.brown = d.brown
+    }
+
+    property FileView colorsFile: FileView {
+        path: root.colorsPath
+        watchChanges: true
+        printErrors: false
+        onLoaded: root.loadColors(text())
+        onFileChanged: reload()
+    }
 }
