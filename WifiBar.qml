@@ -95,6 +95,21 @@ Scope {
         }
     }
 
+    onHideAllChanged: {
+        if (hideAll) PopoutCoordinator.release("wifi")
+    }
+
+    Connections {
+        target: PopoutCoordinator
+        function onActiveChanged() {
+            if (PopoutCoordinator.active !== "" && PopoutCoordinator.active !== "wifi") {
+                root.isExpanded = false
+                root.hudVisible = false
+                root.activePasswordSsid = ""
+            }
+        }
+    }
+
     // Global Shortcut Handler
     GlobalShortcut {
         name: "wifiToggle"
@@ -107,10 +122,12 @@ Scope {
 
             if (root.hideAll) {
                 // 1st Press: Show micro HUD
+                PopoutCoordinator.claim("wifi")
                 root.hudVisible = true
                 root.isExpanded = false
             } else if (root.hudVisible && !root.isExpanded) {
                 // 2nd Press: Expand into full controller
+                PopoutCoordinator.claim("wifi")
                 root.isExpanded = true
                 root.hudVisible = false
                 statusProcess.running = true
@@ -120,6 +137,7 @@ Scope {
                 root.isExpanded = false
                 root.hudVisible = false
                 root.activePasswordSsid = ""
+                PopoutCoordinator.release("wifi")
             }
         }
     }

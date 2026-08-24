@@ -79,6 +79,20 @@ Scope {
         }
     }
 
+    onHideAllChanged: {
+        if (hideAll) PopoutCoordinator.release("bluetooth")
+    }
+
+    Connections {
+        target: PopoutCoordinator
+        function onActiveChanged() {
+            if (PopoutCoordinator.active !== "" && PopoutCoordinator.active !== "bluetooth") {
+                root.isExpanded = false
+                root.hudVisible = false
+            }
+        }
+    }
+
     // Global Shortcut Handler
     GlobalShortcut {
         name: "bluetoothToggle"
@@ -91,16 +105,19 @@ Scope {
 
             if (root.hideAll) {
                 // 1st Press: Show glance HUD
+                PopoutCoordinator.claim("bluetooth")
                 root.hudVisible = true
                 root.isExpanded = false
             } else if (root.hudVisible && !root.isExpanded) {
                 // 2nd Press: Expand into full controller
+                PopoutCoordinator.claim("bluetooth")
                 root.isExpanded = true
                 root.hudVisible = false
             } else {
                 // 3rd Press or while expanded: Close
                 root.isExpanded = false
                 root.hudVisible = false
+                PopoutCoordinator.release("bluetooth")
             }
         }
     }
@@ -368,7 +385,7 @@ Scope {
                     x: root.hideAll ? (parent.width + 30) : (parent.width - width)
                     y: root.hideAll ? -(height + 30) : 0
 
-                    width: root.isExpanded ? 390 : (btLabel.implicitWidth + Theme.rounding * 3)
+                    width: root.isExpanded ? 390 : (headerLeftRow.implicitWidth + Theme.rounding * 3)
                     height: root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) : (Theme.rounding * 2.5)
 
                     Behavior on width {
@@ -431,35 +448,68 @@ Scope {
                                 onClicked: {
                                     root.isExpanded = !root.isExpanded
                                     if (root.isExpanded) {
+                                        PopoutCoordinator.claim("bluetooth")
                                         root.hudVisible = false
                                     } else {
                                         root.hudVisible = false
+                                        PopoutCoordinator.release("bluetooth")
                                     }
                                 }
                             }
 
-                            // Device Label & Battery Text
-                            Text {
-                                id: btLabel
+                            // Device Label & Battery Pill Row
+                            RowLayout {
+                                id: headerLeftRow
                                 anchors.left: parent.left
+                                anchors.leftMargin: Theme.spacing
                                 anchors.top: parent.top
                                 anchors.topMargin: Theme.spacing
-                                anchors.leftMargin: Theme.spacing
-                                text: {
-                                    if (!root.adapter || !root.adapter.enabled) return "Bluetooth Off"
-                                    if (root.hasConnection) {
-                                        var label = root.primaryConnectedDevice.name || root.primaryConnectedDevice.deviceName || "Connected"
-                                        if (root.primaryConnectedDevice.batteryAvailable && root.primaryConnectedDevice.battery > 0) {
-                                            label += " " + Model.formatBattery(root.primaryConnectedDevice.battery)
+                                spacing: Theme.spacing
+
+                                Text {
+                                    id: btLabel
+                                    text: {
+                                        if (!root.adapter || !root.adapter.enabled) return "Bluetooth Off"
+                                        if (root.hasConnection) {
+                                            return root.primaryConnectedDevice.name || root.primaryConnectedDevice.deviceName || "Connected"
                                         }
-                                        return label
+                                        return "Bluetooth"
                                     }
-                                    return "Bluetooth"
+                                    color: root.hasConnection ? Theme.brand : (root.adapter && root.adapter.enabled ? Theme.lightForeground : Theme.darkForeground)
+                                    font.family: "Nuuxfont"
+                                    font.pixelSize: Theme.rounding
+                                    font.weight: Font.Bold
                                 }
-                                color: root.hasConnection ? Theme.brand : (root.adapter && root.adapter.enabled ? Theme.lightForeground : Theme.darkForeground)
-                                font.family: "Nuuxfont"
-                                font.pixelSize: Theme.rounding
-                                font.weight: Font.Bold
+
+                                // Small Pill Badge with Percentage as Number
+                                Rectangle {
+                                    id: batteryPill
+                                    visible: root.hasConnection && root.primaryConnectedDevice.batteryAvailable && root.primaryConnectedDevice.battery > 0
+                                    height: 18
+                                    width: batteryText.implicitWidth + 12
+                                    radius: 9
+                                    color: root.hasConnection && root.primaryConnectedDevice.battery < 0.2 
+                                        ? Qt.rgba(Theme.red.r, Theme.red.g, Theme.red.b, 0.25)
+                                        : (root.hasConnection && root.primaryConnectedDevice.battery < 0.4 
+                                            ? Qt.rgba(Theme.yellow.r, Theme.yellow.g, Theme.yellow.b, 0.25)
+                                            : Qt.rgba(Theme.brand.r, Theme.brand.g, Theme.brand.b, 0.25))
+                                    border.color: root.hasConnection && root.primaryConnectedDevice.battery < 0.2 
+                                        ? Theme.red 
+                                        : (root.hasConnection && root.primaryConnectedDevice.battery < 0.4 ? Theme.yellow : Theme.brand)
+                                    border.width: 1
+                                    Layout.alignment: Qt.AlignVCenter
+
+                                    Text {
+                                        id: batteryText
+                                        anchors.centerIn: parent
+                                        text: root.hasConnection ? Model.formatBattery(root.primaryConnectedDevice.battery) : ""
+                                        color: root.hasConnection && root.primaryConnectedDevice.battery < 0.2 
+                                            ? Theme.red 
+                                            : (root.hasConnection && root.primaryConnectedDevice.battery < 0.4 ? Theme.yellow : Theme.brand)
+                                        font.pixelSize: 10
+                                        font.bold: true
+                                    }
+                                }
                             }
 
                             // Bluetooth Nested Concentric Scoops (Matching aesthetic design)
@@ -570,33 +620,6 @@ Scope {
                                     }
                                 }
 
-                                // Blueman Manager Launcher Button (Commented out for future use)
-                                /*
-                                Rectangle {
-                                    width: 26
-                                    height: 26
-                                    radius: 6
-                                    color: Theme.surface
-                                    border.color: root.focusSection === "header" && root.headerIndex === 1 ? Theme.accent : Theme.selection
-                                    border.width: root.focusSection === "header" && root.headerIndex === 1 ? 1.5 : 1
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "󰒓"
-                                        color: Theme.lightForeground
-                                        font.pixelSize: 12
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        hoverEnabled: true
-                                        onEntered: { root.focusSection = "header"; root.headerIndex = 1 }
-                                        onClicked: root.launchBlueman()
-                                    }
-                                }
-                                */
-
                                 // Master Bluetooth Power Switch
                                 Rectangle {
                                     width: 40
@@ -691,13 +714,29 @@ Scope {
                                             Layout.fillWidth: true
                                         }
 
-                                        // Battery Percentage Badge
-                                        Text {
-                                            text: dev.batteryAvailable && dev.battery > 0 ? ("󰁹 " + Model.formatBattery(dev.battery)) : ""
-                                            color: dev.battery < 0.2 ? Theme.red : (dev.battery < 0.5 ? Theme.yellow : Theme.green)
-                                            font.pixelSize: 10
-                                            font.bold: true
-                                            visible: text !== ""
+                                        // Battery Percentage Pill Badge
+                                        Rectangle {
+                                            visible: dev.batteryAvailable && dev.battery > 0
+                                            height: 18
+                                            width: rowBatteryText.implicitWidth + 8
+                                            radius: 4
+                                            color: dev.battery < 0.2 
+                                                ? Qt.rgba(Theme.red.r, Theme.red.g, Theme.red.b, 0.2)
+                                                : (dev.battery < 0.4 
+                                                    ? Qt.rgba(Theme.yellow.r, Theme.yellow.g, Theme.yellow.b, 0.2)
+                                                    : Qt.rgba(Theme.brand.r, Theme.brand.g, Theme.brand.b, 0.2))
+                                            border.color: dev.battery < 0.2 ? Theme.red : (dev.battery < 0.4 ? Theme.yellow : Theme.brand)
+                                            border.width: 1
+                                            Layout.alignment: Qt.AlignVCenter
+
+                                            Text {
+                                                id: rowBatteryText
+                                                anchors.centerIn: parent
+                                                text: Model.formatBattery(dev.battery)
+                                                color: dev.battery < 0.2 ? Theme.red : (dev.battery < 0.4 ? Theme.yellow : Theme.brand)
+                                                font.pixelSize: 9
+                                                font.bold: true
+                                            }
                                         }
 
                                         // Forget / Unpair Button (For paired devices)
