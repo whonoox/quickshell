@@ -17,6 +17,13 @@ Scope {
     property real lastToggleTime: 0
     property bool focusPrimed: false
 
+    // Keyboard Navigation State
+    property string focusSection: "wifi" // "header" | "dns" | "wifi"
+    property int headerIndex: 2         // 0: QR, 1: Gauge, 2: Wi-Fi Switch
+    property int dnsIndex: 0            // 0: DHCP, 1: Cloudflare, 2: Google
+    property int selectedWifiIndex: 0
+    property bool wifiActionFocused: false
+
     // Wi-Fi Connection Properties
     readonly property var wifiDevice: Networking.devices.values.find(
         dev => dev.type === DeviceType.Wifi
@@ -63,6 +70,9 @@ Scope {
     property string activePasswordSsid: ""
     property string enteredPassword: ""
 
+    readonly property var sortedNetworks: root.wifiDevice && root.wifiDevice.networks ? Model.sortWifiRows(root.wifiDevice.networks.values.map(Model.wifiRow)) : []
+    readonly property int networksCount: sortedNetworks.length
+
     // Focus Priming Timer (Brief 75ms Exclusive focus so Hyprland transfers keyboard focus immediately)
     Timer {
         id: focusPrimeTimer
@@ -76,6 +86,9 @@ Scope {
         if (isExpanded) {
             focusPrimed = false
             focusPrimeTimer.restart()
+            focusSection = networksCount > 0 ? "wifi" : "dns"
+            selectedWifiIndex = 0
+            wifiActionFocused = false
         } else {
             focusPrimeTimer.stop()
             focusPrimed = false
@@ -208,9 +221,36 @@ Scope {
         }
     }
 
-    // ========================================================================
-    // Full-Screen Click Dismissal Layer (Mapped ONLY when expanded)
-    // ========================================================================
+    function activateHeader() {
+        if (root.headerIndex === 0 && root.hasConnection) {
+            Qt.createQmlObject('import Quickshell.Io; Process { running: true; command: ["omarchy-shell", "shell", "summon", "omarchy.wifiqr"] }', root)
+        } else if (root.headerIndex === 1) {
+            Qt.createQmlObject('import Quickshell.Io; Process { running: true; command: ["omarchy-shell", "shell", "summon", "omarchy.speedtest"] }', root)
+        } else if (root.headerIndex === 2) {
+            Networking.wifiEnabled = !Networking.wifiEnabled
+        }
+    }
+
+    function activateDns() {
+        var providers = ["DHCP", "Cloudflare", "Google"]
+        if (root.dnsIndex >= 0 && root.dnsIndex < providers.length) {
+            setDnsProvider(providers[root.dnsIndex])
+        }
+    }
+
+    function activateSelectedWifi() {
+        if (root.selectedWifiIndex >= 0 && root.selectedWifiIndex < root.networksCount) {
+            var row = root.sortedNetworks[root.selectedWifiIndex]
+            if (!row || !row.networkObject) return
+            if (row.connected) {
+                row.networkObject.disconnect()
+            } else {
+                connectToNetwork(row.networkObject)
+            }
+        }
+    }
+
+    // Multi-Monitor Twin Dismissal (Only for secondary monitors)
     Variants {
         model: root.isExpanded ? Quickshell.screens : []
 
@@ -218,6 +258,8 @@ Scope {
             PanelWindow {
                 required property var modelData
                 screen: modelData
+
+                visible: root.isExpanded && !!Quickshell.screens[0] && modelData.name !== Quickshell.screens[0].name
 
                 anchors.top: true
                 anchors.bottom: true
@@ -227,7 +269,7 @@ Scope {
                 color: "transparent"
                 exclusionMode: ExclusionMode.Ignore
 
-                WlrLayershell.namespace: "wifi-panel-dismiss"
+                WlrLayershell.namespace: "wifi-panel-twin-dismiss"
                 WlrLayershell.layer: WlrLayer.Overlay
                 WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
@@ -244,19 +286,19 @@ Scope {
         }
     }
 
-    // ========================================================================
-    // Main Wi-Fi Bar & Expanding Controller Window
-    // ========================================================================
+    // Main Wi-Fi Bar & Controller Window
     Variants {
-        model: Quickshell.screens
+        model: [Quickshell.screens[0]]
 
         PanelWindow {
             id: panelWindow
             required property var modelData
             screen: modelData
 
-            anchors.right: true
             anchors.top: true
+            anchors.bottom: true
+            anchors.left: true
+            anchors.right: true
 
             exclusionMode: ExclusionMode.Ignore
             color: "transparent"
@@ -268,20 +310,30 @@ Scope {
                 ? (root.focusPrimed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive)
                 : WlrKeyboardFocus.None
 
-            implicitWidth: 420
-            implicitHeight: 560
-
-            // Diagonal corner slide
-            margins.top: root.hideAll ? (root.isExpanded ? -560 : -(Theme.rounding * 2.5 + 20)) : 0
-            margins.right: root.hideAll ? (root.isExpanded ? -420 : -(wifiName.implicitWidth + Theme.rounding * 4)) : 0
-
-            Behavior on margins.top {
-                NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
-            }
-            Behavior on margins.right {
-                NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+            mask: Region {
+                item: root.isExpanded ? null : (!root.hideAll ? cardContainer : null)
+                width: root.isExpanded ? (panelWindow.screen ? panelWindow.screen.width : 1920) : 0
+                height: root.isExpanded ? (panelWindow.screen ? panelWindow.screen.height : 1080) : 0
             }
 
+            // ================================================================
+            // Layer 0: Backdrop Click Dismissal Area (BEHIND the card, active when expanded)
+            // ================================================================
+            MouseArea {
+                id: backdropDismissArea
+                anchors.fill: parent
+                enabled: root.isExpanded
+                acceptedButtons: Qt.AllButtons
+                onPressed: {
+                    root.isExpanded = false
+                    root.hudVisible = false
+                    root.activePasswordSsid = ""
+                }
+            }
+
+            // ================================================================
+            // Layer 1: Focus Scope & Keyboard Navigation
+            // ================================================================
             Item {
                 id: focusScope
                 anchors.fill: parent
@@ -300,22 +352,123 @@ Scope {
 
                 Keys.priority: Keys.BeforeItem
                 Keys.onPressed: function(event) {
+                    if (root.activePasswordSsid !== "") {
+                        if (event.key === Qt.Key_Escape) {
+                            root.activePasswordSsid = ""
+                            event.accepted = true
+                        }
+                        return
+                    }
+
                     if (event.key === Qt.Key_Escape) {
                         root.isExpanded = false
                         root.hudVisible = false
                         root.activePasswordSsid = ""
                         event.accepted = true
+                        return
+                    }
+
+                    // --- Arrow Down Navigation ---
+                    if (event.key === Qt.Key_Down) {
+                        if (root.focusSection === "header") {
+                            root.focusSection = "dns"
+                        } else if (root.focusSection === "dns") {
+                            if (root.networksCount > 0) {
+                                root.focusSection = "wifi"
+                                if (root.selectedWifiIndex < 0) root.selectedWifiIndex = 0
+                                root.wifiActionFocused = false
+                                networkList.positionViewAtIndex(root.selectedWifiIndex, ListView.Contain)
+                            }
+                        } else if (root.focusSection === "wifi") {
+                            if (root.selectedWifiIndex < root.networksCount - 1) {
+                                root.selectedWifiIndex++
+                                networkList.positionViewAtIndex(root.selectedWifiIndex, ListView.Contain)
+                            }
+                        }
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Arrow Up Navigation ---
+                    if (event.key === Qt.Key_Up) {
+                        if (root.focusSection === "wifi") {
+                            if (root.selectedWifiIndex > 0) {
+                                root.selectedWifiIndex--
+                                networkList.positionViewAtIndex(root.selectedWifiIndex, ListView.Contain)
+                            } else {
+                                root.focusSection = "dns"
+                                root.wifiActionFocused = false
+                            }
+                        } else if (root.focusSection === "dns") {
+                            root.focusSection = "header"
+                        }
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Arrow Left Navigation ---
+                    if (event.key === Qt.Key_Left) {
+                        if (root.focusSection === "header") {
+                            root.headerIndex = Math.max(0, root.headerIndex - 1)
+                        } else if (root.focusSection === "dns") {
+                            root.dnsIndex = Math.max(0, root.dnsIndex - 1)
+                        } else if (root.focusSection === "wifi") {
+                            root.wifiActionFocused = false
+                        }
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Arrow Right Navigation ---
+                    if (event.key === Qt.Key_Right) {
+                        if (root.focusSection === "header") {
+                            root.headerIndex = Math.min(2, root.headerIndex + 1)
+                        } else if (root.focusSection === "dns") {
+                            root.dnsIndex = Math.min(2, root.dnsIndex + 1)
+                        } else if (root.focusSection === "wifi") {
+                            root.wifiActionFocused = true
+                        }
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Tab / Shift+Tab Navigation ---
+                    if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+                        var forward = event.key === Qt.Key_Tab && !(event.modifiers & Qt.ShiftModifier)
+                        if (forward) {
+                            if (root.focusSection === "header") root.focusSection = "dns"
+                            else if (root.focusSection === "dns") root.focusSection = "wifi"
+                            else root.focusSection = "header"
+                        } else {
+                            if (root.focusSection === "wifi") root.focusSection = "dns"
+                            else if (root.focusSection === "dns") root.focusSection = "header"
+                            else root.focusSection = "wifi"
+                        }
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Activation (Return / Enter / Space) ---
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        if (root.focusSection === "header") {
+                            root.activateHeader()
+                        } else if (root.focusSection === "dns") {
+                            root.activateDns()
+                        } else if (root.focusSection === "wifi") {
+                            root.activateSelectedWifi()
+                        }
+                        event.accepted = true
+                        return
                     }
                 }
 
                 // ============================================================
                 // Pinned Right-Anchored Card Container
-                // Fits dynamically to children with full bottom padding & max height cap
                 // ============================================================
                 Item {
                     id: cardContainer
-                    anchors.right: parent.right
-                    anchors.top: parent.top
+                    x: root.hideAll ? (parent.width + 30) : (parent.width - width)
+                    y: root.hideAll ? -(height + 30) : 0
 
                     width: root.isExpanded ? 390 : (wifiName.implicitWidth + Theme.rounding * 3)
                     height: root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) : (Theme.rounding * 2.5)
@@ -326,15 +479,21 @@ Scope {
                     Behavior on height {
                         NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
                     }
+                    Behavior on x {
+                        NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+                    }
+                    Behavior on y {
+                        NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+                    }
 
-                    // Top-left Scoop (Glides smoothly along left edge)
+                    // Top-left Scoop
                     ScoopShape {
                         anchors.top: parent.top
                         anchors.left: parent.left
                         cornerPosition: scoopPosition.bottomLeft
                     }
 
-                    // Bottom-right Scoop (Anchored to bottom-right)
+                    // Bottom-right Scoop
                     ScoopShape {
                         anchors.bottom: parent.bottom
                         anchors.right: parent.right
@@ -351,7 +510,7 @@ Scope {
                         bottomLeftRadius: Theme.rounding
                         clip: true
 
-                        // Swallow clicks on card so they don't trigger outside dismissal
+                        // Swallow clicks inside card
                         MouseArea {
                             anchors.fill: parent
                             acceptedButtons: Qt.AllButtons
@@ -497,8 +656,8 @@ Scope {
                                     height: 26
                                     radius: 6
                                     color: Theme.surface
-                                    border.color: Theme.selection
-                                    border.width: 1
+                                    border.color: root.focusSection === "header" && root.headerIndex === 0 ? Theme.accent : Theme.selection
+                                    border.width: root.focusSection === "header" && root.headerIndex === 0 ? 1.5 : 1
                                     visible: root.hasConnection
 
                                     Image {
@@ -513,9 +672,9 @@ Scope {
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            var p = Qt.createQmlObject('import Quickshell.Io; Process { running: true; command: ["omarchy-shell", "shell", "summon", "omarchy.wifiqr"] }', root)
-                                        }
+                                        hoverEnabled: true
+                                        onEntered: { root.focusSection = "header"; root.headerIndex = 0 }
+                                        onClicked: root.activateHeader()
                                     }
                                 }
 
@@ -525,8 +684,8 @@ Scope {
                                     height: 26
                                     radius: 6
                                     color: Theme.surface
-                                    border.color: Theme.selection
-                                    border.width: 1
+                                    border.color: root.focusSection === "header" && root.headerIndex === 1 ? Theme.accent : Theme.selection
+                                    border.width: root.focusSection === "header" && root.headerIndex === 1 ? 1.5 : 1
 
                                     Image {
                                         anchors.centerIn: parent
@@ -540,9 +699,9 @@ Scope {
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            var p = Qt.createQmlObject('import Quickshell.Io; Process { running: true; command: ["omarchy-shell", "shell", "summon", "omarchy.speedtest"] }', root)
-                                        }
+                                        hoverEnabled: true
+                                        onEntered: { root.focusSection = "header"; root.headerIndex = 1 }
+                                        onClicked: root.activateHeader()
                                     }
                                 }
 
@@ -552,8 +711,8 @@ Scope {
                                     height: 22
                                     radius: 11
                                     color: Networking.wifiEnabled ? Theme.brand : Theme.selection
-                                    border.color: Networking.wifiEnabled ? Theme.brand : Theme.darkForeground
-                                    border.width: 1
+                                    border.color: root.focusSection === "header" && root.headerIndex === 2 ? Theme.foreground : (Networking.wifiEnabled ? Theme.brand : Theme.darkForeground)
+                                    border.width: root.focusSection === "header" && root.headerIndex === 2 ? 1.5 : 1
 
                                     Rectangle {
                                         width: 16
@@ -568,6 +727,8 @@ Scope {
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
+                                        hoverEnabled: true
+                                        onEntered: { root.focusSection = "header"; root.headerIndex = 2 }
                                         onClicked: Networking.wifiEnabled = !Networking.wifiEnabled
                                     }
                                 }
@@ -616,12 +777,13 @@ Scope {
                                     model: ["DHCP", "Cloudflare", "Google"]
                                     Rectangle {
                                         required property var modelData
+                                        required property int index
                                         Layout.fillWidth: true
                                         height: 22
                                         radius: 4
                                         color: root.activeDns === modelData ? Theme.brand : Theme.surface
-                                        border.color: root.activeDns === modelData ? Theme.brand : Theme.selection
-                                        border.width: 1
+                                        border.color: root.focusSection === "dns" && root.dnsIndex === index ? Theme.foreground : (root.activeDns === modelData ? Theme.brand : Theme.selection)
+                                        border.width: root.focusSection === "dns" && root.dnsIndex === index ? 1.5 : 1
 
                                         Text {
                                             anchors.centerIn: parent
@@ -634,6 +796,8 @@ Scope {
                                         MouseArea {
                                             anchors.fill: parent
                                             cursorShape: Qt.PointingHandCursor
+                                            hoverEnabled: true
+                                            onEntered: { root.focusSection = "dns"; root.dnsIndex = index }
                                             onClicked: root.setDnsProvider(modelData)
                                         }
                                     }
@@ -663,16 +827,17 @@ Scope {
                                 spacing: 4
                                 boundsBehavior: Flickable.StopAtBounds
 
-                                model: root.wifiDevice && root.wifiDevice.networks ? Model.sortWifiRows(root.wifiDevice.networks.values.map(Model.wifiRow)) : []
+                                model: root.sortedNetworks
 
                                 delegate: Rectangle {
                                     required property var modelData
+                                    required property int index
                                     width: networkList.width
                                     height: passwordBox.visible ? 68 : 30
                                     radius: 6
                                     color: modelData.connected ? Theme.selection : Theme.surface
-                                    border.color: modelData.connected ? Theme.brand : Theme.selection
-                                    border.width: 1
+                                    border.color: root.focusSection === "wifi" && root.selectedWifiIndex === index && !root.wifiActionFocused ? Theme.accent : (modelData.connected ? Theme.brand : Theme.selection)
+                                    border.width: root.focusSection === "wifi" && root.selectedWifiIndex === index && !root.wifiActionFocused ? 1.5 : 1
 
                                     ColumnLayout {
                                         anchors.fill: parent
@@ -711,8 +876,8 @@ Scope {
                                                 height: 20
                                                 radius: 4
                                                 color: modelData.connected ? Qt.rgba(Theme.red.r, Theme.red.g, Theme.red.b, 0.25) : Theme.brand
-                                                border.color: modelData.connected ? Theme.red : Theme.brand
-                                                border.width: 1
+                                                border.color: root.focusSection === "wifi" && root.selectedWifiIndex === index && root.wifiActionFocused ? Theme.foreground : (modelData.connected ? Theme.red : Theme.brand)
+                                                border.width: root.focusSection === "wifi" && root.selectedWifiIndex === index && root.wifiActionFocused ? 1.5 : 1
 
                                                 Text {
                                                     anchors.centerIn: parent
@@ -725,6 +890,8 @@ Scope {
                                                 MouseArea {
                                                     anchors.fill: parent
                                                     cursorShape: Qt.PointingHandCursor
+                                                    hoverEnabled: true
+                                                    onEntered: { root.focusSection = "wifi"; root.selectedWifiIndex = index; root.wifiActionFocused = true }
                                                     onClicked: {
                                                         if (modelData.connected) {
                                                             modelData.networkObject.disconnect()
@@ -810,6 +977,20 @@ Scope {
                                                     cursorShape: Qt.PointingHandCursor
                                                     onClicked: root.activePasswordSsid = ""
                                                 }
+                                            }
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        z: -1
+                                        hoverEnabled: true
+                                        onEntered: { root.focusSection = "wifi"; root.selectedWifiIndex = index; root.wifiActionFocused = false }
+                                        onClicked: {
+                                            if (modelData.connected) {
+                                                modelData.networkObject.disconnect()
+                                            } else {
+                                                root.connectToNetwork(modelData.networkObject)
                                             }
                                         }
                                     }

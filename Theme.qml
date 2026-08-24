@@ -9,10 +9,14 @@ QtObject {
     readonly property string home: Quickshell.env("HOME")
     readonly property string colorsPath: home + "/.local/state/omarchy/current/theme/colors.toml"
 
+    // Theme Mode ("dark" | "light")
+    property string mode: "dark"
+    readonly property bool isLight: mode === "light"
+
     // Primary Accents
     property color accent: "#82FB9C"
     property color brand: accent
-    readonly property color brandBgc: Qt.rgba(accent.r, accent.g, accent.b, 0.25)
+    readonly property color brandBgc: Qt.rgba(accent.r, accent.g, accent.b, isLight ? 0.2 : 0.25)
 
     // Full Palette Colors
     property color red: "#50f872"
@@ -24,22 +28,22 @@ QtObject {
     property color magenta: "#86a7df"
     property color brown: "#287b51"
 
-    // Surfaces & Depth
-    property color background: "#0B0C16"
-    property color bgc: background
-    property color darkBackground: "#080910"
-    property color darkerBackground: "#06060c"
-    property color lighterBackground: "#151828"
+    // Surfaces & Depth: Pure black in dark mode, pure white in light mode
+    readonly property color bgc: isLight ? "#ffffff" : "#000000"
+    readonly property color background: bgc
+    property color darkBackground: isLight ? "#f0f0f0" : "#080910"
+    property color darkerBackground: isLight ? "#e5e5e5" : "#06060c"
+    property color lighterBackground: isLight ? "#f8f8f8" : "#151828"
     property color surface: lighterBackground
-    property color selection: "#1f253a"
+    property color selection: isLight ? "#e2e8f0" : "#1f253a"
 
     // Text & Hierarchy
-    property color foreground: "#ddf7ff"
-    property color fgc: foreground
-    property color brightForeground: "#ddf7ff"
-    property color lightForeground: "#b5c5db"
-    property color darkForeground: "#6a6e95"
-    property color muted: "#2d3450"
+    property color foreground: isLight ? "#1a1a1a" : "#ddf7ff"
+    readonly property color fgc: foreground
+    property color brightForeground: isLight ? "#000000" : "#ddf7ff"
+    property color lightForeground: isLight ? "#4a5568" : "#b5c5db"
+    property color darkForeground: isLight ? "#718096" : "#6a6e95"
+    property color muted: isLight ? "#a0aec0" : "#2d3450"
     property color urgent: red
 
     // Dimensions
@@ -63,8 +67,11 @@ QtObject {
 
     function loadColors(text) {
         var d = parseToml(text)
+        if (d.mode) {
+            root.mode = d.mode.toLowerCase()
+        }
+
         if (d.accent) root.accent = d.accent
-        if (d.background) root.background = d.background
         if (d.dark_background) root.darkBackground = d.dark_background
         if (d.darker_background) root.darkerBackground = d.darker_background
         if (d.lighter_background) root.lighterBackground = d.lighter_background
@@ -85,10 +92,18 @@ QtObject {
     }
 
     property FileView colorsFile: FileView {
+        id: colorsFile
         path: root.colorsPath
         watchChanges: true
         printErrors: false
         onLoaded: root.loadColors(text())
         onFileChanged: reload()
+    }
+
+    Component.onCompleted: {
+        colorsFile.reload()
+        if (colorsFile.text()) {
+            root.loadColors(colorsFile.text())
+        }
     }
 }
