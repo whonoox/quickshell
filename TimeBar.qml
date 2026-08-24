@@ -1,100 +1,251 @@
 import Quickshell
 import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
 import Quickshell.Hyprland
+import Quickshell.Wayland
 
-Scope{  
+Scope {
     id: root
-    readonly property string time: {
-        Qt.formatDateTime(clock.date, "hh:mm:ss AP")
-    }
 
-    property bool hideBar: false
+    property bool hudVisible: false
+    property bool isExpanded: false
+    readonly property bool hideAll: !hudVisible && !isExpanded
+    property real lastToggleTime: 0
 
     SystemClock {
         id: clock
-        precision: SystemClock.Seconds
+        precision: root.hideAll ? SystemClock.Minutes : SystemClock.Seconds
     }
 
-    GlobalShortcut{
-        name: "timeToggle"
-        description: "Show the current time with the panel window"
-        appid: "quickshell"
-        onPressed: {
-            root.hideBar = !root.hideBar
-            clock.precision = SystemClock.Seconds
+    readonly property string time: Qt.formatDateTime(clock.date, "hh:mm:ss AP")
+    readonly property string day: Qt.formatDateTime(clock.date, "dddd").toUpperCase()
+    readonly property string date: Qt.formatDateTime(clock.date, "MMM dd, yyyy")
+
+    onHideAllChanged: {
+        if (hideAll) {
+            isExpanded = false
+            hudVisible = false
+            PopoutCoordinator.release("time")
         }
     }
 
-    // Timer {
-    //     interval: 3000
-    //     running: !root.hideBar
-    //     onTriggered: {
-    //         root.hideBar = true
-    //         clock.precision = SystemClock.Hours
-    //     }
-    // }
+    Connections {
+        target: PopoutCoordinator
+        function onActiveChanged() {
+            if (PopoutCoordinator.active !== "" && PopoutCoordinator.active !== "time") {
+                root.isExpanded = false
+                root.hudVisible = false
+            }
+        }
+    }
 
+    // Auto-hide Timer: Active for both views, auto-collapsing and moving off-screen
+    Timer {
+        id: autoHideTimer
+        interval: 3500
+        running: !root.hideAll
+        onTriggered: {
+            root.isExpanded = false
+            root.hudVisible = false
+        }
+    }
+
+    // Global Shortcut Handler
+    GlobalShortcut {
+        name: "timeToggle"
+        description: "Show Time HUD on first press, expand Date on second press"
+        appid: "quickshell"
+        onPressed: {
+            var now = Date.now()
+            if (now - root.lastToggleTime < 250) return
+            root.lastToggleTime = now
+
+            if (root.hideAll) {
+                // 1st Press: Show time glance HUD
+                PopoutCoordinator.claim("time")
+                root.hudVisible = true
+                root.isExpanded = false
+                autoHideTimer.restart()
+            } else if (root.hudVisible && !root.isExpanded) {
+                // 2nd Press: Expand into date view and reset timer
+                PopoutCoordinator.claim("time")
+                root.isExpanded = true
+                root.hudVisible = false
+                autoHideTimer.restart()
+            } else {
+                // 3rd Press or while expanded: Collapse and close
+                root.isExpanded = false
+                root.hudVisible = false
+                PopoutCoordinator.release("time")
+            }
+        }
+    }
+
+    // Main Top-Center Island Window
     Variants {
-        model: Quickshell.screens
+        model: [Quickshell.screens[0]]
 
         PanelWindow {
+            id: panelWindow
             required property var modelData
-            property real blockPadding: Theme.rounding
-            property real inlinePadding: Theme.rounding
-           
             screen: modelData
-            anchors {
-                top:true
-            }
 
-            exclusionMode: ExclusionMode.Normal
-            margins.top: root.hideBar ? implicitHeight * -1 : 0
+            anchors.top: true
+            anchors.left: true
+            anchors.right: true
 
-            implicitHeight: child.height + blockPadding
-            implicitWidth: child.width + 3 * inlinePadding
-
+            exclusionMode: ExclusionMode.Ignore
             color: "transparent"
 
-            Rectangle{
-                anchors.fill: parent
-                anchors.leftMargin: Theme.rounding 
-                anchors.rightMargin: Theme.rounding
-                color: Theme.bgc
-                bottomLeftRadius: Theme.rounding
-                bottomRightRadius: Theme.rounding
+            WlrLayershell.namespace: "time-panel-main"
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+            // Strict mask: only the visible island captures input; 100% click-through elsewhere
+            mask: Region {
+                item: !root.hideAll ? cardContainer : null
             }
 
-            // Rectangle{
-            //     anchors.fill: parent
-            //     anchors.leftMargin: Theme.rounding + Theme.spacing
-            //     anchors.rightMargin: Theme.rounding + Theme.spacing
-            //     anchors.bottomMargin: Theme.spacing
-            //     color: Theme.brandBgc
-            //     bottomLeftRadius: Theme.rounding - Theme.spacing
-            //     bottomRightRadius: Theme.rounding - Theme.spacing
-            //     topRightRadius: Theme.spacing
-            //     topLeftRadius: Theme.spacing
-            // }
+            // ================================================================
+            // Centered Top-Anchored Card Container
+            // Smoothly expands width and height, slides vertically off-screen
+            // ================================================================
+            Item {
+                id: cardContainer
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: root.hideAll ? -(height + 20) : 0
 
-            ScoopShape{
-                cornerPosition: scoopPosition.bottomLeft
-            }
+                width: root.isExpanded 
+                    ? Math.max(timeText.implicitWidth, dayText.implicitWidth, dateText.implicitWidth) + Theme.rounding * 4
+                    : (timeText.implicitWidth + Theme.rounding * 3)
 
+                height: root.isExpanded
+                    ? (summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing)
+                    : (Theme.rounding * 2.5)
 
-            Text{
-                id: child
-                text: root.time
-                color: Theme.brand
-                anchors.centerIn: parent
-                font.family: "Nuuxfont"
-                font.pixelSize: 28
-                font.weight: Font.Bold
+                Behavior on width {
+                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                }
+                Behavior on height {
+                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                }
+                Behavior on y {
+                    NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+                }
+
+                // Top-Left Scoop (Left edge connecting to top bezel)
+                ScoopShape {
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    cornerPosition: scoopPosition.bottomLeft
+                }
+
+                // Top-Right Scoop (Right edge connecting to top bezel)
+                ScoopShape {
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    cornerPosition: scoopPosition.bottomRight
+                }
+
+                // Main Background Container
+                Rectangle {
+                    id: background
+                    anchors.fill: parent
+                    anchors.leftMargin: Theme.rounding
+                    anchors.rightMargin: Theme.rounding
+                    anchors.bottomMargin: Theme.rounding
+                    color: Theme.bgc
+                    bottomLeftRadius: Theme.rounding
+                    bottomRightRadius: Theme.rounding
+                    clip: true
+
+                    // Click to cycle between collapsed and expanded views with timer reset
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.isExpanded = !root.isExpanded
+                            autoHideTimer.restart()
+                            if (root.isExpanded) {
+                                PopoutCoordinator.claim("time")
+                                root.hudVisible = false
+                            } else {
+                                root.hudVisible = true
+                            }
+                        }
+                    }
+
+                    // ====================================================
+                    // 1. SUMMARY (Time Header - Always Visible)
+                    // ====================================================
+                    Item {
+                        id: summaryHeader
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        height: Theme.rounding * 2.5 - Theme.rounding
+
+                        Text {
+                            id: timeText
+                            anchors.centerIn: parent
+                            text: root.time
+                            color: Theme.brand
+                            font.family: "Nuuxfont"
+                            font.pixelSize: 22
+                            font.weight: Font.Bold
+                        }
+                    }
+
+                    // ====================================================
+                    // 2. DETAILS (Day & Date - Visible when expanded)
+                    // ====================================================
+                    ColumnLayout {
+                        id: detailsColumn
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: summaryHeader.bottom
+                        anchors.leftMargin: Theme.spacing * 2
+                        anchors.rightMargin: Theme.spacing * 2
+                        spacing: Theme.spacing
+                        visible: root.isExpanded
+                        opacity: root.isExpanded ? 1 : 0
+
+                        Behavior on opacity {
+                            NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 1
+                            color: Theme.selection
+                        }
+
+                        // Day of the Week (Prominent and larger in Nuuxfont)
+                        Text {
+                            id: dayText
+                            Layout.alignment: Qt.AlignHCenter
+                            text: root.day
+                            color: Theme.brand
+                            font.family: "Nuuxfont"
+                            font.pixelSize: 30
+                            font.weight: Font.Bold
+                            font.capitalization: Font.AllUppercase
+                        }
+
+                        // Formatted Date (Same 22px size as Time)
+                        Text {
+                            id: dateText
+                            Layout.alignment: Qt.AlignHCenter
+                            text: root.date
+                            color: Theme.lightForeground
+                            font.family: "Nuuxfont"
+                            font.pixelSize: 22
+                            font.weight: Font.Normal
+                        }
+                    }
+                }
             }
-            ScoopShape{
-                anchors.right: parent.right
-                cornerPosition: scoopPosition.bottomRight
-            }
-            
         }
     }
 }
