@@ -1,152 +1,784 @@
 import Quickshell
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell.Bluetooth
 import Quickshell.Hyprland
+import Quickshell.Wayland
 import Quickshell.Io
+import "BluetoothModel.js" as Model
 
-
-Scope{  
+Scope {
     id: root
-    
-    property bool hideBar: true
-    property bool bluemanRunning: false
-    readonly property BluetoothDevice connectedBluetoothDevice: Bluetooth.devices.values.find(
-        dev => dev.connected === true
-    )
 
-    GlobalShortcut{
+    property bool hudVisible: false
+    property bool isExpanded: false
+    readonly property bool hideAll: !hudVisible && !isExpanded
+    property real lastToggleTime: 0
+    property bool focusPrimed: false
+
+    // Keyboard Navigation State
+    property string focusSection: "devices" // "header" | "devices"
+    property int headerIndex: 1            // 0: Scan, 1: Bluetooth Power Switch
+    property int selectedDeviceIndex: 0
+    property bool deviceActionFocused: false
+
+    // Bluetooth Adapter & Devices
+    readonly property var adapter: Bluetooth.defaultAdapter
+    readonly property var allDevices: Bluetooth.devices ? Bluetooth.devices.values : []
+    readonly property var deviceGroups: Model.deviceLists(allDevices)
+
+    readonly property var connectedDevices: deviceGroups.connected || []
+    readonly property var knownDevices: deviceGroups.known || []
+    readonly property var discoveredDevices: deviceGroups.discovered || []
+
+    readonly property var primaryConnectedDevice: connectedDevices.length > 0 ? connectedDevices[0] : null
+    readonly property bool hasConnection: primaryConnectedDevice !== null
+
+    // Flattened List of all interactive devices for unified ListView and keyboard navigation
+    readonly property var flattenedDevices: {
+        var list = []
+        for (var c = 0; c < connectedDevices.length; c++) {
+            list.push({ section: "connected", data: connectedDevices[c] })
+        }
+        for (var k = 0; k < knownDevices.length; k++) {
+            list.push({ section: "known", data: knownDevices[k] })
+        }
+        if (adapter && adapter.discovering) {
+            for (var d = 0; d < discoveredDevices.length; d++) {
+                list.push({ section: "discovered", data: discoveredDevices[d] })
+            }
+        }
+        return list
+    }
+    readonly property int totalDeviceCount: flattenedDevices.length
+
+    // Focus Priming Timer (75ms Exclusive focus so Hyprland transfers keyboard focus immediately)
+    Timer {
+        id: focusPrimeTimer
+        interval: 75
+        onTriggered: {
+            if (root.isExpanded) root.focusPrimed = true
+        }
+    }
+
+    onIsExpandedChanged: {
+        if (isExpanded) {
+            focusPrimed = false
+            focusPrimeTimer.restart()
+            focusSection = totalDeviceCount > 0 ? "devices" : "header"
+            selectedDeviceIndex = 0
+            deviceActionFocused = false
+        } else {
+            focusPrimeTimer.stop()
+            focusPrimed = false
+            // Auto stop discovery on close if running
+            if (adapter && adapter.discovering) {
+                adapter.discovering = false
+            }
+        }
+    }
+
+    // Global Shortcut Handler
+    GlobalShortcut {
         name: "bluetoothToggle"
-        description: "Show the current bluetooth information with the panel window"
+        description: "Show Bluetooth HUD on first press, expand Controller on second press"
         appid: "quickshell"
         onPressed: {
-            if(hideBar){
-                hideBar = !hideBar
-            }
-            else{
-                if(bluemanRunning){
-                    bluemanRunning = false
-                    bluemanKiller.running = true
-                }
-                else{
-                    bluemanRunning = true
-                    blueman.running = true
-                }
+            var now = Date.now()
+            if (now - root.lastToggleTime < 250) return
+            root.lastToggleTime = now
+
+            if (root.hideAll) {
+                // 1st Press: Show glance HUD
+                root.hudVisible = true
+                root.isExpanded = false
+            } else if (root.hudVisible && !root.isExpanded) {
+                // 2nd Press: Expand into full controller
+                root.isExpanded = true
+                root.hudVisible = false
+            } else {
+                // 3rd Press or while expanded: Close
+                root.isExpanded = false
+                root.hudVisible = false
             }
         }
     }
 
-    Process {
-        id: blueman
-        running: false
-        command: ["hyprctl", "dispatch", "exec", "[float; size 750 500; center] blueman-manager"]
-        // command: Hyprland.dispatch("exec [float; size 750 500; center] blueman-manager")
-    }
-
-    Process {
-        id: bluemanKiller
-        running: false
-        command: ["pkill", "blueman-manager"]
-    }
-
+    // Auto-hide Timer for Glance HUD (only active when collapsed)
     Timer {
+        id: autoHideTimer
         interval: 3000
-        running: !hideBar && !bluemanbRunning
+        running: root.hudVisible && !root.isExpanded
         onTriggered: {
-            hideBar = true
+            root.hudVisible = false
         }
     }
 
+    // Helper Actions
+    function toggleDiscovery() {
+        if (adapter) adapter.discovering = !adapter.discovering
+    }
 
+    function togglePower() {
+        if (adapter) adapter.enabled = !adapter.enabled
+    }
+
+    function launchBlueman() {
+        Quickshell.execDetached(["hyprctl", "dispatch", "exec", "[float; size 750 500; center] blueman-manager"])
+    }
+
+    function connectDevice(dev) {
+        if (!dev || !dev.address) return
+        Quickshell.execDetached(["omarchy-bluetooth-device", dev.paired ? "connect" : "pair", dev.address])
+    }
+
+    function disconnectDevice(dev) {
+        if (!dev || !dev.address) return
+        Quickshell.execDetached(["omarchy-bluetooth-device", "disconnect", dev.address])
+    }
+
+    function forgetDevice(dev) {
+        if (!dev || !dev.address) return
+        Quickshell.execDetached(["omarchy-bluetooth-device", "forget", dev.address])
+    }
+
+    function activateHeader() {
+        if (root.headerIndex === 0) {
+            toggleDiscovery()
+        } else if (root.headerIndex === 1) {
+            togglePower()
+        }
+    }
+
+    function activateSelectedDevice() {
+        if (root.selectedDeviceIndex >= 0 && root.selectedDeviceIndex < root.totalDeviceCount) {
+            var item = root.flattenedDevices[root.selectedDeviceIndex]
+            if (!item || !item.data) return
+            var dev = item.data
+
+            if (root.deviceActionFocused && item.section === "known") {
+                forgetDevice(dev)
+            } else if (dev.connected) {
+                disconnectDevice(dev)
+            } else {
+                connectDevice(dev)
+            }
+        }
+    }
+
+    // Multi-Monitor Twin Dismissal (For secondary monitors only)
     Variants {
-            model: Quickshell.screens
+        model: root.isExpanded ? Quickshell.screens : []
 
+        delegate: Component {
             PanelWindow {
                 required property var modelData
-
                 screen: modelData
 
-                anchors.right: true
+                visible: root.isExpanded && !!Quickshell.screens[0] && modelData.name !== Quickshell.screens[0].name
+
                 anchors.top: true
+                anchors.bottom: true
+                anchors.left: true
+                anchors.right: true
 
-                exclusionMode: ExclusionMode.Normal
-
-                implicitHeight: Theme.rounding * 2.5
-                implicitWidth: wifiName.implicitWidth + Theme.rounding * 3
                 color: "transparent"
+                exclusionMode: ExclusionMode.Ignore
 
-                margins.right: root.hideBar ? implicitWidth * -1 : 0
-                margins.top: root.hideBar ? implicitHeight * -1 : 0
+                WlrLayershell.namespace: "bluetooth-panel-twin-dismiss"
+                WlrLayershell.layer: WlrLayer.Overlay
+                WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-                ScoopShape{
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    cornerPosition: scoopPosition.bottomLeft
-                }
-
-                Rectangle {
-                    id: background
+                MouseArea {
                     anchors.fill: parent
-                    anchors.leftMargin: Theme.rounding
-                    anchors.bottomMargin: Theme.rounding
-                    color: Theme.bgc
-                    bottomLeftRadius: Theme.rounding
+                    acceptedButtons: Qt.AllButtons
+                    onPressed: {
+                        root.isExpanded = false
+                        root.hudVisible = false
+                    }
                 }
+            }
+        }
+    }
 
-                Text{
-                    id: wifiName
-                    anchors.left: background.left
-                    anchors.verticalCenter: background.verticalCenter
-                    anchors.leftMargin: Theme.spacing
-                    text: connectedBluetoothDevice.name + " " + connectedBluetoothDevice.battery * 100
-                    color: Theme.brand
-                    font.family: "Nuuxfont"
-                    font.pixelSize: Theme.rounding
-                    font.weight: Font.Bold  
-                }
+    // Main Bluetooth Bar & Controller Window
+    Variants {
+        model: [Quickshell.screens[0]]
 
-                // BluetoothIcon {
-                //     anchors.right: parent.right
-                //     anchors.top: parent.top
-                //     size: 28
-                //     color: connectedBluetoothDevice ? Theme.brand : Theme.brandBgc
-                // } 
+        PanelWindow {
+            id: panelWindow
+            required property var modelData
+            screen: modelData
 
-                ScoopShape{
-                    bgColor: Theme.brand
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    cornerPosition: scoopPosition.bottomLeft
-                }
+            anchors.top: true
+            anchors.bottom: true
+            anchors.left: true
+            anchors.right: true
 
-                ScoopShape{
-                    bgColor: Theme.brand
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    anchors.rightMargin: Theme.spacing
-                    anchors.topMargin: Theme.spacing
-                    scale: 0.7
-                    cornerPosition: scoopPosition.bottomLeft
-                }
+            exclusionMode: ExclusionMode.Ignore
+            color: "transparent"
 
-                ScoopShape{
-                    bgColor: Theme.brand
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    anchors.rightMargin: Theme.spacing * 2
-                    anchors.topMargin: Theme.spacing * 2
-                    scale: 0.5
-                    cornerPosition: scoopPosition.bottomLeft
-                }
-                
+            WlrLayershell.namespace: "bluetooth-panel-main"
+            WlrLayershell.layer: WlrLayer.Overlay
+            // Exclusive prime for 75ms forces Hyprland to transfer focus immediately, then settles on OnDemand
+            WlrLayershell.keyboardFocus: root.isExpanded
+                ? (root.focusPrimed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive)
+                : WlrKeyboardFocus.None
 
+            // When collapsed: only cardContainer is clickable (0 blocked pixels elsewhere)
+            // When expanded: full-screen mask enables backdrop outside-click dismissal
+            mask: Region {
+                item: root.isExpanded ? null : (!root.hideAll ? cardContainer : null)
+                width: root.isExpanded ? (panelWindow.screen ? panelWindow.screen.width : 1920) : 0
+                height: root.isExpanded ? (panelWindow.screen ? panelWindow.screen.height : 1080) : 0
+            }
 
-                ScoopShape{
-                    anchors.bottom: parent.bottom
-                    anchors.right: parent.right
-                    cornerPosition: scoopPosition.bottomLeft
+            // ================================================================
+            // Layer 0: Backdrop Click Dismissal Area (BEHIND the card, active when expanded)
+            // ================================================================
+            MouseArea {
+                id: backdropDismissArea
+                anchors.fill: parent
+                enabled: root.isExpanded
+                acceptedButtons: Qt.AllButtons
+                onPressed: {
+                    root.isExpanded = false
+                    root.hudVisible = false
                 }
             }
 
+            // ================================================================
+            // Layer 1: Focus Scope & Card Container (IN FRONT of Layer 0)
+            // ================================================================
+            Item {
+                id: focusScope
+                anchors.fill: parent
+                focus: true
+
+                Connections {
+                    target: root
+                    function onIsExpandedChanged() {
+                        if (root.isExpanded) {
+                            Qt.callLater(function() {
+                                focusScope.forceActiveFocus()
+                            })
+                        }
+                    }
+                }
+
+                Keys.priority: Keys.BeforeItem
+                Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Escape) {
+                        root.isExpanded = false
+                        root.hudVisible = false
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Arrow Down Navigation ---
+                    if (event.key === Qt.Key_Down) {
+                        if (root.focusSection === "header") {
+                            if (root.totalDeviceCount > 0) {
+                                root.focusSection = "devices"
+                                if (root.selectedDeviceIndex < 0) root.selectedDeviceIndex = 0
+                                root.deviceActionFocused = false
+                                deviceList.positionViewAtIndex(root.selectedDeviceIndex, ListView.Contain)
+                            }
+                        } else if (root.focusSection === "devices") {
+                            if (root.selectedDeviceIndex < root.totalDeviceCount - 1) {
+                                root.selectedDeviceIndex++
+                                root.deviceActionFocused = false
+                                deviceList.positionViewAtIndex(root.selectedDeviceIndex, ListView.Contain)
+                            }
+                        }
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Arrow Up Navigation ---
+                    if (event.key === Qt.Key_Up) {
+                        if (root.focusSection === "devices") {
+                            if (root.selectedDeviceIndex > 0) {
+                                root.selectedDeviceIndex--
+                                root.deviceActionFocused = false
+                                deviceList.positionViewAtIndex(root.selectedDeviceIndex, ListView.Contain)
+                            } else {
+                                root.focusSection = "header"
+                            }
+                        }
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Arrow Left Navigation ---
+                    if (event.key === Qt.Key_Left) {
+                        if (root.focusSection === "header") {
+                            root.headerIndex = Math.max(0, root.headerIndex - 1)
+                        } else if (root.focusSection === "devices") {
+                            root.deviceActionFocused = false
+                        }
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Arrow Right Navigation ---
+                    if (event.key === Qt.Key_Right) {
+                        if (root.focusSection === "header") {
+                            root.headerIndex = Math.min(1, root.headerIndex + 1)
+                        } else if (root.focusSection === "devices") {
+                            root.deviceActionFocused = true
+                        }
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Tab / Shift+Tab Navigation ---
+                    if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+                        var forward = event.key === Qt.Key_Tab && !(event.modifiers & Qt.ShiftModifier)
+                        if (forward) {
+                            if (root.focusSection === "header") root.focusSection = "devices"
+                            else root.focusSection = "header"
+                        } else {
+                            if (root.focusSection === "devices") root.focusSection = "header"
+                            else root.focusSection = "devices"
+                        }
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Activation (Return / Enter / Space) ---
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        if (root.focusSection === "header") {
+                            root.activateHeader()
+                        } else if (root.focusSection === "devices") {
+                            root.activateSelectedDevice()
+                        }
+                        event.accepted = true
+                        return
+                    }
+                }
+
+                // ============================================================
+                // Pinned Right-Anchored Card Container
+                // Fits dynamically to children with full bottom padding & max height cap
+                // ============================================================
+                Item {
+                    id: cardContainer
+                    x: root.hideAll ? (parent.width + 30) : (parent.width - width)
+                    y: root.hideAll ? -(height + 30) : 0
+
+                    width: root.isExpanded ? 390 : (btLabel.implicitWidth + Theme.rounding * 3)
+                    height: root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) : (Theme.rounding * 2.5)
+
+                    Behavior on width {
+                        NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                    }
+                    Behavior on height {
+                        NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                    }
+                    Behavior on x {
+                        NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+                    }
+                    Behavior on y {
+                        NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+                    }
+
+                    // Top-left Scoop (Glides smoothly along left edge)
+                    ScoopShape {
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        cornerPosition: scoopPosition.bottomLeft
+                    }
+
+                    // Bottom-right Scoop (Anchored to bottom-right)
+                    ScoopShape {
+                        anchors.bottom: parent.bottom
+                        anchors.right: parent.right
+                        cornerPosition: scoopPosition.bottomLeft
+                    }
+
+                    // Main Background Container
+                    Rectangle {
+                        id: background
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.rounding
+                        anchors.bottomMargin: Theme.rounding
+                        color: Theme.bgc
+                        bottomLeftRadius: Theme.rounding
+                        clip: true
+
+                        // Swallow clicks on card so they do NOT bubble to Layer 0 backdrop
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.AllButtons
+                        }
+
+                        // ====================================================
+                        // 1. SUMMARY (Header - Always Visible)
+                        // ====================================================
+                        Item {
+                            id: summaryHeader
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            height: Theme.rounding * 2.5 - Theme.rounding
+
+                            // Click header to toggle expansion
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.isExpanded = !root.isExpanded
+                                    if (root.isExpanded) {
+                                        root.hudVisible = false
+                                    } else {
+                                        root.hudVisible = false
+                                    }
+                                }
+                            }
+
+                            // Device Label & Battery Text
+                            Text {
+                                id: btLabel
+                                anchors.left: parent.left
+                                anchors.top: parent.top
+                                anchors.topMargin: Theme.spacing
+                                anchors.leftMargin: Theme.spacing
+                                text: {
+                                    if (!root.adapter || !root.adapter.enabled) return "Bluetooth Off"
+                                    if (root.hasConnection) {
+                                        var label = root.primaryConnectedDevice.name || root.primaryConnectedDevice.deviceName || "Connected"
+                                        if (root.primaryConnectedDevice.batteryAvailable && root.primaryConnectedDevice.battery > 0) {
+                                            label += " " + Model.formatBattery(root.primaryConnectedDevice.battery)
+                                        }
+                                        return label
+                                    }
+                                    return "Bluetooth"
+                                }
+                                color: root.hasConnection ? Theme.brand : (root.adapter && root.adapter.enabled ? Theme.lightForeground : Theme.darkForeground)
+                                font.family: "Nuuxfont"
+                                font.pixelSize: Theme.rounding
+                                font.weight: Font.Bold
+                            }
+
+                            // Bluetooth Nested Concentric Scoops (Matching aesthetic design)
+                            ScoopShape {
+                                bgColor: root.hasConnection ? Theme.brand : Theme.brandBgc
+                                anchors.top: parent.top
+                                anchors.right: parent.right
+                                cornerPosition: scoopPosition.bottomLeft
+                            }
+
+                            ScoopShape {
+                                bgColor: root.hasConnection ? Theme.brand : Theme.brandBgc
+                                anchors.top: parent.top
+                                anchors.right: parent.right
+                                anchors.rightMargin: Theme.spacing
+                                anchors.topMargin: Theme.spacing
+                                scale: 0.7
+                                cornerPosition: scoopPosition.bottomLeft
+                            }
+
+                            ScoopShape {
+                                bgColor: root.hasConnection ? Theme.brand : Theme.brandBgc
+                                anchors.top: parent.top
+                                anchors.right: parent.right
+                                anchors.rightMargin: Theme.spacing * 2
+                                anchors.topMargin: Theme.spacing * 2
+                                scale: 0.5
+                                cornerPosition: scoopPosition.bottomLeft
+                            }
+                        }
+
+                        // ====================================================
+                        // 2. DETAILS (Second Child - Below Header When Expanded)
+                        // ====================================================
+                        ColumnLayout {
+                            id: detailsColumn
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: summaryHeader.bottom
+                            anchors.leftMargin: Theme.spacing * 2
+                            anchors.rightMargin: Theme.spacing * 2
+                            anchors.topMargin: Theme.spacing
+                            spacing: Theme.spacing * 1.5
+                            visible: root.isExpanded
+                            opacity: root.isExpanded ? 1 : 0
+
+                            Behavior on opacity {
+                                NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 1
+                                color: Theme.selection
+                            }
+
+                            // --- Quick Actions / Controls Bar (Status on Left, Actions on Right) ---
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacing
+
+                                Text {
+                                    text: {
+                                        if (!root.adapter || !root.adapter.enabled) return "BLUETOOTH OFF"
+                                        if (root.adapter.discovering) return "SCANNING..."
+                                        if (root.connectedDevices.length > 0) return "CONNECTED (" + root.connectedDevices.length + ")"
+                                        return "NOT CONNECTED"
+                                    }
+                                    color: {
+                                        if (!root.adapter || !root.adapter.enabled) return Theme.red
+                                        if (root.adapter.discovering) return Theme.cyan
+                                        if (root.connectedDevices.length > 0) return Theme.brand
+                                        return Theme.yellow
+                                    }
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+
+                                // Spacer to push action buttons strictly to the right
+                                Item {
+                                    Layout.fillWidth: true
+                                }
+
+                                // Scan / Discovery Toggle Button
+                                Rectangle {
+                                    width: 26
+                                    height: 26
+                                    radius: 6
+                                    color: (root.adapter && root.adapter.discovering) ? Qt.rgba(Theme.cyan.r, Theme.cyan.g, Theme.cyan.b, 0.25) : Theme.surface
+                                    border.color: root.focusSection === "header" && root.headerIndex === 0 ? Theme.accent : (root.adapter && root.adapter.discovering ? Theme.cyan : Theme.selection)
+                                    border.width: root.focusSection === "header" && root.headerIndex === 0 ? 1.5 : 1
+                                    visible: root.adapter && root.adapter.enabled
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "󰂰"
+                                        color: (root.adapter && root.adapter.discovering) ? Theme.cyan : Theme.lightForeground
+                                        font.pixelSize: 13
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        hoverEnabled: true
+                                        onEntered: { root.focusSection = "header"; root.headerIndex = 0 }
+                                        onClicked: root.toggleDiscovery()
+                                    }
+                                }
+
+                                // Blueman Manager Launcher Button (Commented out for future use)
+                                /*
+                                Rectangle {
+                                    width: 26
+                                    height: 26
+                                    radius: 6
+                                    color: Theme.surface
+                                    border.color: root.focusSection === "header" && root.headerIndex === 1 ? Theme.accent : Theme.selection
+                                    border.width: root.focusSection === "header" && root.headerIndex === 1 ? 1.5 : 1
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "󰒓"
+                                        color: Theme.lightForeground
+                                        font.pixelSize: 12
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        hoverEnabled: true
+                                        onEntered: { root.focusSection = "header"; root.headerIndex = 1 }
+                                        onClicked: root.launchBlueman()
+                                    }
+                                }
+                                */
+
+                                // Master Bluetooth Power Switch
+                                Rectangle {
+                                    width: 40
+                                    height: 22
+                                    radius: 11
+                                    color: (root.adapter && root.adapter.enabled) ? Theme.brand : Theme.selection
+                                    border.color: root.focusSection === "header" && root.headerIndex === 1 ? Theme.foreground : ((root.adapter && root.adapter.enabled) ? Theme.brand : Theme.darkForeground)
+                                    border.width: root.focusSection === "header" && root.headerIndex === 1 ? 1.5 : 1
+
+                                    Rectangle {
+                                        width: 16
+                                        height: 16
+                                        radius: 8
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        x: (root.adapter && root.adapter.enabled) ? parent.width - width - 3 : 3
+                                        color: (root.adapter && root.adapter.enabled) ? Theme.darkBackground : Theme.lightForeground
+                                        Behavior on x { NumberAnimation { duration: 150 } }
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        hoverEnabled: true
+                                        onEntered: { root.focusSection = "header"; root.headerIndex = 1 }
+                                        onClicked: root.togglePower()
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 1
+                                color: Theme.selection
+                            }
+
+                            // --- Device Section Title ---
+                            Text {
+                                text: {
+                                    if (!root.adapter || !root.adapter.enabled) return "BLUETOOTH DISABLED"
+                                    if (root.totalDeviceCount === 0) return root.adapter.discovering ? "SEARCHING FOR DEVICES..." : "NO DEVICES FOUND"
+                                    return "BLUETOOTH DEVICES"
+                                }
+                                color: Theme.darkForeground
+                                font.pixelSize: 10
+                                font.bold: true
+                            }
+
+                            // --- Devices ListView ---
+                            ListView {
+                                id: deviceList
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Math.min(Math.max(contentHeight, 35), 240)
+                                Layout.fillHeight: false
+                                clip: true
+                                spacing: 4
+                                boundsBehavior: Flickable.StopAtBounds
+
+                                model: root.flattenedDevices
+
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    required property int index
+                                    readonly property var dev: modelData.data
+                                    readonly property bool isSelected: root.focusSection === "devices" && root.selectedDeviceIndex === index
+
+                                    width: deviceList.width
+                                    height: 32
+                                    radius: 6
+                                    color: dev.connected ? Theme.selection : Theme.surface
+                                    border.color: isSelected && !root.deviceActionFocused ? Theme.accent : (dev.connected ? Theme.brand : Theme.selection)
+                                    border.width: isSelected && !root.deviceActionFocused ? 1.5 : 1
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 5
+                                        spacing: 6
+
+                                        // Device Type Icon
+                                        Text {
+                                            text: Model.deviceIcon(dev)
+                                            color: dev.connected ? Theme.green : (modelData.section === "discovered" ? Theme.cyan : Theme.blue)
+                                            font.pixelSize: 13
+                                        }
+
+                                        // Device Name
+                                        Text {
+                                            text: dev.name || dev.deviceName || dev.address
+                                            color: dev.connected ? Theme.brand : Theme.foreground
+                                            font.pixelSize: 11
+                                            font.bold: dev.connected
+                                            elide: Text.ElideRight
+                                            Layout.fillWidth: true
+                                        }
+
+                                        // Battery Percentage Badge
+                                        Text {
+                                            text: dev.batteryAvailable && dev.battery > 0 ? ("󰁹 " + Model.formatBattery(dev.battery)) : ""
+                                            color: dev.battery < 0.2 ? Theme.red : (dev.battery < 0.5 ? Theme.yellow : Theme.green)
+                                            font.pixelSize: 10
+                                            font.bold: true
+                                            visible: text !== ""
+                                        }
+
+                                        // Forget / Unpair Button (For paired devices)
+                                        Rectangle {
+                                            width: 20
+                                            height: 20
+                                            radius: 4
+                                            color: "transparent"
+                                            visible: modelData.section === "known"
+                                            border.color: isSelected && root.deviceActionFocused ? Theme.red : Theme.selection
+                                            border.width: isSelected && root.deviceActionFocused ? 1.5 : 1
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "󰅙"
+                                                color: isSelected && root.deviceActionFocused ? Theme.red : Theme.darkForeground
+                                                font.pixelSize: 11
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                hoverEnabled: true
+                                                onEntered: { root.focusSection = "devices"; root.selectedDeviceIndex = index; root.deviceActionFocused = true }
+                                                onClicked: root.forgetDevice(dev)
+                                            }
+                                        }
+
+                                        // Connect / Disconnect Action Button
+                                        Rectangle {
+                                            width: 60
+                                            height: 20
+                                            radius: 4
+                                            color: dev.connected ? Qt.rgba(Theme.red.r, Theme.red.g, Theme.red.b, 0.25) : Theme.brand
+                                            border.color: isSelected && root.deviceActionFocused && modelData.section !== "known" ? Theme.foreground : (dev.connected ? Theme.red : Theme.brand)
+                                            border.width: isSelected && root.deviceActionFocused && modelData.section !== "known" ? 1.5 : 1
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: dev.connected ? "Disconnect" : (modelData.section === "known" ? "Connect" : "Pair")
+                                                color: dev.connected ? Theme.red : Theme.darkBackground
+                                                font.pixelSize: 9
+                                                font.bold: true
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                hoverEnabled: true
+                                                onEntered: { root.focusSection = "devices"; root.selectedDeviceIndex = index; root.deviceActionFocused = true }
+                                                onClicked: {
+                                                    if (dev.connected) {
+                                                        root.disconnectDevice(dev)
+                                                    } else {
+                                                        root.connectDevice(dev)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Row Hover & Click Handler
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        z: -1
+                                        hoverEnabled: true
+                                        onEntered: { root.focusSection = "devices"; root.selectedDeviceIndex = index; root.deviceActionFocused = false }
+                                        onClicked: {
+                                            if (dev.connected) {
+                                                root.disconnectDevice(dev)
+                                            } else {
+                                                root.connectDevice(dev)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
