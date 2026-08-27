@@ -1,9 +1,10 @@
 import Quickshell
 
-Scope{
+Scope {
     TimeBar{}
     BatteryBar{}
     WifiBar{}
     BluetoothBar{}
     RoundedOverlay{}
+    OmarchyMenu{}
 }

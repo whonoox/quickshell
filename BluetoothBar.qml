@@ -160,6 +160,33 @@ Scope {
         Quickshell.execDetached(["omarchy-bluetooth-device", "forget", dev.address])
     }
 
+    function revealDeviceCursor() {
+        if (root.totalDeviceCount <= 0) return
+        deviceList.currentIndex = root.selectedDeviceIndex
+        if (root.selectedDeviceIndex === 0) {
+            deviceList.positionViewAtIndex(0, ListView.Beginning)
+            return
+        }
+        if (root.selectedDeviceIndex === root.totalDeviceCount - 1) {
+            deviceList.positionViewAtIndex(root.totalDeviceCount - 1, ListView.End)
+            return
+        }
+        deviceList.positionViewAtIndex(root.selectedDeviceIndex, ListView.Contain)
+
+        var item = deviceList.itemAtIndex(root.selectedDeviceIndex)
+        if (!item) return
+        var reach = 36
+        var maxY = Math.max(0, deviceList.contentHeight - deviceList.height)
+        if (root.selectedDeviceIndex < root.totalDeviceCount - 1) {
+            var overhang = item.y + item.height + reach - (deviceList.contentY + deviceList.height)
+            if (overhang > 0) deviceList.contentY = Math.min(deviceList.contentY + overhang, maxY)
+        }
+        if (root.selectedDeviceIndex > 0) {
+            var underhang = deviceList.contentY - (item.y - reach)
+            if (underhang > 0) deviceList.contentY = Math.max(deviceList.contentY - underhang, 0)
+        }
+    }
+
     function activateHeader() {
         if (root.headerIndex === 0) {
             toggleDiscovery()
@@ -300,14 +327,16 @@ Scope {
                                 root.focusSection = "devices"
                                 if (root.selectedDeviceIndex < 0) root.selectedDeviceIndex = 0
                                 root.deviceActionFocused = false
-                                deviceList.positionViewAtIndex(root.selectedDeviceIndex, ListView.Contain)
+                                root.revealDeviceCursor()
                             }
                         } else if (root.focusSection === "devices") {
                             if (root.selectedDeviceIndex < root.totalDeviceCount - 1) {
                                 root.selectedDeviceIndex++
-                                root.deviceActionFocused = false
-                                deviceList.positionViewAtIndex(root.selectedDeviceIndex, ListView.Contain)
+                            } else {
+                                root.selectedDeviceIndex = 0
                             }
+                            root.deviceActionFocused = false
+                            root.revealDeviceCursor()
                         }
                         event.accepted = true
                         return
@@ -319,9 +348,17 @@ Scope {
                             if (root.selectedDeviceIndex > 0) {
                                 root.selectedDeviceIndex--
                                 root.deviceActionFocused = false
-                                deviceList.positionViewAtIndex(root.selectedDeviceIndex, ListView.Contain)
                             } else {
-                                root.focusSection = "header"
+                                root.selectedDeviceIndex = Math.max(0, root.totalDeviceCount - 1)
+                                root.deviceActionFocused = false
+                            }
+                            root.revealDeviceCursor()
+                        } else if (root.focusSection === "header") {
+                            if (root.totalDeviceCount > 0) {
+                                root.focusSection = "devices"
+                                root.selectedDeviceIndex = root.totalDeviceCount - 1
+                                root.deviceActionFocused = false
+                                root.revealDeviceCursor()
                             }
                         }
                         event.accepted = true
@@ -670,6 +707,7 @@ Scope {
                             // --- Devices ListView ---
                             ListView {
                                 id: deviceList
+                                currentIndex: root.selectedDeviceIndex
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: Math.min(Math.max(contentHeight, 35), 240)
                                 Layout.fillHeight: false
@@ -688,9 +726,7 @@ Scope {
                                     width: deviceList.width
                                     height: 32
                                     radius: 6
-                                    color: dev.connected ? Theme.selection : Theme.surface
-                                    border.color: isSelected && !root.deviceActionFocused ? Theme.accent : (dev.connected ? Theme.brand : Theme.selection)
-                                    border.width: isSelected && !root.deviceActionFocused ? 1.5 : 1
+                                    color: (isSelected && !root.deviceActionFocused) ? Theme.selection : (dev.connected ? Theme.selection : Theme.surface)
 
                                     RowLayout {
                                         anchors.fill: parent

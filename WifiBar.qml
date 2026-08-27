@@ -142,6 +142,33 @@ Scope {
         }
     }
 
+    function revealWifiCursor() {
+        if (root.networksCount <= 0) return
+        networkList.currentIndex = root.selectedWifiIndex
+        if (root.selectedWifiIndex === 0) {
+            networkList.positionViewAtIndex(0, ListView.Beginning)
+            return
+        }
+        if (root.selectedWifiIndex === root.networksCount - 1) {
+            networkList.positionViewAtIndex(root.networksCount - 1, ListView.End)
+            return
+        }
+        networkList.positionViewAtIndex(root.selectedWifiIndex, ListView.Contain)
+
+        var item = networkList.itemAtIndex(root.selectedWifiIndex)
+        if (!item) return
+        var reach = 34
+        var maxY = Math.max(0, networkList.contentHeight - networkList.height)
+        if (root.selectedWifiIndex < root.networksCount - 1) {
+            var overhang = item.y + item.height + reach - (networkList.contentY + networkList.height)
+            if (overhang > 0) networkList.contentY = Math.min(networkList.contentY + overhang, maxY)
+        }
+        if (root.selectedWifiIndex > 0) {
+            var underhang = networkList.contentY - (item.y - reach)
+            if (underhang > 0) networkList.contentY = Math.max(networkList.contentY - underhang, 0)
+        }
+    }
+
     // Auto-hide Timer for Glance HUD (only active when collapsed)
     Timer {
         id: autoHideTimer
@@ -395,13 +422,15 @@ Scope {
                                 root.focusSection = "wifi"
                                 if (root.selectedWifiIndex < 0) root.selectedWifiIndex = 0
                                 root.wifiActionFocused = false
-                                networkList.positionViewAtIndex(root.selectedWifiIndex, ListView.Contain)
+                                root.revealWifiCursor()
                             }
                         } else if (root.focusSection === "wifi") {
                             if (root.selectedWifiIndex < root.networksCount - 1) {
                                 root.selectedWifiIndex++
-                                networkList.positionViewAtIndex(root.selectedWifiIndex, ListView.Contain)
+                            } else {
+                                root.selectedWifiIndex = 0
                             }
+                            root.revealWifiCursor()
                         }
                         event.accepted = true
                         return
@@ -412,11 +441,10 @@ Scope {
                         if (root.focusSection === "wifi") {
                             if (root.selectedWifiIndex > 0) {
                                 root.selectedWifiIndex--
-                                networkList.positionViewAtIndex(root.selectedWifiIndex, ListView.Contain)
                             } else {
-                                root.focusSection = "dns"
-                                root.wifiActionFocused = false
+                                root.selectedWifiIndex = Math.max(0, root.networksCount - 1)
                             }
+                            root.revealWifiCursor()
                         } else if (root.focusSection === "dns") {
                             root.focusSection = "header"
                         }
@@ -838,6 +866,7 @@ Scope {
 
                             ListView {
                                 id: networkList
+                                currentIndex: root.selectedWifiIndex
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: Math.min(Math.max(contentHeight, 35), 200)
                                 Layout.fillHeight: false
@@ -853,9 +882,7 @@ Scope {
                                     width: networkList.width
                                     height: passwordBox.visible ? 68 : 30
                                     radius: 6
-                                    color: modelData.connected ? Theme.selection : Theme.surface
-                                    border.color: root.focusSection === "wifi" && root.selectedWifiIndex === index && !root.wifiActionFocused ? Theme.accent : (modelData.connected ? Theme.brand : Theme.selection)
-                                    border.width: root.focusSection === "wifi" && root.selectedWifiIndex === index && !root.wifiActionFocused ? 1.5 : 1
+                                    color: (root.focusSection === "wifi" && root.selectedWifiIndex === index && !root.wifiActionFocused) ? Theme.selection : (modelData.connected ? Theme.selection : Theme.surface)
 
                                     ColumnLayout {
                                         anchors.fill: parent
