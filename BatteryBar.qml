@@ -9,7 +9,7 @@ Scope{
     id: root
     readonly property var battery: UPower.displayDevice
     
-    property bool hideBar: false
+    property bool hideBar: true
 
     readonly property int batteryState: UPower.displayDevice.state
     readonly property bool criticalBattery: battery.percentage <= 0.20
@@ -18,12 +18,12 @@ Scope{
     readonly property bool highBattery: battery.percentage <= 0.75
     readonly property bool fullBattery: battery.percentage === 1.00
 
-    GlobalShortcut{
+    GlobalShortcut {
         name: "batteryToggle"
         description: "Show the current battery information with the panel window"
         appid: "quickshell"
         onPressed: {
-            if(!criticalBattery){
+            if (!criticalBattery) {
                 hideBar = !hideBar
             }
         }
@@ -33,13 +33,13 @@ Scope{
         root.hideBar = false
     }
 
-    // Timer {
-    //     interval: 3000
-    //     running: !hideBar && !criticalBattery
-    //     onTriggered: {
-    //         hideBar = true
-    //     }
-    // }
+    Timer {
+        interval: 3500
+        running: !hideBar && !criticalBattery
+        onTriggered: {
+            hideBar = true
+        }
+    }
 
     Variants {
             model: Quickshell.screens
@@ -103,7 +103,7 @@ Scope{
                     Text {
                         text: Math.round(root.battery.percentage * 100)
                         color: root.criticalBattery ? "red" : Theme.brand
-                        font.family: "Nuuxfont"
+                        font.family: Theme.brandFont
                         font.pixelSize: Theme.rounding
                         font.weight: Font.Bold  
                     }
@@ -129,6 +129,7 @@ Scope{
                     anchors.horizontalCenterOffset: Theme.spacing / 2
                     text: root.battery.state === UPowerDeviceState.Charging ? "⚡️":""
                     color: root.battery.percentage >= 0.20 ? Theme.brand : "red"
+                    font.family: Theme.fontFamily
                     font.pixelSize: Theme.spacing * 2
                 }
 

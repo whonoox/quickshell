@@ -50,6 +50,11 @@ QtObject {
     readonly property int rounding: 20
     readonly property real spacing: 6
 
+    // Typography
+    readonly property string brandFont: "Nuuxfont"
+    property string systemFont: "monospace"
+    property string fontFamily: systemFont
+
     function parseToml(raw) {
         var map = {}
         var lines = String(raw || "").split("\n")

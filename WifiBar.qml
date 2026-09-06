@@ -598,7 +598,7 @@ Scope {
                                 anchors.leftMargin: Theme.spacing
                                 text: root.hasConnection && connectedNetwork.name ? connectedNetwork.name : "Wi-Fi"
                                 color: root.hasConnection ? Theme.brand : Theme.darkForeground
-                                font.family: "Nuuxfont"
+                                font.family: Theme.brandFont
                                 font.pixelSize: Theme.rounding
                                 font.weight: Font.Bold
                             }
@@ -686,6 +686,7 @@ Scope {
                                 Text {
                                     text: root.hasConnection ? "CONNECTED" : (Networking.wifiEnabled ? "NOT CONNECTED" : "WI-FI DISABLED")
                                     color: root.hasConnection ? Theme.brand : (Networking.wifiEnabled ? Theme.yellow : Theme.red)
+                                    font.family: Theme.fontFamily
                                     font.pixelSize: 10
                                     font.bold: true
                                     Layout.alignment: Qt.AlignVCenter
@@ -788,23 +789,23 @@ Scope {
                                 columnSpacing: 10
                                 visible: root.hasConnection
 
-                                Text { text: "Ping:"; color: Theme.darkForeground; font.pixelSize: 10 }
-                                Text { text: Model.formatPingLatency(root.internetPingLatency, true); color: Theme.cyan; font.pixelSize: 10; font.bold: true }
+                                Text { text: "Ping:"; color: Theme.darkForeground; font.family: Theme.fontFamily; font.pixelSize: 10 }
+                                Text { text: Model.formatPingLatency(root.internetPingLatency, true); color: Theme.cyan; font.family: Theme.fontFamily; font.pixelSize: 10; font.bold: true }
 
-                                Text { text: "Loss:"; color: Theme.darkForeground; font.pixelSize: 10 }
-                                Text { text: Model.formatPacketLoss(root.internetPingPacketLoss, true); color: root.internetPingPacketLoss > 0 ? Theme.red : Theme.lightForeground; font.pixelSize: 10; font.bold: true }
+                                Text { text: "Loss:"; color: Theme.darkForeground; font.family: Theme.fontFamily; font.pixelSize: 10 }
+                                Text { text: Model.formatPacketLoss(root.internetPingPacketLoss, true); color: root.internetPingPacketLoss > 0 ? Theme.red : Theme.lightForeground; font.family: Theme.fontFamily; font.pixelSize: 10; font.bold: true }
 
-                                Text { text: "Down:"; color: Theme.darkForeground; font.pixelSize: 10 }
-                                Text { text: Model.formatRate(root.downloadRate); color: Theme.blue; font.pixelSize: 10; font.bold: true }
+                                Text { text: "Down:"; color: Theme.darkForeground; font.family: Theme.fontFamily; font.pixelSize: 10 }
+                                Text { text: Model.formatRate(root.downloadRate); color: Theme.blue; font.family: Theme.fontFamily; font.pixelSize: 10; font.bold: true }
 
-                                Text { text: "Up:"; color: Theme.darkForeground; font.pixelSize: 10 }
-                                Text { text: Model.formatRate(root.uploadRate); color: Theme.magenta; font.pixelSize: 10; font.bold: true }
+                                Text { text: "Up:"; color: Theme.darkForeground; font.family: Theme.fontFamily; font.pixelSize: 10 }
+                                Text { text: Model.formatRate(root.uploadRate); color: Theme.magenta; font.family: Theme.fontFamily; font.pixelSize: 10; font.bold: true }
 
-                                Text { text: "IP:"; color: Theme.darkForeground; font.pixelSize: 10 }
-                                Text { text: root.info.ip || "--"; color: Theme.brightForeground; font.pixelSize: 10; font.bold: true }
+                                Text { text: "IP:"; color: Theme.darkForeground; font.family: Theme.fontFamily; font.pixelSize: 10 }
+                                Text { text: root.info.ip || "--"; color: Theme.brightForeground; font.family: Theme.fontFamily; font.pixelSize: 10; font.bold: true }
 
-                                Text { text: "Gateway:"; color: Theme.darkForeground; font.pixelSize: 10 }
-                                Text { text: root.info.gateway || "--"; color: Theme.lightForeground; font.pixelSize: 10 }
+                                Text { text: "Gateway:"; color: Theme.darkForeground; font.family: Theme.fontFamily; font.pixelSize: 10 }
+                                Text { text: root.info.gateway || "--"; color: Theme.lightForeground; font.family: Theme.fontFamily; font.pixelSize: 10 }
                             }
 
                             // --- DNS Selector ---
@@ -815,6 +816,7 @@ Scope {
                                 Text {
                                     text: "DNS:"
                                     color: Theme.darkForeground
+                                    font.family: Theme.fontFamily
                                     font.pixelSize: 10
                                     font.bold: true
                                 }
@@ -835,6 +837,7 @@ Scope {
                                             anchors.centerIn: parent
                                             text: modelData
                                             color: root.activeDns === modelData ? Theme.darkBackground : Theme.lightForeground
+                                            font.family: Theme.fontFamily
                                             font.pixelSize: 10
                                             font.bold: root.activeDns === modelData
                                         }
@@ -860,6 +863,7 @@ Scope {
                             Text {
                                 text: "AVAILABLE NETWORKS"
                                 color: Theme.darkForeground
+                                font.family: Theme.fontFamily
                                 font.pixelSize: 10
                                 font.bold: true
                             }
@@ -896,12 +900,14 @@ Scope {
                                             Text {
                                                 text: Model.wifiIconFor(modelData.signal)
                                                 color: modelData.connected ? Theme.green : Theme.blue
+                                                font.family: Theme.fontFamily
                                                 font.pixelSize: 12
                                             }
 
                                             Text {
                                                 text: modelData.ssid || "Hidden Network"
                                                 color: modelData.connected ? Theme.brand : Theme.foreground
+                                                font.family: Theme.fontFamily
                                                 font.pixelSize: 11
                                                 font.bold: modelData.connected
                                                 elide: Text.ElideRight
@@ -911,6 +917,7 @@ Scope {
                                             Text {
                                                 text: modelData.security !== "open" && modelData.security !== 0 ? "󰌾" : ""
                                                 color: Theme.yellow
+                                                font.family: Theme.fontFamily
                                                 font.pixelSize: 10
                                                 visible: text !== ""
                                             }
@@ -928,6 +935,7 @@ Scope {
                                                     anchors.centerIn: parent
                                                     text: modelData.connected ? "Disconnect" : (modelData.known ? "Connect" : "Join")
                                                     color: modelData.connected ? Theme.red : Theme.darkBackground
+                                                    font.family: Theme.fontFamily
                                                     font.pixelSize: 9
                                                     font.bold: true
                                                 }
@@ -939,9 +947,9 @@ Scope {
                                                     onEntered: { root.focusSection = "wifi"; root.selectedWifiIndex = index; root.wifiActionFocused = true }
                                                     onClicked: {
                                                         if (modelData.connected) {
-                                                            modelData.networkObject.disconnect()
+                                                             modelData.networkObject.disconnect()
                                                         } else {
-                                                            root.connectToNetwork(modelData.networkObject)
+                                                             root.connectToNetwork(modelData.networkObject)
                                                         }
                                                     }
                                                 }
@@ -968,6 +976,7 @@ Scope {
                                                     anchors.margins: 3
                                                     echoMode: TextInput.Password
                                                     color: Theme.brightForeground
+                                                    font.family: Theme.fontFamily
                                                     font.pixelSize: 10
                                                     focus: passwordBox.visible
                                                     onTextChanged: root.enteredPassword = text
@@ -989,6 +998,7 @@ Scope {
                                                     anchors.centerIn: parent
                                                     text: "OK"
                                                     color: Theme.darkBackground
+                                                    font.family: Theme.fontFamily
                                                     font.pixelSize: 9
                                                     font.bold: true
                                                 }
@@ -1015,6 +1025,7 @@ Scope {
                                                     anchors.centerIn: parent
                                                     text: "Cancel"
                                                     color: Theme.lightForeground
+                                                    font.family: Theme.fontFamily
                                                     font.pixelSize: 9
                                                 }
                                                 MouseArea {

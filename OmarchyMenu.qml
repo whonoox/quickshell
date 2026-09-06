@@ -565,6 +565,7 @@ Scope {
                                     anchors.centerIn: parent
                                     text: "󰁍"
                                     color: Theme.brand
+                                    font.family: Theme.fontFamily
                                     font.pixelSize: 14
                                 }
 
@@ -593,6 +594,7 @@ Scope {
                                     Text {
                                         text: "󰍉"
                                         color: root.filterText ? Theme.brand : Theme.darkForeground
+                                        font.family: Theme.fontFamily
                                         font.pixelSize: 14
                                     }
 
@@ -600,6 +602,7 @@ Scope {
                                         Layout.fillWidth: true
                                         text: root.filterText || ((root.activeMenu === "apps" ? "Apps" : (Model.item(root.items, root.activeMenu) ? (Model.item(root.items, root.activeMenu).title || Model.item(root.items, root.activeMenu).label) : "Menu")) + "…")
                                         color: root.filterText ? Theme.foreground : Theme.darkForeground
+                                        font.family: Theme.fontFamily
                                         font.pixelSize: 13
                                         elide: Text.ElideRight
                                     }
@@ -609,6 +612,7 @@ Scope {
                                         visible: !!root.filterText
                                         text: "󰅖"
                                         color: Theme.darkForeground
+                                        font.family: Theme.fontFamily
                                         font.pixelSize: 13
 
                                         MouseArea {
@@ -680,6 +684,7 @@ Scope {
                                             visible: kind !== "app" || !appIconImage.visible
                                             text: icon || (kind === "app" ? "󰀻" : "󰅂")
                                             color: isSelected ? Theme.brand : Theme.foreground
+                                            font.family: Theme.fontFamily
                                             font.pixelSize: 13
                                         }
                                     }
@@ -688,6 +693,7 @@ Scope {
                                     Text {
                                         text: label
                                         color: isSelected ? Theme.brand : Theme.foreground
+                                        font.family: Theme.fontFamily
                                         font.pixelSize: 12
                                         font.bold: isSelected
                                         elide: Text.ElideRight
@@ -698,6 +704,7 @@ Scope {
                                     Text {
                                         text: (kind === "menu" || itemId === "apps") ? "󰅂" : ""
                                         color: isSelected ? Theme.brand : Theme.darkForeground
+                                        font.family: Theme.fontFamily
                                         font.pixelSize: 11
                                         visible: text !== ""
                                     }

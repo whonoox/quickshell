@@ -92,6 +92,7 @@ Scope {
             screen: modelData
 
             anchors.top: true
+            anchors.bottom: true
             anchors.left: true
             anchors.right: true
 
@@ -121,8 +122,8 @@ Scope {
                     : (timeText.implicitWidth + Theme.rounding * 3)
 
                 height: root.isExpanded
-                    ? (summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing)
-                    : (Theme.rounding * 2.5)
+                    ? (summaryHeader.height + detailsColumn.implicitHeight + Theme.spacing * 2)
+                    : summaryHeader.height
 
                 Behavior on width {
                     NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
@@ -154,7 +155,6 @@ Scope {
                     anchors.fill: parent
                     anchors.leftMargin: Theme.rounding
                     anchors.rightMargin: Theme.rounding
-                    anchors.bottomMargin: Theme.rounding
                     color: Theme.bgc
                     bottomLeftRadius: Theme.rounding
                     bottomRightRadius: Theme.rounding
@@ -184,14 +184,14 @@ Scope {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
-                        height: Theme.rounding * 2.5 - Theme.rounding
+                        height: timeText.implicitHeight + Theme.rounding
 
                         Text {
                             id: timeText
                             anchors.centerIn: parent
                             text: root.time
                             color: Theme.brand
-                            font.family: "Nuuxfont"
+                            font.family: Theme.brandFont
                             font.pixelSize: 22
                             font.weight: Font.Bold
                         }
@@ -221,27 +221,27 @@ Scope {
                             color: Theme.selection
                         }
 
-                        // Day of the Week (Prominent and larger in Nuuxfont)
+                        // Day of the Week (Prominent in grey / lightForeground)
                         Text {
                             id: dayText
                             Layout.alignment: Qt.AlignHCenter
                             text: root.day
-                            color: Theme.brand
-                            font.family: "Nuuxfont"
+                            color: Theme.lightForeground
+                            font.family: Theme.brandFont
                             font.pixelSize: 30
                             font.weight: Font.Bold
                             font.capitalization: Font.AllUppercase
                         }
 
-                        // Formatted Date (Same 22px size as Time)
+                        // Formatted Date (Matched to Time: 22px, Bold, Brand color)
                         Text {
                             id: dateText
                             Layout.alignment: Qt.AlignHCenter
                             text: root.date
-                            color: Theme.lightForeground
-                            font.family: "Nuuxfont"
+                            color: Theme.brand
+                            font.family: Theme.brandFont
                             font.pixelSize: 22
-                            font.weight: Font.Normal
+                            font.weight: Font.Bold
                         }
                     }
                 }

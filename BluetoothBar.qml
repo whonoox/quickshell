@@ -513,7 +513,7 @@ Scope {
                                         return "Bluetooth"
                                     }
                                     color: root.hasConnection ? Theme.brand : (root.adapter && root.adapter.enabled ? Theme.lightForeground : Theme.darkForeground)
-                                    font.family: "Nuuxfont"
+                                    font.family: Theme.brandFont
                                     font.pixelSize: Theme.rounding
                                     font.weight: Font.Bold
                                 }
@@ -543,6 +543,7 @@ Scope {
                                         color: root.hasConnection && root.primaryConnectedDevice.battery < 0.2 
                                             ? Theme.red 
                                             : (root.hasConnection && root.primaryConnectedDevice.battery < 0.4 ? Theme.yellow : Theme.brand)
+                                        font.family: Theme.fontFamily
                                         font.pixelSize: 10
                                         font.bold: true
                                     }
@@ -621,6 +622,7 @@ Scope {
                                         if (root.connectedDevices.length > 0) return Theme.brand
                                         return Theme.yellow
                                     }
+                                    font.family: Theme.fontFamily
                                     font.pixelSize: 10
                                     font.bold: true
                                     Layout.alignment: Qt.AlignVCenter
@@ -645,6 +647,7 @@ Scope {
                                         anchors.centerIn: parent
                                         text: "󰂰"
                                         color: (root.adapter && root.adapter.discovering) ? Theme.cyan : Theme.lightForeground
+                                        font.family: Theme.fontFamily
                                         font.pixelSize: 13
                                     }
 
@@ -700,6 +703,7 @@ Scope {
                                     return "BLUETOOTH DEVICES"
                                 }
                                 color: Theme.darkForeground
+                                font.family: Theme.fontFamily
                                 font.pixelSize: 10
                                 font.bold: true
                             }
@@ -737,6 +741,7 @@ Scope {
                                         Text {
                                             text: Model.deviceIcon(dev)
                                             color: dev.connected ? Theme.green : (modelData.section === "discovered" ? Theme.cyan : Theme.blue)
+                                            font.family: Theme.fontFamily
                                             font.pixelSize: 13
                                         }
 
@@ -744,6 +749,7 @@ Scope {
                                         Text {
                                             text: dev.name || dev.deviceName || dev.address
                                             color: dev.connected ? Theme.brand : Theme.foreground
+                                            font.family: Theme.fontFamily
                                             font.pixelSize: 11
                                             font.bold: dev.connected
                                             elide: Text.ElideRight
@@ -770,6 +776,7 @@ Scope {
                                                 anchors.centerIn: parent
                                                 text: Model.formatBattery(dev.battery)
                                                 color: dev.battery < 0.2 ? Theme.red : (dev.battery < 0.4 ? Theme.yellow : Theme.brand)
+                                                font.family: Theme.fontFamily
                                                 font.pixelSize: 9
                                                 font.bold: true
                                             }
@@ -789,6 +796,7 @@ Scope {
                                                 anchors.centerIn: parent
                                                 text: "󰅙"
                                                 color: isSelected && root.deviceActionFocused ? Theme.red : Theme.darkForeground
+                                                font.family: Theme.fontFamily
                                                 font.pixelSize: 11
                                             }
 
@@ -814,6 +822,7 @@ Scope {
                                                 anchors.centerIn: parent
                                                 text: dev.connected ? "Disconnect" : (modelData.section === "known" ? "Connect" : "Pair")
                                                 color: dev.connected ? Theme.red : Theme.darkBackground
+                                                font.family: Theme.fontFamily
                                                 font.pixelSize: 9
                                                 font.bold: true
                                             }

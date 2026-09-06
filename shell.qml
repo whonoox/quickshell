@@ -1,6 +1,7 @@
 import Quickshell
 
 Scope {
+    WorkspaceBar{}
     TimeBar{}
     BatteryBar{}
     WifiBar{}
