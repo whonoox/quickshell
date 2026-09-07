@@ -557,8 +557,8 @@ Scope {
                     x: root.hideAll ? (parent.width + 30) : (parent.width - width)
                     y: root.hideAll ? -(height + 30) : 0
 
-                    width: root.isExpanded ? 390 : Math.max(3 * Theme.rounding, wifiName.implicitWidth + Theme.rounding * 3)
-                    height: root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) : (Theme.rounding * 3)
+                    width: (root.isExpanded ? 390 : Math.max(3 * Theme.rounding, wifiName.implicitWidth + Theme.rounding * 3)) + 4
+                    height: (root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) : (Theme.rounding * 3)) + 4
 
                     Behavior on width {
                         NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
@@ -587,8 +587,8 @@ Scope {
                     Item {
                         id: background
                         anchors.fill: parent
-                        anchors.leftMargin: Theme.rounding
-                        anchors.bottomMargin: Theme.rounding
+                        anchors.leftMargin: Theme.rounding + 4
+                        anchors.bottomMargin: Theme.rounding + 4
                         clip: true
 
                         // Swallow clicks inside card

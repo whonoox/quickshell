@@ -143,13 +143,13 @@ Scope {
                 anchors.horizontalCenter: parent.horizontalCenter
                 y: root.hideAll ? -(height + 20) : 0
 
-                width: root.isExpanded 
+                width: (root.isExpanded 
                     ? Math.max(timeText.implicitWidth, dayText.implicitWidth, dateText.implicitWidth) + Theme.rounding * 4
-                    : (timeText.implicitWidth + Theme.rounding * 3)
+                    : (timeText.implicitWidth + Theme.rounding * 3)) + 8
 
-                height: root.isExpanded
+                height: (root.isExpanded
                     ? (summaryHeader.height + detailsColumn.implicitHeight + Theme.spacing * 2)
-                    : summaryHeader.height
+                    : summaryHeader.height) + 4
 
                 Behavior on width {
                     NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
@@ -174,8 +174,9 @@ Scope {
                 Item {
                     id: background
                     anchors.fill: parent
-                    anchors.leftMargin: Theme.rounding
-                    anchors.rightMargin: Theme.rounding
+                    anchors.leftMargin: Theme.rounding + 4
+                    anchors.rightMargin: Theme.rounding + 4
+                    anchors.bottomMargin: 4
                     clip: true
 
                     // Click to cycle between collapsed and expanded views with timer reset

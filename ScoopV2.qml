@@ -1,6 +1,5 @@
 import Quickshell
 import QtQuick
-import QtQuick.Shapes
 
 Item {
     id: root
@@ -15,8 +14,12 @@ Item {
     property real radius: Theme.rounding
     property real cornerRadius: Theme.rounding
 
-    // Minimum geometric constraints to ensure curves have ample room and never get cut or inverted
-    readonly property real minWidth: {
+    // Border attributes (X-Ray native compositor border: near-zero alpha for 0-blur see-through)
+    property real borderWidth: 4
+    property color borderColor: Qt.rgba(0, 0, 0, 0.02)
+
+    // Base minimum geometric constraints for single shape curve integrity
+    readonly property real baseMinWidth: {
         switch (position) {
             case "topCenter":
             case "bottomCenter":
@@ -29,7 +32,7 @@ Item {
         }
     }
 
-    readonly property real minHeight: {
+    readonly property real baseMinHeight: {
         switch (position) {
             case "centerLeft":
             case "centerRight":
@@ -40,474 +43,103 @@ Item {
             default: // topLeft, topRight, bottomLeft, bottomRight
                 return Math.max(3 * radius, radius + cornerRadius);
         }
+    }
+
+    // Effective border width
+    readonly property real d: Math.max(0, borderWidth)
+
+    // Minimum geometric constraints expanded to ensure inner shape also never breaks
+    readonly property real minWidth: {
+        var extra = (position === "topCenter" || position === "bottomCenter") ? 2 * d : d;
+        return baseMinWidth + extra;
+    }
+
+    readonly property real minHeight: {
+        var extra = (position === "centerLeft" || position === "centerRight") ? 2 * d : d;
+        return baseMinHeight + extra;
     }
 
     // Effective dimensions (guaranteed >= minWidth & minHeight to prevent curve crossover)
     readonly property real effectiveWidth: Math.max(width, minWidth)
     readonly property real effectiveHeight: Math.max(height, minHeight)
-    readonly property real r: radius
-    readonly property real cr: cornerRadius
 
     implicitWidth: minWidth
     implicitHeight: minHeight
 
-    // 1. TOP LEFT
-    Shape {
-        id: shapeTopLeft
-        visible: root.position === "topLeft"
-        anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
-
-        ShapePath {
-            strokeWidth: 0
-            fillColor: root.color
-            startX: 0
-            startY: 0
-
-            PathLine {
-                x: root.effectiveWidth
-                y: 0
-            }
-            PathArc {
-                x: root.effectiveWidth - root.r
-                y: root.r
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: root.effectiveWidth - root.r
-                y: root.effectiveHeight - root.r - root.cr
-            }
-            PathArc {
-                x: root.effectiveWidth - root.r - root.cr
-                y: root.effectiveHeight - root.r
-                radiusX: root.cr
-                radiusY: root.cr
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: root.r
-                y: root.effectiveHeight - root.r
-            }
-            PathArc {
-                x: 0
-                y: root.effectiveHeight
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: 0
-                y: 0
-            }
+    // Inner Overlay Offsets (0px on screen-touching edges, d px on interior/curved edges)
+    readonly property real innerX: {
+        switch (position) {
+            case "topLeft":
+            case "bottomLeft":
+            case "centerLeft":
+                return 0; // Touches left screen edge
+            default:
+                return d; // Non-left positions inset from left
         }
     }
 
-    // 2. TOP CENTER
-    Shape {
-        id: shapeTopCenter
-        visible: root.position === "topCenter"
-        anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
-
-        ShapePath {
-            strokeWidth: 0
-            fillColor: root.color
-            startX: 0
-            startY: 0
-
-            PathArc {
-                x: root.r
-                y: root.r
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: root.r
-                y: root.effectiveHeight - root.r
-            }
-            PathArc {
-                x: 2 * root.r
-                y: root.effectiveHeight
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: root.effectiveWidth - 2 * root.r
-                y: root.effectiveHeight
-            }
-            PathArc {
-                x: root.effectiveWidth - root.r
-                y: root.effectiveHeight - root.r
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: root.effectiveWidth - root.r
-                y: root.r
-            }
-            PathArc {
-                x: root.effectiveWidth
-                y: 0
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: 0
-                y: 0
-            }
+    readonly property real innerY: {
+        switch (position) {
+            case "topLeft":
+            case "topCenter":
+            case "topRight":
+                return 0; // Touches top screen edge
+            default:
+                return d; // Non-top positions inset from top
         }
     }
 
-    // 3. TOP RIGHT
-    Shape {
-        id: shapeTopRight
-        visible: root.position === "topRight"
-        anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
-
-        ShapePath {
-            strokeWidth: 0
-            fillColor: root.color
-            startX: 0
-            startY: 0
-
-            PathArc {
-                x: root.r
-                y: root.r
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: root.r
-                y: root.effectiveHeight - root.r - root.cr
-            }
-            PathArc {
-                x: root.r + root.cr
-                y: root.effectiveHeight - root.r
-                radiusX: root.cr
-                radiusY: root.cr
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: root.effectiveWidth - root.r
-                y: root.effectiveHeight - root.r
-            }
-            PathArc {
-                x: root.effectiveWidth
-                y: root.effectiveHeight
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: root.effectiveWidth
-                y: 0
-            }
-            PathLine {
-                x: 0
-                y: 0
-            }
+    readonly property real innerWidth: {
+        switch (position) {
+            case "topCenter":
+            case "bottomCenter":
+                return Math.max(0, effectiveWidth - 2 * d);
+            default:
+                return Math.max(0, effectiveWidth - d);
         }
     }
 
-    // 4. CENTER RIGHT
-    Shape {
-        id: shapeCenterRight
-        visible: root.position === "centerRight"
-        anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
-
-        ShapePath {
-            strokeWidth: 0
-            fillColor: root.color
-            startX: root.effectiveWidth
-            startY: 0
-
-            PathArc {
-                x: root.effectiveWidth - root.r
-                y: root.r
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: root.r
-                y: root.r
-            }
-            PathArc {
-                x: 0
-                y: 2 * root.r
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: 0
-                y: root.effectiveHeight - 2 * root.r
-            }
-            PathArc {
-                x: root.r
-                y: root.effectiveHeight - root.r
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: root.effectiveWidth - root.r
-                y: root.effectiveHeight - root.r
-            }
-            PathArc {
-                x: root.effectiveWidth
-                y: root.effectiveHeight
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: root.effectiveWidth
-                y: 0
-            }
+    readonly property real innerHeight: {
+        switch (position) {
+            case "centerLeft":
+            case "centerRight":
+                return Math.max(0, effectiveHeight - 2 * d);
+            default:
+                return Math.max(0, effectiveHeight - d);
         }
     }
 
-    // 5. BOTTOM RIGHT
-    Shape {
-        id: shapeBottomRight
-        visible: root.position === "bottomRight"
-        anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
-
-        ShapePath {
-            strokeWidth: 0
-            fillColor: root.color
-            startX: root.effectiveWidth
-            startY: root.effectiveHeight
-
-            PathLine {
-                x: 0
-                y: root.effectiveHeight
-            }
-            PathArc {
-                x: root.r
-                y: root.effectiveHeight - root.r
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: root.r
-                y: root.r + root.cr
-            }
-            PathArc {
-                x: root.r + root.cr
-                y: root.r
-                radiusX: root.cr
-                radiusY: root.cr
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: root.effectiveWidth - root.r
-                y: root.r
-            }
-            PathArc {
-                x: root.effectiveWidth
-                y: 0
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: root.effectiveWidth
-                y: root.effectiveHeight
-            }
-        }
+    // Layer 1: Outer Shape (Underlay)
+    // Sized to full effective dimensions.
+    // When borderWidth > 0, filled with translucent borderColor (alpha ~0.28).
+    // Hyprland X-Ray blur then blurs the desktop wallpaper through this layer.
+    // When borderWidth === 0, filled with solid root.color.
+    ScoopContour {
+        id: outerShape
+        x: 0
+        y: 0
+        width: root.effectiveWidth
+        height: root.effectiveHeight
+        position: root.position
+        radius: root.radius
+        cornerRadius: root.cornerRadius
+        fillColor: root.d > 0 ? root.borderColor : root.color
     }
 
-    // 6. BOTTOM CENTER
-    Shape {
-        id: shapeBottomCenter
-        visible: root.position === "bottomCenter"
-        anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
-
-        ShapePath {
-            strokeWidth: 0
-            fillColor: root.color
-            startX: 0
-            startY: root.effectiveHeight
-
-            PathArc {
-                x: root.r
-                y: root.effectiveHeight - root.r
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: root.r
-                y: root.r
-            }
-            PathArc {
-                x: 2 * root.r
-                y: 0
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: root.effectiveWidth - 2 * root.r
-                y: 0
-            }
-            PathArc {
-                x: root.effectiveWidth - root.r
-                y: root.r
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: root.effectiveWidth - root.r
-                y: root.effectiveHeight - root.r
-            }
-            PathArc {
-                x: root.effectiveWidth
-                y: root.effectiveHeight
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: 0
-                y: root.effectiveHeight
-            }
-        }
-    }
-
-    // 7. BOTTOM LEFT
-    Shape {
-        id: shapeBottomLeft
-        visible: root.position === "bottomLeft"
-        anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
-
-        ShapePath {
-            strokeWidth: 0
-            fillColor: root.color
-            startX: 0
-            startY: 0
-
-            PathArc {
-                x: root.r
-                y: root.r
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: root.effectiveWidth - root.r - root.cr
-                y: root.r
-            }
-            PathArc {
-                x: root.effectiveWidth - root.r
-                y: root.r + root.cr
-                radiusX: root.cr
-                radiusY: root.cr
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: root.effectiveWidth - root.r
-                y: root.effectiveHeight - root.r
-            }
-            PathArc {
-                x: root.effectiveWidth
-                y: root.effectiveHeight
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: 0
-                y: root.effectiveHeight
-            }
-            PathLine {
-                x: 0
-                y: 0
-            }
-        }
-    }
-
-    // 8. CENTER LEFT
-    Shape {
-        id: shapeCenterLeft
-        visible: root.position === "centerLeft"
-        anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
-
-        ShapePath {
-            strokeWidth: 0
-            fillColor: root.color
-            startX: 0
-            startY: 0
-
-            PathArc {
-                x: root.r
-                y: root.r
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: root.effectiveWidth - root.r
-                y: root.r
-            }
-            PathArc {
-                x: root.effectiveWidth
-                y: 2 * root.r
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: root.effectiveWidth
-                y: root.effectiveHeight - 2 * root.r
-            }
-            PathArc {
-                x: root.effectiveWidth - root.r
-                y: root.effectiveHeight - root.r
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: root.r
-                y: root.effectiveHeight - root.r
-            }
-            PathArc {
-                x: 0
-                y: root.effectiveHeight
-                radiusX: root.r
-                radiusY: root.r
-                direction: PathArc.Counterclockwise
-            }
-            PathLine {
-                x: 0
-                y: 0
-            }
-        }
+    // Layer 2: Inner Shape (Overlay)
+    // Inset by borderWidth on non-screen edges, flush on screen edges.
+    // Filled with opaque root.color (Theme.bgc, alpha 1.0).
+    // Drawn on top of the underlay, leaving a precise 4px border band of the underlay exposed.
+    ScoopContour {
+        id: innerShape
+        visible: root.d > 0
+        x: root.innerX
+        y: root.innerY
+        width: root.innerWidth
+        height: root.innerHeight
+        position: root.position
+        radius: root.radius
+        cornerRadius: root.cornerRadius
+        fillColor: root.color
     }
 }

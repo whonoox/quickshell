@@ -451,14 +451,10 @@ Scope {
             WlrLayershell.layer: WlrLayer.Overlay
             WlrLayershell.keyboardFocus: root.isPresented ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-            // Layer 0: Backdrop Scrim with Outside-Click Dismissal
+            // Layer 0: Invisible Backdrop for Outside-Click Dismissal
             Rectangle {
                 anchors.fill: parent
-                color: Qt.rgba(0, 0, 0, 0.45)
-                opacity: root.isPresented ? 1 : 0
-                Behavior on opacity {
-                    NumberAnimation { duration: 200 }
-                }
+                color: "transparent"
 
                 MouseArea {
                     anchors.fill: parent
@@ -474,8 +470,8 @@ Scope {
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: root.isPresented ? 0 : -(height + 50)
 
-                width: 440 + Theme.rounding * 2
-                height: 460
+                width: 440 + Theme.rounding * 2 + 8
+                height: 460 + 4
 
                 Behavior on anchors.bottomMargin {
                     NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
@@ -495,8 +491,9 @@ Scope {
                 Item {
                     id: background
                     anchors.fill: parent
-                    anchors.leftMargin: Theme.rounding
-                    anchors.rightMargin: Theme.rounding
+                    anchors.leftMargin: Theme.rounding + 4
+                    anchors.rightMargin: Theme.rounding + 4
+                    anchors.topMargin: 4
                     clip: true
 
                     // Swallow clicks inside the card

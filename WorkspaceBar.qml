@@ -437,8 +437,8 @@ Scope {
                 anchors.left: parent.left
                 y: root.hudVisible ? 0 : -(height + 20)
 
-                width: contentRow.implicitWidth + Theme.rounding + Theme.spacing * 4
-                height: 44 + Theme.rounding
+                width: contentRow.implicitWidth + Theme.rounding + Theme.spacing * 4 + 4
+                height: 44 + Theme.rounding + 4
 
                 Behavior on y {
                     NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
@@ -463,7 +463,7 @@ Scope {
                     anchors.top: parent.top
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.rightMargin: Theme.rounding
+                    anchors.rightMargin: Theme.rounding + 4
                     height: 44
                     clip: true
 

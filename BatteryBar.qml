@@ -85,8 +85,8 @@ Scope{
 
                 exclusionMode: ExclusionMode.Normal
 
-                implicitWidth: Math.max(38, 2 * Theme.rounding)
-                implicitHeight: 120 + Theme.spacing * 4
+                implicitWidth: Math.max(38, 2 * Theme.rounding) + 4
+                implicitHeight: 120 + Theme.spacing * 4 + 8
                 color:"transparent"
                 margins.right: root.hideBar ? implicitWidth * -1 : 0
 
@@ -106,9 +106,9 @@ Scope{
                 FlexboxLayout {
                     id: batteryFlex
                     anchors.fill: parent
-                    anchors.topMargin: Theme.rounding + Theme.spacing
-                    anchors.bottomMargin: Theme.rounding + Theme.spacing
-                    anchors.leftMargin: Theme.spacing
+                    anchors.topMargin: Theme.rounding + Theme.spacing + 4
+                    anchors.bottomMargin: Theme.rounding + Theme.spacing + 4
+                    anchors.leftMargin: Theme.spacing + 4
                     // anchors.rightMargin: Theme.spacing / 2
                     direction: FlexboxLayout.Column
                     alignItems: FlexboxLayout.AlignCenter

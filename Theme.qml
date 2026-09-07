@@ -29,8 +29,9 @@ QtObject {
     property color magenta: "#86a7df"
     property color brown: "#287b51"
 
-    // Surfaces & Depth: Pure black in dark mode, pure white in light mode
-    readonly property color bgc: isLight ? "#ffffff" : "#000000"
+    // Surfaces & Depth: Dynamic theme background color
+    property color themeBackground: isLight ? "#ffffff" : "#0B0C16"
+    readonly property color bgc: themeBackground
     readonly property color background: bgc
     property color darkBackground: isLight ? "#f0f0f0" : "#080910"
     property color darkerBackground: isLight ? "#e5e5e5" : "#06060c"
@@ -81,6 +82,7 @@ QtObject {
         }
 
         if (d.accent) root.accent = d.accent
+        if (d.background) root.themeBackground = d.background
         if (d.dark_background) root.darkBackground = d.dark_background
         if (d.darker_background) root.darkerBackground = d.darker_background
         if (d.lighter_background) root.lighterBackground = d.lighter_background
