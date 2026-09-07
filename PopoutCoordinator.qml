@@ -4,7 +4,7 @@ import QtQuick
 QtObject {
     id: root
 
-    property string active: "" // "wifi" | "bluetooth" | "battery" | "time"
+    property string active: "" // "wifi" | "bluetooth" | "menu"
 
     function claim(name) {
         active = name

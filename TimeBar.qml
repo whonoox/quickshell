@@ -26,18 +26,11 @@ Scope {
         if (hideAll) {
             isExpanded = false
             hudVisible = false
-            PopoutCoordinator.release("time")
         }
     }
 
-    Connections {
-        target: PopoutCoordinator
-        function onActiveChanged() {
-            if (PopoutCoordinator.active !== "" && PopoutCoordinator.active !== "time") {
-                root.isExpanded = false
-                root.hudVisible = false
-            }
-        }
+    Component.onCompleted: {
+        root.hudVisible = true
     }
 
     // Auto-hide Timer: Active for both views, auto-collapsing and moving off-screen
@@ -63,13 +56,11 @@ Scope {
 
             if (root.hideAll) {
                 // 1st Press: Show time glance HUD
-                PopoutCoordinator.claim("time")
                 root.hudVisible = true
                 root.isExpanded = false
                 autoHideTimer.restart()
             } else if (root.hudVisible && !root.isExpanded) {
                 // 2nd Press: Expand into date view and reset timer
-                PopoutCoordinator.claim("time")
                 root.isExpanded = true
                 root.hudVisible = false
                 autoHideTimer.restart()
@@ -77,7 +68,6 @@ Scope {
                 // 3rd Press or while expanded: Collapse and close
                 root.isExpanded = false
                 root.hudVisible = false
-                PopoutCoordinator.release("time")
             }
         }
     }
@@ -168,7 +158,6 @@ Scope {
                             root.isExpanded = !root.isExpanded
                             autoHideTimer.restart()
                             if (root.isExpanded) {
-                                PopoutCoordinator.claim("time")
                                 root.hudVisible = false
                             } else {
                                 root.hudVisible = true

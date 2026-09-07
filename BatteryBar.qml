@@ -12,11 +12,18 @@ Scope{
     property bool hideBar: true
 
     readonly property int batteryState: UPower.displayDevice.state
-    readonly property bool criticalBattery: battery.percentage <= 0.20
+    readonly property bool isCharging: battery.state === UPowerDeviceState.Charging
+    readonly property bool criticalBattery: battery.percentage <= 0.20 && !isCharging
     readonly property bool lowBattery: battery.percentage <= 0.25
     readonly property bool mediumBattery: battery.percentage <= 0.50
     readonly property bool highBattery: battery.percentage <= 0.75
     readonly property bool fullBattery: battery.percentage === 1.00
+
+    onCriticalBatteryChanged: {
+        if (criticalBattery) {
+            root.hideBar = false
+        }
+    }
 
     GlobalShortcut {
         name: "batteryToggle"
@@ -38,6 +45,12 @@ Scope{
         running: !hideBar && !criticalBattery
         onTriggered: {
             hideBar = true
+        }
+    }
+
+    Component.onCompleted: {
+        if (criticalBattery) {
+            root.hideBar = false
         }
     }
 
