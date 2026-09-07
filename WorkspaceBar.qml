@@ -447,24 +447,24 @@ Scope {
                     NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
                 }
 
-                // Top-Right Scoop (Connecting right edge of bar into top bezel)
-                ScoopShape {
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    cornerPosition: scoopPosition.bottomRight
+                // Unified single-vector background contour (position: topLeft)
+                ScoopV2 {
+                    id: backgroundShape
+                    anchors.fill: parent
+                    position: "topLeft"
+                    color: Theme.bgc
+                    radius: Theme.rounding
+                    cornerRadius: Theme.rounding
                 }
 
-                // Main Background Container
-                Rectangle {
+                // Main Content Container
+                Item {
                     id: background
                     anchors.top: parent.top
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.rounding
                     height: 44
-                    color: Theme.bgc
-                    bottomRightRadius: Theme.rounding
-                    bottomLeftRadius: 0
                     clip: true
 
                     RowLayout {
@@ -580,13 +580,6 @@ Scope {
                             }
                         }
                     }
-                }
-
-                // Bottom-Left Scoop (Connecting bottom of bar into left screen bezel)
-                ScoopShape {
-                    anchors.top: background.bottom
-                    anchors.left: parent.left
-                    cornerPosition: scoopPosition.bottomRight
                 }
             }
         }

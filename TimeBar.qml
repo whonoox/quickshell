@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell.Hyprland
 import Quickshell.Wayland
+import Quickshell.Io
 
 Scope {
     id: root
@@ -41,6 +42,41 @@ Scope {
         onTriggered: {
             root.isExpanded = false
             root.hudVisible = false
+        }
+    }
+
+    // IPC Handler
+    IpcHandler {
+        target: "timeBar"
+        function toggle() {
+            if (root.hideAll) {
+                root.hudVisible = true
+                root.isExpanded = false
+                autoHideTimer.restart()
+            } else if (root.hudVisible && !root.isExpanded) {
+                root.isExpanded = true
+                root.hudVisible = false
+                autoHideTimer.restart()
+            } else {
+                root.isExpanded = false
+                root.hudVisible = false
+                autoHideTimer.stop()
+            }
+        }
+        function open() {
+            root.hudVisible = true
+            root.isExpanded = false
+            autoHideTimer.restart()
+        }
+        function expand() {
+            root.isExpanded = true
+            root.hudVisible = false
+            autoHideTimer.restart()
+        }
+        function close() {
+            root.isExpanded = false
+            root.hudVisible = false
+            autoHideTimer.stop()
         }
     }
 
@@ -125,29 +161,21 @@ Scope {
                     NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
                 }
 
-                // Top-Left Scoop (Left edge connecting to top bezel)
-                ScoopShape {
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    cornerPosition: scoopPosition.bottomLeft
+                // Unified single-vector background contour (position: topCenter)
+                ScoopV2 {
+                    id: backgroundShape
+                    anchors.fill: parent
+                    position: "topCenter"
+                    color: Theme.bgc
+                    radius: Theme.rounding
                 }
 
-                // Top-Right Scoop (Right edge connecting to top bezel)
-                ScoopShape {
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    cornerPosition: scoopPosition.bottomRight
-                }
-
-                // Main Background Container
-                Rectangle {
+                // Main Content Container
+                Item {
                     id: background
                     anchors.fill: parent
                     anchors.leftMargin: Theme.rounding
                     anchors.rightMargin: Theme.rounding
-                    color: Theme.bgc
-                    bottomLeftRadius: Theme.rounding
-                    bottomRightRadius: Theme.rounding
                     clip: true
 
                     // Click to cycle between collapsed and expanded views with timer reset

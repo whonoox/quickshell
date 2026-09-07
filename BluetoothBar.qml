@@ -93,6 +93,41 @@ Scope {
         }
     }
 
+    // IPC Handler
+    IpcHandler {
+        target: "bluetoothBar"
+        function toggle() {
+            if (root.hideAll) {
+                PopoutCoordinator.claim("bluetooth")
+                root.hudVisible = true
+                root.isExpanded = false
+            } else if (root.hudVisible && !root.isExpanded) {
+                PopoutCoordinator.claim("bluetooth")
+                root.isExpanded = true
+                root.hudVisible = false
+            } else {
+                root.isExpanded = false
+                root.hudVisible = false
+                PopoutCoordinator.release("bluetooth")
+            }
+        }
+        function open() {
+            PopoutCoordinator.claim("bluetooth")
+            root.hudVisible = true
+            root.isExpanded = false
+        }
+        function expand() {
+            PopoutCoordinator.claim("bluetooth")
+            root.isExpanded = true
+            root.hudVisible = false
+        }
+        function close() {
+            root.isExpanded = false
+            root.hudVisible = false
+            PopoutCoordinator.release("bluetooth")
+        }
+    }
+
     // Global Shortcut Handler
     GlobalShortcut {
         name: "bluetoothToggle"
@@ -422,8 +457,8 @@ Scope {
                     x: root.hideAll ? (parent.width + 30) : (parent.width - width)
                     y: root.hideAll ? -(height + 30) : 0
 
-                    width: root.isExpanded ? 390 : (headerLeftRow.implicitWidth + Theme.rounding * 3)
-                    height: root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) : (Theme.rounding * 2.5)
+                    width: root.isExpanded ? 390 : Math.max(3 * Theme.rounding, headerLeftRow.implicitWidth + Theme.rounding * 3)
+                    height: root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) : (Theme.rounding * 3)
 
                     Behavior on width {
                         NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
@@ -438,28 +473,22 @@ Scope {
                         NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
                     }
 
-                    // Top-left Scoop (Glides smoothly along left edge)
-                    ScoopShape {
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        cornerPosition: scoopPosition.bottomLeft
+                    // Unified single-vector background contour (position: topRight)
+                    ScoopV2 {
+                        id: backgroundShape
+                        anchors.fill: parent
+                        position: "topRight"
+                        color: Theme.bgc
+                        radius: Theme.rounding
+                        cornerRadius: Theme.rounding
                     }
 
-                    // Bottom-right Scoop (Anchored to bottom-right)
-                    ScoopShape {
-                        anchors.bottom: parent.bottom
-                        anchors.right: parent.right
-                        cornerPosition: scoopPosition.bottomLeft
-                    }
-
-                    // Main Background Container
-                    Rectangle {
+                    // Main Content Container
+                    Item {
                         id: background
                         anchors.fill: parent
                         anchors.leftMargin: Theme.rounding
                         anchors.bottomMargin: Theme.rounding
-                        color: Theme.bgc
-                        bottomLeftRadius: Theme.rounding
                         clip: true
 
                         // Swallow clicks on card so they do NOT bubble to Layer 0 backdrop
@@ -476,7 +505,7 @@ Scope {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.top: parent.top
-                            height: Theme.rounding * 2.5 - Theme.rounding
+                            height: Theme.rounding * 2
 
                             // Click header to toggle expansion
                             MouseArea {

@@ -3,6 +3,7 @@ import Quickshell.Hyprland
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Services.UPower
+import Quickshell.Io
 
 
 Scope{  
@@ -22,6 +23,24 @@ Scope{
     onCriticalBatteryChanged: {
         if (criticalBattery) {
             root.hideBar = false
+        }
+    }
+
+    // IPC Handler
+    IpcHandler {
+        target: "batteryBar"
+        function toggle() {
+            if (!criticalBattery) {
+                hideBar = !hideBar
+            }
+        }
+        function open() {
+            hideBar = false
+        }
+        function close() {
+            if (!criticalBattery) {
+                hideBar = true
+            }
         }
     }
 
@@ -66,7 +85,7 @@ Scope{
 
                 exclusionMode: ExclusionMode.Normal
 
-                implicitWidth: 36
+                implicitWidth: Math.max(38, 2 * Theme.rounding)
                 implicitHeight: 120 + Theme.spacing * 4
                 color:"transparent"
                 margins.right: root.hideBar ? implicitWidth * -1 : 0
@@ -75,19 +94,13 @@ Scope{
                     console.log(root.battery.state === UPowerDeviceState.Charging)
                 }
 
-                ScoopShape{
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    cornerPosition: scoopPosition.topLeft
-                }
-
-                Rectangle {
+                // Unified single-vector background contour (position: centerRight)
+                ScoopV2 {
+                    id: backgroundShape
                     anchors.fill: parent
-                    anchors.topMargin: Theme.rounding
-                    anchors.bottomMargin: Theme.rounding
+                    position: "centerRight"
                     color: Theme.bgc
-                    bottomLeftRadius: Theme.rounding - Theme.spacing
-                    topLeftRadius: Theme.rounding - Theme.spacing
+                    radius: Theme.rounding
                 }
 
                 FlexboxLayout {
@@ -144,12 +157,6 @@ Scope{
                     color: root.battery.percentage >= 0.20 ? Theme.brand : "red"
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.spacing * 2
-                }
-
-                ScoopShape{
-                    anchors.bottom: parent.bottom
-                    anchors.right: parent.right
-                    cornerPosition: scoopPosition.bottomLeft
                 }
             }
 

@@ -269,7 +269,9 @@ Scope {
 
         PopoutCoordinator.claim("menu")
         Qt.callLater(function() {
-            keyCatcher.forceActiveFocus()
+            if (typeof keyCatcher !== "undefined") {
+                keyCatcher.forceActiveFocus()
+            }
         })
     }
 
@@ -283,6 +285,20 @@ Scope {
             root.cancel()
         } else {
             root.openRoute(menu)
+        }
+    }
+
+    // IPC Handler
+    IpcHandler {
+        target: "omarchyMenu"
+        function toggle() {
+            root.toggleMenu("root")
+        }
+        function open() {
+            root.openRoute("root")
+        }
+        function close() {
+            root.cancel()
         }
     }
 
@@ -320,11 +336,13 @@ Scope {
         root.filterText = val
         root.selectedIndex = 0
         root.rebuildDisplay()
-        resultList.positionViewAtIndex(0, ListView.Beginning)
+        if (typeof resultList !== "undefined") {
+            resultList.positionViewAtIndex(0, ListView.Beginning)
+        }
     }
 
     function revealCursor() {
-        if (displayModel.count === 0) return
+        if (typeof resultList === "undefined" || displayModel.count === 0) return
         resultList.currentIndex = root.selectedIndex
         if (root.selectedIndex === 0) {
             resultList.positionViewAtIndex(0, ListView.Beginning)
@@ -463,31 +481,22 @@ Scope {
                     NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
                 }
 
-                // Bottom-Left Scoop (Connects flush to bottom display bezel)
-                ScoopShape {
-                    anchors.bottom: parent.bottom
-                    anchors.left: parent.left
-                    cornerPosition: scoopPosition.topLeft
+                // Unified single-vector background contour (position: bottomCenter)
+                ScoopV2 {
+                    id: backgroundShape
+                    anchors.fill: parent
+                    position: "bottomCenter"
+                    color: Theme.bgc
+                    radius: Theme.rounding
+                    cornerRadius: Theme.rounding
                 }
 
-                // Bottom-Right Scoop (Connects flush to bottom display bezel)
-                ScoopShape {
-                    anchors.bottom: parent.bottom
-                    anchors.right: parent.right
-                    cornerPosition: scoopPosition.topRight
-                }
-
-                // Main Card Surface
-                Rectangle {
+                // Main Card Surface Content Container
+                Item {
                     id: background
                     anchors.fill: parent
                     anchors.leftMargin: Theme.rounding
                     anchors.rightMargin: Theme.rounding
-                    topLeftRadius: Theme.rounding
-                    topRightRadius: Theme.rounding
-                    bottomLeftRadius: 0
-                    bottomRightRadius: 0
-                    color: Theme.bgc
                     clip: true
 
                     // Swallow clicks inside the card

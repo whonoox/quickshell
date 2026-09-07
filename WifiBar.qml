@@ -110,6 +110,47 @@ Scope {
         }
     }
 
+    // IPC Handler
+    IpcHandler {
+        target: "wifiBar"
+        function toggle() {
+            if (root.hideAll) {
+                PopoutCoordinator.claim("wifi")
+                root.hudVisible = true
+                root.isExpanded = false
+            } else if (root.hudVisible && !root.isExpanded) {
+                PopoutCoordinator.claim("wifi")
+                root.isExpanded = true
+                root.hudVisible = false
+                statusProcess.running = true
+                bandProcess.running = true
+            } else {
+                root.isExpanded = false
+                root.hudVisible = false
+                root.activePasswordSsid = ""
+                PopoutCoordinator.release("wifi")
+            }
+        }
+        function open() {
+            PopoutCoordinator.claim("wifi")
+            root.hudVisible = true
+            root.isExpanded = false
+        }
+        function expand() {
+            PopoutCoordinator.claim("wifi")
+            root.isExpanded = true
+            root.hudVisible = false
+            statusProcess.running = true
+            bandProcess.running = true
+        }
+        function close() {
+            root.isExpanded = false
+            root.hudVisible = false
+            root.activePasswordSsid = ""
+            PopoutCoordinator.release("wifi")
+        }
+    }
+
     // Global Shortcut Handler
     GlobalShortcut {
         name: "wifiToggle"
@@ -516,8 +557,8 @@ Scope {
                     x: root.hideAll ? (parent.width + 30) : (parent.width - width)
                     y: root.hideAll ? -(height + 30) : 0
 
-                    width: root.isExpanded ? 390 : (wifiName.implicitWidth + Theme.rounding * 3)
-                    height: root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) : (Theme.rounding * 2.5)
+                    width: root.isExpanded ? 390 : Math.max(3 * Theme.rounding, wifiName.implicitWidth + Theme.rounding * 3)
+                    height: root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) : (Theme.rounding * 3)
 
                     Behavior on width {
                         NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
@@ -532,28 +573,22 @@ Scope {
                         NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
                     }
 
-                    // Top-left Scoop
-                    ScoopShape {
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        cornerPosition: scoopPosition.bottomLeft
+                    // Unified single-vector background contour (position: topRight)
+                    ScoopV2 {
+                        id: backgroundShape
+                        anchors.fill: parent
+                        position: "topRight"
+                        color: Theme.bgc
+                        radius: Theme.rounding
+                        cornerRadius: Theme.rounding
                     }
 
-                    // Bottom-right Scoop
-                    ScoopShape {
-                        anchors.bottom: parent.bottom
-                        anchors.right: parent.right
-                        cornerPosition: scoopPosition.bottomLeft
-                    }
-
-                    // Main Background Container
-                    Rectangle {
+                    // Main Content Container
+                    Item {
                         id: background
                         anchors.fill: parent
                         anchors.leftMargin: Theme.rounding
                         anchors.bottomMargin: Theme.rounding
-                        color: Theme.bgc
-                        bottomLeftRadius: Theme.rounding
                         clip: true
 
                         // Swallow clicks inside card
@@ -570,7 +605,7 @@ Scope {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.top: parent.top
-                            height: Theme.rounding * 2.5 - Theme.rounding
+                            height: Theme.rounding * 2
 
                             // Click header to toggle expansion
                             MouseArea {
