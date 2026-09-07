@@ -8,6 +8,7 @@ QtObject {
 
     readonly property string home: Quickshell.env("HOME")
     readonly property string colorsPath: home + "/.local/state/omarchy/current/theme/colors.toml"
+    readonly property string themeNamePath: home + "/.local/state/omarchy/current/theme.name"
 
     // Theme Mode ("dark" | "light")
     property string mode: "dark"
@@ -64,13 +65,16 @@ QtObject {
             var idx = line.indexOf("=")
             if (idx === -1) continue
             var k = line.substring(0, idx).trim()
-            var v = line.substring(idx + 1).trim().replace(/^["']|["']$/g, "")
+            var rawVal = line.substring(idx + 1).trim()
+            var match = rawVal.match(/^["']([^"']*)["']/)
+            var v = match ? match[1] : rawVal.split("#")[0].trim()
             map[k] = v
         }
         return map
     }
 
     function loadColors(text) {
+        if (!text) return
         var d = parseToml(text)
         if (d.mode) {
             root.mode = d.mode.toLowerCase()
@@ -96,16 +100,46 @@ QtObject {
         if (d.brown) root.brown = d.brown
     }
 
+    property FileView themeNameFile: FileView {
+        id: themeNameFile
+        path: root.themeNamePath
+        watchChanges: true
+        printErrors: false
+        onLoaded: colorsReloadTimer.restart()
+        onFileChanged: {
+            reload()
+            colorsReloadTimer.restart()
+        }
+    }
+
+    property Timer colorsReloadTimer: Timer {
+        id: colorsReloadTimer
+        interval: 50
+        repeat: false
+        onTriggered: {
+            colorsFile.reload()
+            if (colorsFile.text()) {
+                root.loadColors(colorsFile.text())
+            }
+        }
+    }
+
     property FileView colorsFile: FileView {
         id: colorsFile
         path: root.colorsPath
         watchChanges: true
         printErrors: false
         onLoaded: root.loadColors(text())
-        onFileChanged: reload()
+        onFileChanged: {
+            reload()
+            if (text()) {
+                root.loadColors(text())
+            }
+        }
     }
 
     Component.onCompleted: {
+        themeNameFile.reload()
         colorsFile.reload()
         if (colorsFile.text()) {
             root.loadColors(colorsFile.text())
