@@ -12,6 +12,8 @@ Item {
 
     // Visual attributes
     property color fillColor: Theme.bgc
+    property color borderColor: Qt.rgba(0, 0, 0, 0.01)
+    property real borderWidth: Theme.borderWidth
     property real radius: Theme.rounding
     property real cornerRadius: Theme.rounding
 
@@ -20,6 +22,7 @@ Item {
     readonly property real effectiveHeight: height
     readonly property real r: radius
     readonly property real cr: cornerRadius
+    readonly property real d: borderWidth
 
     // 1. TOP LEFT
     Shape {
@@ -30,40 +33,41 @@ Item {
         layer.samples: 4
 
         ShapePath {
-            strokeWidth: 0
+            strokeWidth: root.borderWidth * 2
+            strokeColor: root.borderWidth > 0 ? root.borderColor : "transparent"
             fillColor: root.fillColor
             startX: 0
             startY: 0
 
             PathLine {
-                x: root.effectiveWidth
+                x: root.effectiveWidth - root.d
                 y: 0
             }
             PathArc {
-                x: root.effectiveWidth - root.r
+                x: root.effectiveWidth - root.d - root.r
                 y: root.r
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Counterclockwise
             }
             PathLine {
-                x: root.effectiveWidth - root.r
-                y: root.effectiveHeight - root.r - root.cr
+                x: root.effectiveWidth - root.d - root.r
+                y: root.effectiveHeight - root.d - root.r - root.cr
             }
             PathArc {
-                x: root.effectiveWidth - root.r - root.cr
-                y: root.effectiveHeight - root.r
+                x: root.effectiveWidth - root.d - root.r - root.cr
+                y: root.effectiveHeight - root.d - root.r
                 radiusX: root.cr
                 radiusY: root.cr
                 direction: PathArc.Clockwise
             }
             PathLine {
                 x: root.r
-                y: root.effectiveHeight - root.r
+                y: root.effectiveHeight - root.d - root.r
             }
             PathArc {
                 x: 0
-                y: root.effectiveHeight
+                y: root.effectiveHeight - root.d
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Counterclockwise
@@ -84,53 +88,54 @@ Item {
         layer.samples: 4
 
         ShapePath {
-            strokeWidth: 0
+            strokeWidth: root.borderWidth * 2
+            strokeColor: root.borderWidth > 0 ? root.borderColor : "transparent"
             fillColor: root.fillColor
-            startX: 0
+            startX: root.d
             startY: 0
 
             PathArc {
-                x: root.r
+                x: root.r + root.d
                 y: root.r
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Clockwise
             }
             PathLine {
-                x: root.r
-                y: root.effectiveHeight - root.r
+                x: root.r + root.d
+                y: root.effectiveHeight - root.d - root.r
             }
             PathArc {
-                x: 2 * root.r
-                y: root.effectiveHeight
+                x: 2 * root.r + root.d
+                y: root.effectiveHeight - root.d
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Counterclockwise
             }
             PathLine {
-                x: root.effectiveWidth - 2 * root.r
-                y: root.effectiveHeight
+                x: root.effectiveWidth - 2 * root.r - root.d
+                y: root.effectiveHeight - root.d
             }
             PathArc {
-                x: root.effectiveWidth - root.r
-                y: root.effectiveHeight - root.r
+                x: root.effectiveWidth - root.r - root.d
+                y: root.effectiveHeight - root.d - root.r
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Counterclockwise
             }
             PathLine {
-                x: root.effectiveWidth - root.r
+                x: root.effectiveWidth - root.r - root.d
                 y: root.r
             }
             PathArc {
-                x: root.effectiveWidth
+                x: root.effectiveWidth - root.d
                 y: 0
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Clockwise
             }
             PathLine {
-                x: 0
+                x: root.d
                 y: 0
             }
         }
@@ -145,36 +150,37 @@ Item {
         layer.samples: 4
 
         ShapePath {
-            strokeWidth: 0
+            strokeWidth: root.borderWidth * 2
+            strokeColor: root.borderWidth > 0 ? root.borderColor : "transparent"
             fillColor: root.fillColor
-            startX: 0
+            startX: root.d
             startY: 0
 
             PathArc {
-                x: root.r
+                x: root.r + root.d
                 y: root.r
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Clockwise
             }
             PathLine {
-                x: root.r
-                y: root.effectiveHeight - root.r - root.cr
+                x: root.r + root.d
+                y: root.effectiveHeight - root.d - root.r - root.cr
             }
             PathArc {
-                x: root.r + root.cr
-                y: root.effectiveHeight - root.r
+                x: root.r + root.d + root.cr
+                y: root.effectiveHeight - root.d - root.r
                 radiusX: root.cr
                 radiusY: root.cr
                 direction: PathArc.Counterclockwise
             }
             PathLine {
                 x: root.effectiveWidth - root.r
-                y: root.effectiveHeight - root.r
+                y: root.effectiveHeight - root.d - root.r
             }
             PathArc {
                 x: root.effectiveWidth
-                y: root.effectiveHeight
+                y: root.effectiveHeight - root.d
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Clockwise
@@ -184,7 +190,7 @@ Item {
                 y: 0
             }
             PathLine {
-                x: 0
+                x: root.d
                 y: 0
             }
         }
@@ -199,54 +205,55 @@ Item {
         layer.samples: 4
 
         ShapePath {
-            strokeWidth: 0
+            strokeWidth: root.borderWidth * 2
+            strokeColor: root.borderWidth > 0 ? root.borderColor : "transparent"
             fillColor: root.fillColor
             startX: root.effectiveWidth
-            startY: 0
+            startY: root.d
 
             PathArc {
                 x: root.effectiveWidth - root.r
-                y: root.r
+                y: root.r + root.d
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Clockwise
             }
             PathLine {
-                x: root.r
-                y: root.r
+                x: root.r + root.d
+                y: root.r + root.d
             }
             PathArc {
-                x: 0
-                y: 2 * root.r
+                x: root.d
+                y: 2 * root.r + root.d
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Counterclockwise
             }
             PathLine {
-                x: 0
-                y: root.effectiveHeight - 2 * root.r
+                x: root.d
+                y: root.effectiveHeight - 2 * root.r - root.d
             }
             PathArc {
-                x: root.r
-                y: root.effectiveHeight - root.r
+                x: root.r + root.d
+                y: root.effectiveHeight - root.r - root.d
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Counterclockwise
             }
             PathLine {
                 x: root.effectiveWidth - root.r
-                y: root.effectiveHeight - root.r
+                y: root.effectiveHeight - root.r - root.d
             }
             PathArc {
                 x: root.effectiveWidth
-                y: root.effectiveHeight
+                y: root.effectiveHeight - root.d
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Clockwise
             }
             PathLine {
                 x: root.effectiveWidth
-                y: 0
+                y: root.d
             }
         }
     }
@@ -260,40 +267,41 @@ Item {
         layer.samples: 4
 
         ShapePath {
-            strokeWidth: 0
+            strokeWidth: root.borderWidth * 2
+            strokeColor: root.borderWidth > 0 ? root.borderColor : "transparent"
             fillColor: root.fillColor
             startX: root.effectiveWidth
             startY: root.effectiveHeight
 
             PathLine {
-                x: 0
+                x: root.d
                 y: root.effectiveHeight
             }
             PathArc {
-                x: root.r
+                x: root.r + root.d
                 y: root.effectiveHeight - root.r
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Counterclockwise
             }
             PathLine {
-                x: root.r
-                y: root.r + root.cr
+                x: root.r + root.d
+                y: root.d + root.r + root.cr
             }
             PathArc {
-                x: root.r + root.cr
-                y: root.r
+                x: root.r + root.d + root.cr
+                y: root.d + root.r
                 radiusX: root.cr
                 radiusY: root.cr
                 direction: PathArc.Clockwise
             }
             PathLine {
                 x: root.effectiveWidth - root.r
-                y: root.r
+                y: root.d + root.r
             }
             PathArc {
                 x: root.effectiveWidth
-                y: 0
+                y: root.d
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Counterclockwise
@@ -314,53 +322,54 @@ Item {
         layer.samples: 4
 
         ShapePath {
-            strokeWidth: 0
+            strokeWidth: root.borderWidth * 2
+            strokeColor: root.borderWidth > 0 ? root.borderColor : "transparent"
             fillColor: root.fillColor
-            startX: 0
+            startX: root.d
             startY: root.effectiveHeight
 
             PathArc {
-                x: root.r
+                x: root.r + root.d
                 y: root.effectiveHeight - root.r
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Counterclockwise
             }
             PathLine {
-                x: root.r
-                y: root.r
+                x: root.r + root.d
+                y: root.d + root.r
             }
             PathArc {
-                x: 2 * root.r
-                y: 0
+                x: 2 * root.r + root.d
+                y: root.d
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Clockwise
             }
             PathLine {
-                x: root.effectiveWidth - 2 * root.r
-                y: 0
+                x: root.effectiveWidth - 2 * root.r - root.d
+                y: root.d
             }
             PathArc {
-                x: root.effectiveWidth - root.r
-                y: root.r
+                x: root.effectiveWidth - root.r - root.d
+                y: root.d + root.r
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Clockwise
             }
             PathLine {
-                x: root.effectiveWidth - root.r
+                x: root.effectiveWidth - root.r - root.d
                 y: root.effectiveHeight - root.r
             }
             PathArc {
-                x: root.effectiveWidth
+                x: root.effectiveWidth - root.d
                 y: root.effectiveHeight
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Counterclockwise
             }
             PathLine {
-                x: 0
+                x: root.d
                 y: root.effectiveHeight
             }
         }
@@ -375,35 +384,36 @@ Item {
         layer.samples: 4
 
         ShapePath {
-            strokeWidth: 0
+            strokeWidth: root.borderWidth * 2
+            strokeColor: root.borderWidth > 0 ? root.borderColor : "transparent"
             fillColor: root.fillColor
             startX: 0
-            startY: 0
+            startY: root.d
 
             PathArc {
                 x: root.r
-                y: root.r
+                y: root.d + root.r
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Counterclockwise
             }
             PathLine {
-                x: root.effectiveWidth - root.r - root.cr
-                y: root.r
+                x: root.effectiveWidth - root.d - root.r - root.cr
+                y: root.d + root.r
             }
             PathArc {
-                x: root.effectiveWidth - root.r
-                y: root.r + root.cr
+                x: root.effectiveWidth - root.d - root.r
+                y: root.d + root.r + root.cr
                 radiusX: root.cr
                 radiusY: root.cr
                 direction: PathArc.Clockwise
             }
             PathLine {
-                x: root.effectiveWidth - root.r
+                x: root.effectiveWidth - root.d - root.r
                 y: root.effectiveHeight - root.r
             }
             PathArc {
-                x: root.effectiveWidth
+                x: root.effectiveWidth - root.d
                 y: root.effectiveHeight
                 radiusX: root.r
                 radiusY: root.r
@@ -415,7 +425,7 @@ Item {
             }
             PathLine {
                 x: 0
-                y: 0
+                y: root.d
             }
         }
     }
@@ -429,54 +439,55 @@ Item {
         layer.samples: 4
 
         ShapePath {
-            strokeWidth: 0
+            strokeWidth: root.borderWidth * 2
+            strokeColor: root.borderWidth > 0 ? root.borderColor : "transparent"
             fillColor: root.fillColor
             startX: 0
-            startY: 0
+            startY: root.d
 
             PathArc {
                 x: root.r
-                y: root.r
+                y: root.d + root.r
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Counterclockwise
             }
             PathLine {
-                x: root.effectiveWidth - root.r
-                y: root.r
+                x: root.effectiveWidth - root.d - root.r
+                y: root.d + root.r
             }
             PathArc {
-                x: root.effectiveWidth
-                y: 2 * root.r
+                x: root.effectiveWidth - root.d
+                y: root.d + 2 * root.r
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Clockwise
             }
             PathLine {
-                x: root.effectiveWidth
-                y: root.effectiveHeight - 2 * root.r
+                x: root.effectiveWidth - root.d
+                y: root.effectiveHeight - root.d - 2 * root.r
             }
             PathArc {
-                x: root.effectiveWidth - root.r
-                y: root.effectiveHeight - root.r
+                x: root.effectiveWidth - root.d - root.r
+                y: root.effectiveHeight - root.d - root.r
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Clockwise
             }
             PathLine {
                 x: root.r
-                y: root.effectiveHeight - root.r
+                y: root.effectiveHeight - root.d - root.r
             }
             PathArc {
                 x: 0
-                y: root.effectiveHeight
+                y: root.effectiveHeight - root.d
                 radiusX: root.r
                 radiusY: root.r
                 direction: PathArc.Counterclockwise
             }
             PathLine {
                 x: 0
-                y: 0
+                y: root.d
             }
         }
     }

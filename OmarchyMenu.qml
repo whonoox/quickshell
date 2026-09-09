@@ -344,28 +344,10 @@ Scope {
     function revealCursor() {
         if (typeof resultList === "undefined" || displayModel.count === 0) return
         resultList.currentIndex = root.selectedIndex
-        if (root.selectedIndex === 0) {
-            resultList.positionViewAtIndex(0, ListView.Beginning)
-            return
-        }
-        if (root.selectedIndex === displayModel.count - 1) {
-            resultList.positionViewAtIndex(displayModel.count - 1, ListView.End)
-            return
-        }
-        resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
-
-        var item = resultList.itemAtIndex(root.selectedIndex)
-        if (!item) return
-
-        var reach = 37
-        var maxY = Math.max(0, resultList.contentHeight - resultList.height)
-        if (root.selectedIndex < displayModel.count - 1) {
-            var overhang = item.y + item.height + reach - (resultList.contentY + resultList.height)
-            if (overhang > 0) resultList.contentY = Math.min(resultList.contentY + overhang, maxY)
-        }
-        if (root.selectedIndex > 0) {
-            var underhang = resultList.contentY - (item.y - reach)
-            if (underhang > 0) resultList.contentY = Math.max(resultList.contentY - underhang, 0)
+        if (resultList.contentHeight > resultList.height) {
+            resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+        } else {
+            resultList.contentY = 0
         }
     }
 
@@ -646,7 +628,29 @@ Scope {
                             clip: true
                             spacing: 3
                             boundsBehavior: Flickable.StopAtBounds
+                            interactive: false
                             model: displayModel
+
+                            WheelHandler {
+                                target: null
+                                property real wheelAccumulator: 0
+                                onWheel: function(event) {
+                                    if ((wheelAccumulator > 0 && event.angleDelta.y < 0) || (wheelAccumulator < 0 && event.angleDelta.y > 0)) {
+                                        wheelAccumulator = 0
+                                    }
+                                    wheelAccumulator += event.angleDelta.y
+                                    var threshold = 120
+                                    while (wheelAccumulator <= -threshold) {
+                                        root.select(1)
+                                        wheelAccumulator += threshold
+                                    }
+                                    while (wheelAccumulator >= threshold) {
+                                        root.select(-1)
+                                        wheelAccumulator -= threshold
+                                    }
+                                    event.accepted = true
+                                }
+                            }
 
                             delegate: Rectangle {
                                 required property int index

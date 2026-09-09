@@ -184,30 +184,27 @@ Scope {
     }
 
     function revealWifiCursor() {
-        if (root.networksCount <= 0) return
+        if (root.networksCount <= 0 || typeof networkList === "undefined") return
         networkList.currentIndex = root.selectedWifiIndex
-        if (root.selectedWifiIndex === 0) {
-            networkList.positionViewAtIndex(0, ListView.Beginning)
-            return
+        if (networkList.contentHeight > networkList.height) {
+            networkList.positionViewAtIndex(root.selectedWifiIndex, ListView.Contain)
+        } else {
+            networkList.contentY = 0
         }
-        if (root.selectedWifiIndex === root.networksCount - 1) {
-            networkList.positionViewAtIndex(root.networksCount - 1, ListView.End)
-            return
-        }
-        networkList.positionViewAtIndex(root.selectedWifiIndex, ListView.Contain)
+    }
 
-        var item = networkList.itemAtIndex(root.selectedWifiIndex)
-        if (!item) return
-        var reach = 34
-        var maxY = Math.max(0, networkList.contentHeight - networkList.height)
-        if (root.selectedWifiIndex < root.networksCount - 1) {
-            var overhang = item.y + item.height + reach - (networkList.contentY + networkList.height)
-            if (overhang > 0) networkList.contentY = Math.min(networkList.contentY + overhang, maxY)
+    function selectWifi(delta) {
+        if (root.networksCount <= 0) return
+        root.focusSection = "wifi"
+        root.wifiActionFocused = false
+        var next = root.selectedWifiIndex + delta
+        if (next < 0) {
+            next = Math.max(0, root.networksCount - 1)
+        } else if (next >= root.networksCount) {
+            next = 0
         }
-        if (root.selectedWifiIndex > 0) {
-            var underhang = networkList.contentY - (item.y - reach)
-            if (underhang > 0) networkList.contentY = Math.max(networkList.contentY - underhang, 0)
-        }
+        root.selectedWifiIndex = next
+        root.revealWifiCursor()
     }
 
     // Auto-hide Timer for Glance HUD (only active when collapsed)
@@ -466,12 +463,7 @@ Scope {
                                 root.revealWifiCursor()
                             }
                         } else if (root.focusSection === "wifi") {
-                            if (root.selectedWifiIndex < root.networksCount - 1) {
-                                root.selectedWifiIndex++
-                            } else {
-                                root.selectedWifiIndex = 0
-                            }
-                            root.revealWifiCursor()
+                            root.selectWifi(1)
                         }
                         event.accepted = true
                         return
@@ -480,12 +472,7 @@ Scope {
                     // --- Arrow Up Navigation ---
                     if (event.key === Qt.Key_Up) {
                         if (root.focusSection === "wifi") {
-                            if (root.selectedWifiIndex > 0) {
-                                root.selectedWifiIndex--
-                            } else {
-                                root.selectedWifiIndex = Math.max(0, root.networksCount - 1)
-                            }
-                            root.revealWifiCursor()
+                            root.selectWifi(-1)
                         } else if (root.focusSection === "dns") {
                             root.focusSection = "header"
                         }
@@ -912,6 +899,28 @@ Scope {
                                 clip: true
                                 spacing: 4
                                 boundsBehavior: Flickable.StopAtBounds
+                                interactive: false
+
+                                WheelHandler {
+                                    target: null
+                                    property real wheelAccumulator: 0
+                                    onWheel: function(event) {
+                                        if ((wheelAccumulator > 0 && event.angleDelta.y < 0) || (wheelAccumulator < 0 && event.angleDelta.y > 0)) {
+                                            wheelAccumulator = 0
+                                        }
+                                        wheelAccumulator += event.angleDelta.y
+                                        var threshold = 120
+                                        while (wheelAccumulator <= -threshold) {
+                                            root.selectWifi(1)
+                                            wheelAccumulator += threshold
+                                        }
+                                        while (wheelAccumulator >= threshold) {
+                                            root.selectWifi(-1)
+                                            wheelAccumulator -= threshold
+                                        }
+                                        event.accepted = true
+                                    }
+                                }
 
                                 model: root.sortedNetworks
 

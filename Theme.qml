@@ -51,7 +51,7 @@ QtObject {
     // Dimensions
     readonly property int rounding: 20
     readonly property real spacing: 6
-
+    readonly property int borderWidth: 4
     // Typography
     readonly property string brandFont: "Nuuxfont"
     property string systemFont: "monospace"

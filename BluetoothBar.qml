@@ -196,30 +196,27 @@ Scope {
     }
 
     function revealDeviceCursor() {
-        if (root.totalDeviceCount <= 0) return
+        if (root.totalDeviceCount <= 0 || typeof deviceList === "undefined") return
         deviceList.currentIndex = root.selectedDeviceIndex
-        if (root.selectedDeviceIndex === 0) {
-            deviceList.positionViewAtIndex(0, ListView.Beginning)
-            return
+        if (deviceList.contentHeight > deviceList.height) {
+            deviceList.positionViewAtIndex(root.selectedDeviceIndex, ListView.Contain)
+        } else {
+            deviceList.contentY = 0
         }
-        if (root.selectedDeviceIndex === root.totalDeviceCount - 1) {
-            deviceList.positionViewAtIndex(root.totalDeviceCount - 1, ListView.End)
-            return
-        }
-        deviceList.positionViewAtIndex(root.selectedDeviceIndex, ListView.Contain)
+    }
 
-        var item = deviceList.itemAtIndex(root.selectedDeviceIndex)
-        if (!item) return
-        var reach = 36
-        var maxY = Math.max(0, deviceList.contentHeight - deviceList.height)
-        if (root.selectedDeviceIndex < root.totalDeviceCount - 1) {
-            var overhang = item.y + item.height + reach - (deviceList.contentY + deviceList.height)
-            if (overhang > 0) deviceList.contentY = Math.min(deviceList.contentY + overhang, maxY)
+    function selectDevice(delta) {
+        if (root.totalDeviceCount <= 0) return
+        root.focusSection = "devices"
+        root.deviceActionFocused = false
+        var next = root.selectedDeviceIndex + delta
+        if (next < 0) {
+            next = root.totalDeviceCount - 1
+        } else if (next >= root.totalDeviceCount) {
+            next = 0
         }
-        if (root.selectedDeviceIndex > 0) {
-            var underhang = deviceList.contentY - (item.y - reach)
-            if (underhang > 0) deviceList.contentY = Math.max(deviceList.contentY - underhang, 0)
-        }
+        root.selectedDeviceIndex = next
+        root.revealDeviceCursor()
     }
 
     function activateHeader() {
@@ -365,13 +362,7 @@ Scope {
                                 root.revealDeviceCursor()
                             }
                         } else if (root.focusSection === "devices") {
-                            if (root.selectedDeviceIndex < root.totalDeviceCount - 1) {
-                                root.selectedDeviceIndex++
-                            } else {
-                                root.selectedDeviceIndex = 0
-                            }
-                            root.deviceActionFocused = false
-                            root.revealDeviceCursor()
+                            root.selectDevice(1)
                         }
                         event.accepted = true
                         return
@@ -380,14 +371,7 @@ Scope {
                     // --- Arrow Up Navigation ---
                     if (event.key === Qt.Key_Up) {
                         if (root.focusSection === "devices") {
-                            if (root.selectedDeviceIndex > 0) {
-                                root.selectedDeviceIndex--
-                                root.deviceActionFocused = false
-                            } else {
-                                root.selectedDeviceIndex = Math.max(0, root.totalDeviceCount - 1)
-                                root.deviceActionFocused = false
-                            }
-                            root.revealDeviceCursor()
+                            root.selectDevice(-1)
                         } else if (root.focusSection === "header") {
                             if (root.totalDeviceCount > 0) {
                                 root.focusSection = "devices"
@@ -747,6 +731,28 @@ Scope {
                                 clip: true
                                 spacing: 4
                                 boundsBehavior: Flickable.StopAtBounds
+                                interactive: false
+
+                                WheelHandler {
+                                    target: null
+                                    property real wheelAccumulator: 0
+                                    onWheel: function(event) {
+                                        if ((wheelAccumulator > 0 && event.angleDelta.y < 0) || (wheelAccumulator < 0 && event.angleDelta.y > 0)) {
+                                            wheelAccumulator = 0
+                                        }
+                                        wheelAccumulator += event.angleDelta.y
+                                        var threshold = 120
+                                        while (wheelAccumulator <= -threshold) {
+                                            root.selectDevice(1)
+                                            wheelAccumulator += threshold
+                                        }
+                                        while (wheelAccumulator >= threshold) {
+                                            root.selectDevice(-1)
+                                            wheelAccumulator -= threshold
+                                        }
+                                        event.accepted = true
+                                    }
+                                }
 
                                 model: root.flattenedDevices
 
