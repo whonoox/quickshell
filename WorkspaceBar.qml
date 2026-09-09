@@ -39,6 +39,8 @@ Scope {
     // Icon Index & Resolution
     property var iconIndex: ({})
     property var pendingIconIndex: ({})
+    property var desktopMap: ({})
+    property var pendingDesktopMap: ({})
 
     function iconIndexScanCommand() {
         return [
@@ -49,13 +51,42 @@ Scope {
             '    [[ -d $base ]] && find "$base" \\( -path "*/apps/*" -o -path "*/devices/*" \\) -name "*.$ext" 2>/dev/null;',
             '  done;',
             '  find /usr/share/pixmaps -maxdepth 1 -name "*.$ext" 2>/dev/null;',
-            'done'
+            'done;',
+            'awk -F= \'',
+            '  BEGINFILE { icon=""; wm="" }',
+            '  /^\\[Desktop Entry\\]/ { in_de=1; next }',
+            '  /^\\[/ { in_de=0 }',
+            '  in_de && /^Icon=/ { icon=$2 }',
+            '  in_de && /^StartupWMClass=/ { wm=$2 }',
+            '  ENDFILE {',
+            '    fn = FILENAME; sub(/.*\\//, "", fn); sub(/\\.desktop$/, "", fn);',
+            '    if (icon != "") {',
+            '      target = (icon ~ /^\\//) ? icon : tolower(icon);',
+            '      print "MAP:" tolower(fn) "\\t" target;',
+            '      if (wm != "") print "MAP:" tolower(wm) "\\t" target;',
+            '    }',
+            '    icon=""; wm="";',
+            '  }',
+            '\' /usr/share/applications/*.desktop ~/.local/share/applications/*.desktop 2>/dev/null'
         ].join(' ')
     }
 
     function indexIconLine(path) {
         var value = String(path || "").trim()
         if (value.length === 0) return
+
+        if (value.indexOf("MAP:") === 0) {
+            var parts = value.slice(4).split("\t")
+            if (parts.length >= 2) {
+                var cls = parts[0].trim().toLowerCase()
+                var iconTarget = parts[1].trim()
+                if (cls.length > 0 && iconTarget.length > 0) {
+                    root.pendingDesktopMap[cls] = iconTarget
+                }
+            }
+            return
+        }
+
         var slash = value.lastIndexOf("/")
         var file = slash >= 0 ? value.slice(slash + 1) : value
         var dot = file.lastIndexOf(".")
@@ -69,22 +100,82 @@ Scope {
         id: iconIndexScan
         command: ["bash", "-c", root.iconIndexScanCommand()]
         stdout: SplitParser { onRead: function(line) { root.indexIconLine(line) } }
-        onStarted: root.pendingIconIndex = ({})
+        onStarted: {
+            root.pendingIconIndex = ({})
+            root.pendingDesktopMap = ({})
+        }
         onExited: {
             root.iconIndex = root.pendingIconIndex
+            root.desktopMap = root.pendingDesktopMap
             root.updateWorkspaces()
         }
     }
 
-    function lookupIcon(name) {
-        var key = String(name || "").toLowerCase().trim()
-        if (key.length === 0) return ""
-        if (key.indexOf("file://") === 0 || key.indexOf("image://") === 0) return key
-        if (key.charAt(0) === "/") return "file://" + key
+    // Auto-reindex timer for newly installed apps or missing icons
+    Timer {
+        id: autoReindexTimer
+        interval: 1000
+        repeat: false
+        onTriggered: {
+            if (!iconIndexScan.running) {
+                iconIndexScan.running = true
+            }
+        }
+    }
 
+    function lookupIcon(name) {
+        var rawKey = String(name || "").trim()
+        if (rawKey.length === 0) return ""
+        if (rawKey.indexOf("file://") === 0 || rawKey.indexOf("image://") === 0) return rawKey
+        if (rawKey.charAt(0) === "/") return "file://" + rawKey
+
+        var key = rawKey.toLowerCase()
+
+        // 1. Direct match in icon file index
         if (root.iconIndex[key]) return "file://" + root.iconIndex[key]
+
+        // 2. Desktop file mapping (e.g. helium -> helium-browser, zen -> /path/to/icon)
+        if (root.desktopMap[key]) {
+            var mapped = root.desktopMap[key]
+            if (mapped.charAt(0) === "/") return "file://" + mapped
+            var mappedLower = mapped.toLowerCase()
+            if (root.iconIndex[mappedLower]) return "file://" + root.iconIndex[mappedLower]
+            var themedMapped = Quickshell.iconPath(mapped, true)
+            if (themedMapped && themedMapped.length > 0) return themedMapped
+        }
+
+        // 3. System theme icon lookup
         var themed = Quickshell.iconPath(key, true)
         if (themed && themed.length > 0) return themed
+
+        // 4. Common suffix / prefix fallbacks
+        var suffixes = ["-browser", "-desktop", "-bin", "-gui", "-client"]
+        for (var s = 0; s < suffixes.length; s++) {
+            var suff = suffixes[s]
+            var withSuff = key + suff
+            if (root.iconIndex[withSuff]) return "file://" + root.iconIndex[withSuff]
+            if (root.desktopMap[withSuff]) {
+                var mapSuff = root.desktopMap[withSuff]
+                if (mapSuff.charAt(0) === "/") return "file://" + mapSuff
+                if (root.iconIndex[mapSuff.toLowerCase()]) return "file://" + root.iconIndex[mapSuff.toLowerCase()]
+            }
+            var themedSuff = Quickshell.iconPath(withSuff, true)
+            if (themedSuff && themedSuff.length > 0) return themedSuff
+
+            // If key already ends with suffix, try stripping it
+            if (key.length > suff.length && key.slice(-suff.length) === suff) {
+                var stripped = key.slice(0, -suff.length)
+                if (root.iconIndex[stripped]) return "file://" + root.iconIndex[stripped]
+                if (root.desktopMap[stripped]) {
+                    var mapStrip = root.desktopMap[stripped]
+                    if (mapStrip.charAt(0) === "/") return "file://" + mapStrip
+                    if (root.iconIndex[mapStrip.toLowerCase()]) return "file://" + root.iconIndex[mapStrip.toLowerCase()]
+                }
+                var themedStrip = Quickshell.iconPath(stripped, true)
+                if (themedStrip && themedStrip.length > 0) return themedStrip
+            }
+        }
+
         return ""
     }
 
@@ -198,6 +289,16 @@ Scope {
             if (iconInit) return { iconUrl: iconInit, glyph: "" }
         }
 
+        // 6. Title suffix fallback (e.g. "Page Title - Helium" or "Document - AppName")
+        if (tit.length > 0 && tit.indexOf(" - ") !== -1) {
+            var dashParts = tit.split(" - ")
+            var lastPart = dashParts[dashParts.length - 1].trim()
+            if (lastPart.length > 0) {
+                var iconLast = root.lookupIcon(lastPart)
+                if (iconLast) return { iconUrl: iconLast, glyph: "" }
+            }
+        }
+
         return { iconUrl: "", glyph: "" }
     }
 
@@ -243,6 +344,35 @@ Scope {
         return w.id > 0 ? w.id : -1
     }
 
+    function formatToplevel(rt) {
+        if (!rt) return null
+        var appClass = ""
+        if (rt.lastIpcObject && (rt.lastIpcObject.class || rt.lastIpcObject.initialClass)) {
+            appClass = rt.lastIpcObject.class || rt.lastIpcObject.initialClass
+        } else if (rt.address && root.windowClassByAddress[rt.address]) {
+            appClass = root.windowClassByAddress[rt.address]
+        } else if (rt.appId) {
+            appClass = rt.appId
+        }
+
+        var initialTitle = rt.lastIpcObject ? (rt.lastIpcObject.initialTitle || "") : ""
+        var appInfo = root.resolveAppInfo(appClass, rt.title || "", initialTitle)
+
+        if ((!appInfo.iconUrl || appInfo.iconUrl.length === 0) && !iconIndexScan.running && !autoReindexTimer.running) {
+            autoReindexTimer.restart()
+        }
+
+        return {
+            title: rt.title || "",
+            initialTitle: initialTitle,
+            address: rt.address || "",
+            appClass: appClass,
+            iconUrl: appInfo.iconUrl,
+            glyph: appInfo.glyph,
+            lastIpcObject: rt.lastIpcObject
+        }
+    }
+
     // Refresh & Compute Workspaces List
     function updateWorkspaces() {
         var ws = Hyprland.workspaces.values
@@ -258,28 +388,8 @@ Scope {
                 if (root.getWorkspaceId(ws[i]) === focusedId && ws[i].toplevels) {
                     var rawTops = ws[i].toplevels.values
                     for (var k = 0; k < rawTops.length; k++) {
-                        var rt = rawTops[k]
-                        var appClass = ""
-                        if (rt.lastIpcObject && (rt.lastIpcObject.class || rt.lastIpcObject.initialClass)) {
-                            appClass = rt.lastIpcObject.class || rt.lastIpcObject.initialClass
-                        } else if (rt.address && root.windowClassByAddress[rt.address]) {
-                            appClass = root.windowClassByAddress[rt.address]
-                        } else if (rt.appId) {
-                            appClass = rt.appId
-                        }
-                        
-                        var initialTitle = rt.lastIpcObject ? (rt.lastIpcObject.initialTitle || "") : ""
-                        var appInfo = root.resolveAppInfo(appClass, rt.title || "", initialTitle)
-
-                        focusedTops.push({
-                            title: rt.title || "",
-                            initialTitle: initialTitle,
-                            address: rt.address || "",
-                            appClass: appClass,
-                            iconUrl: appInfo.iconUrl,
-                            glyph: appInfo.glyph,
-                            lastIpcObject: rt.lastIpcObject
-                        })
+                        var ft = root.formatToplevel(rawTops[k])
+                        if (ft) focusedTops.push(ft)
                     }
                     break
                 }
@@ -300,11 +410,16 @@ Scope {
             if (id <= 0 || seen[id]) continue
             var tops = w.toplevels ? w.toplevels.values : []
             if (tops.length > 0) {
+                var otherTops = []
+                for (var m = 0; m < tops.length; m++) {
+                    var ot = root.formatToplevel(tops[m])
+                    if (ot) otherTops.push(ot)
+                }
                 list.push({
                     id: id,
                     isActive: false,
-                    toplevels: tops,
-                    count: tops.length
+                    toplevels: otherTops,
+                    count: otherTops.length
                 })
                 seen[id] = true
             }
@@ -327,6 +442,7 @@ Scope {
                     root.windowClassByAddress[addr] = cls
                 }
             }
+            autoReindexTimer.restart()
         }
 
         Hyprland.refreshWorkspaces()
