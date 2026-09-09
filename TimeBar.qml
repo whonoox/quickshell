@@ -13,10 +13,50 @@ Scope {
     property bool isExpanded: false
     readonly property bool hideAll: !hudVisible && !isExpanded
     property real lastToggleTime: 0
+    property int lastHourlyNotifiedHour: (new Date()).getHours()
+
+    function msUntilNextHour() {
+        var now = new Date()
+        var nextHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0)
+        return Math.max(1000, nextHour.getTime() - now.getTime())
+    }
+
+    function triggerHourlyGlance(force) {
+        var now = new Date()
+        var hr = now.getHours()
+        if (!force && root.lastHourlyNotifiedHour === hr) return
+        root.lastHourlyNotifiedHour = hr
+
+        // Pop out if forced or at the turn of the hour (within 2 minutes of :00)
+        if (force || now.getMinutes() <= 2) {
+            if (!root.isExpanded) {
+                root.hudVisible = true
+            }
+            autoHideTimer.restart()
+        }
+    }
+
+    // Hourly Popout Timer: dynamically schedules to the exact millisecond of the next hour
+    Timer {
+        id: hourlyTimer
+        interval: root.msUntilNextHour()
+        repeat: true
+        running: true
+        onTriggered: {
+            root.triggerHourlyGlance()
+            interval = root.msUntilNextHour()
+        }
+    }
 
     SystemClock {
         id: clock
         precision: root.hideAll ? SystemClock.Minutes : SystemClock.Seconds
+        onDateChanged: {
+            var d = clock.date
+            if (d && d.getMinutes() === 0) {
+                root.triggerHourlyGlance()
+            }
+        }
     }
 
     readonly property string time: Qt.formatDateTime(clock.date, "hh:mm:ss AP")
@@ -77,6 +117,9 @@ Scope {
             root.isExpanded = false
             root.hudVisible = false
             autoHideTimer.stop()
+        }
+        function hourlyGlance() {
+            root.triggerHourlyGlance(true)
         }
     }
 
