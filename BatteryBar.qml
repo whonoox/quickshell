@@ -85,14 +85,10 @@ Scope{
 
                 exclusionMode: ExclusionMode.Normal
 
-                implicitWidth: Math.max(38, 2 * Theme.rounding) + 4
-                implicitHeight: 120 + Theme.spacing * 4 + 8
-                color:"transparent"
+                implicitWidth: 48
+                implicitHeight: 160 + Theme.spacing * 4 + 8
+                color: "transparent"
                 margins.right: root.hideBar ? implicitWidth * -1 : 0
-
-                Component.onCompleted: {
-                    console.log(root.battery.state === UPowerDeviceState.Charging)
-                }
 
                 // Unified single-vector background contour (position: centerRight)
                 ScoopV2 {
@@ -106,17 +102,17 @@ Scope{
                 FlexboxLayout {
                     id: batteryFlex
                     anchors.fill: parent
-                    anchors.topMargin: Theme.rounding + Theme.spacing + 4
-                    anchors.bottomMargin: Theme.rounding + Theme.spacing + 4
-                    anchors.leftMargin: Theme.spacing + 4
-                    // anchors.rightMargin: Theme.spacing / 2
+                    anchors.topMargin: Theme.rounding + Theme.spacing * 2
+                    anchors.bottomMargin: Theme.rounding + Theme.spacing * 2
+                    anchors.leftMargin: Theme.spacing + Theme.borderWidth
+                    anchors.rightMargin: Theme.borderWidth
                     direction: FlexboxLayout.Column
                     alignItems: FlexboxLayout.AlignCenter
                     gap: Theme.spacing / 2
 
                     Rectangle {
                         topLeftRadius: Theme.rounding
-                        topRightRadius: Theme.spacing
+                        topRightRadius: Theme.rounding
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         color: root.highBattery ? Theme.brandBgc : Theme.brand
@@ -141,7 +137,7 @@ Scope{
                     Rectangle {
                         id: batteryBottom
                         bottomLeftRadius: Theme.rounding
-                        bottomRightRadius: Theme.spacing
+                        bottomRightRadius: Theme.rounding
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         color: root.criticalBattery ? "red" : root.lowBattery ? "orange" : Theme.brand
@@ -149,14 +145,18 @@ Scope{
                     
                 }
 
-                Text {
+                Image {
+                    id: chargingIcon
                     anchors.bottom: batteryFlex.bottom
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.horizontalCenterOffset: Theme.spacing / 2
-                    text: root.battery.state === UPowerDeviceState.Charging ? "⚡️":""
-                    color: root.battery.percentage >= 0.20 ? Theme.brand : "red"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.spacing * 2
+                    anchors.bottomMargin: Theme.spacing / 2
+                    anchors.horizontalCenter: batteryFlex.horizontalCenter
+                    visible: root.battery.state === UPowerDeviceState.Charging
+                    source: root.battery.percentage >= 0.20 ? "decorations/lightning-fill.svg" : "decorations/lightning-fill-red.svg"
+                    width: 14
+                    height: 14
+                    sourceSize.width: 14
+                    sourceSize.height: 14
+                    fillMode: Image.PreserveAspectFit
                 }
             }
 
