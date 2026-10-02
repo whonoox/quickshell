@@ -1,0 +1,50 @@
+#!/bin/bash
+# Shared plumbing for the ~/.local/bin menu shims.
+#
+# The Omarchy menu lives in this user's own quickshell config
+# (~/.config/quickshell), which is a *different* instance from the one
+# /usr/share/omarchy/shell runs. Anything that reaches the menu over IPC has
+# to be redirected here, or it opens the stock menu instead.
+#
+# Every shim sources this, checks that our instance answers, and falls back to
+# the packaged binary when it does not, so a stopped shell degrades into the
+# stock menu instead of a dead command.
+
+MENU_QS_PATH="${MENU_QS_PATH:-$HOME/.config/quickshell}"
+MENU_QS_TARGET="omarchyMenu"
+MENU_IPC_TIMEOUT="${MENU_IPC_TIMEOUT:-3s}"
+
+menu_summon() {
+  local payload="${1:-{\}}"
+  timeout --kill-after=1s "$MENU_IPC_TIMEOUT" \
+    qs ipc -n -p "$MENU_QS_PATH" call -- "$MENU_QS_TARGET" summon "$payload" >/dev/null 2>&1
+}
+
+menu_call() {
+  local func="$1"
+  shift
+  timeout --kill-after=1s "$MENU_IPC_TIMEOUT" \
+    qs ipc -n -p "$MENU_QS_PATH" call -- "$MENU_QS_TARGET" "$func" "$@" >/dev/null 2>&1
+}
+
+# Returns 0 only when our instance is up *and* the menu plugin answered.
+menu_instance_ready() {
+  local out
+  out="$(timeout --kill-after=1s "$MENU_IPC_TIMEOUT" \
+    qs ipc -n -p "$MENU_QS_PATH" call -- "$MENU_QS_TARGET" ping 2>/dev/null)" || return 1
+  [[ "$out" == "ok" ]]
+}
+
+# Blocks on the done-file the menu writes once the request is resolved.
+menu_await_done() {
+  local done_file="$1"
+  local waited=0
+  while [[ ! -e $done_file ]]; do
+    sleep 0.05
+    waited=$((waited + 1))
+    # Ten minutes is far longer than any interactive pick; past it something is
+    # wedged and the caller deserves its exit rather than a hang.
+    (( waited > 12000 )) && return 1
+  done
+  return 0
+}

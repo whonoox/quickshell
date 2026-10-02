@@ -1,0 +1,20 @@
+#!/bin/bash
+# Pass-through wrapper for the omarchy CLI.
+#
+# The real /usr/bin/omarchy derives OMARCHY_BIN_DIR from its own location, so
+# `omarchy menu ...` always dispatches to /usr/bin/omarchy-menu -- even though
+# ~/.local/bin/omarchy-menu shadows it for direct calls, which would otherwise
+# make the two spellings open different menus.
+#
+# Only the `menu` group is re-routed here; every other subcommand is handed
+# straight to the packaged binary with its arguments untouched, and omarchy-menu
+# still falls back to the packaged menu when this quickshell instance is down.
+
+set -euo pipefail
+
+if [[ ${1-} == menu ]]; then
+  shift
+  exec "$HOME/.local/bin/omarchy-menu" "$@"
+fi
+
+exec /usr/bin/omarchy "$@"
