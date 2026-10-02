@@ -12,9 +12,13 @@
 
 set -euo pipefail
 
+# Resolved relative to this script, like the other shims, so the set keeps
+# working wherever it is installed rather than only under ~/.local/bin.
+here="$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")"
+
 if [[ ${1-} == menu ]]; then
   shift
-  exec "$HOME/.local/bin/omarchy-menu" "$@"
+  exec "$here/omarchy-menu" "$@"
 fi
 
 exec /usr/bin/omarchy "$@"

@@ -42,8 +42,8 @@ The select and input shims block on a done-file the menu writes once the
 request resolves, then print the selection — which is what makes
 `omarchy-menu-input` usable from scripts.
 
-## Caveat
+## Layout
 
-`omarchy` execs `$HOME/.local/bin/omarchy-menu` by absolute path rather than
-resolving it relative to itself like the other shims do. It is correct for a
-`~/.local/bin` install and breaks only if these are installed somewhere else.
+The shims must be installed flat into one directory: `omarchy` locates
+`omarchy-menu` beside itself, and the rest source `_omarchy-menu-shim` from
+their own directory.
