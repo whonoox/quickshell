@@ -278,6 +278,12 @@ function wifiSectionTitle(wifiNetworks, index) {
   return ""
 }
 
-function isProtected(security, openSecurity) {
-  return security !== openSecurity && security !== 0 && security !== "open"
+// `security` is the `WifiSecurityType` enum, never a string, and enum members
+// are ordinal: `0` is Wpa3SuiteB192, while `Open` is the 11th member. An older
+// version of this tested `security !== 0 && security !== "open"`, so open
+// networks were treated as protected and got a passphrase prompt, and the lock
+// glyph landed on WPA3-192GHz instead. `openValue` is passed in so this module
+// stays free of QML imports and remains unit-testable.
+function isProtected(security, openValue) {
+  return security !== openValue
 }

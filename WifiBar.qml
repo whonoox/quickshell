@@ -57,6 +57,10 @@ Scope {
     property var internetPingSamples: []
     property real internetPingLatency: -1
     property int internetPingPacketLoss: 0
+    // No probe has come back yet. The formatters take this explicitly so the
+    // grid reads "--" instead of contradicting itself with "Timeout" next to
+    // "0%" on the first frame after the panel opens.
+    readonly property bool hasPingSamples: internetPingSamples.length > 0
 
     // Wi-Fi Band State
     property string bandCurrent: ""
@@ -68,10 +72,63 @@ Scope {
 
     // Inline Password Entry
     property string activePasswordSsid: ""
-    property string enteredPassword: ""
 
-    readonly property var sortedNetworks: root.wifiDevice && root.wifiDevice.networks ? Model.sortWifiRows(root.wifiDevice.networks.values.map(Model.wifiRow)) : []
+    // The list used to be a live binding over the device's networks, so every
+    // NetworkManager signal -- including a bare signal-strength tick -- produced
+    // a brand new array. Reassigning ListView.model destroys and recreates every
+    // delegate, which is what used to delete the focused password field
+    // mid-typing along with the text in it. Rows are now rebuilt imperatively and
+    // only when the *set* of rows actually changes.
+    property var sortedNetworks: []
+    readonly property string networkKey: {
+        if (!wifiDevice || !wifiDevice.networks) return ""
+        var values = wifiDevice.networks.values
+        var parts = []
+        for (var i = 0; i < values.length; i++) {
+            var net = values[i]
+            if (!net) continue
+            // Deliberately excludes signal strength: a strength tick must not
+            // change the identity of the list.
+            parts.push((net.name || "") + "" + (net.connected ? 1 : 0) + "" + (net.known ? 1 : 0))
+        }
+        parts.sort()
+        return parts.join("")
+    }
     readonly property int networksCount: sortedNetworks.length
+
+    function syncWifiNetworks() {
+        if (!wifiDevice || !wifiDevice.networks) {
+            if (sortedNetworks.length > 0) sortedNetworks = []
+            return
+        }
+        sortedNetworks = Model.sortWifiRows(wifiDevice.networks.values.map(Model.wifiRow))
+    }
+
+    // Clamp the cursor whenever the list changes underneath it. Without this a
+    // stale index matches no delegate at all, so the highlight disappears and
+    // the next Up/Down computes from a row that is no longer there.
+    function clampWifiCursor() {
+        if (sortedNetworks.length === 0) {
+            selectedWifiIndex = 0
+            wifiActionFocused = false
+            return
+        }
+        if (selectedWifiIndex >= sortedNetworks.length) selectedWifiIndex = sortedNetworks.length - 1
+        if (selectedWifiIndex < 0) selectedWifiIndex = 0
+    }
+
+    Connections {
+        target: root
+        function onNetworkKeyChanged() { root.syncWifiNetworks() }
+        // A new adapter can expose the same SSIDs as the one it replaced, which
+        // leaves networkKey untouched while every row's networkObject is now
+        // dead. Rebuild on the device swap as well.
+        function onWifiDeviceChanged() { root.syncWifiNetworks() }
+    }
+
+    onSortedNetworksChanged: root.clampWifiCursor()
+
+    Component.onCompleted: root.syncWifiNetworks()
 
     // Focus Priming Timer (Brief 75ms Exclusive focus so Hyprland transfers keyboard focus immediately)
     Timer {
@@ -92,6 +149,7 @@ Scope {
         } else {
             focusPrimeTimer.stop()
             focusPrimed = false
+            root.stopStatus()
         }
     }
 
@@ -122,8 +180,7 @@ Scope {
                 PopoutCoordinator.claim("wifi")
                 root.isExpanded = true
                 root.hudVisible = false
-                statusProcess.running = true
-                bandProcess.running = true
+                root.refreshStatus()
             } else {
                 root.isExpanded = false
                 root.hudVisible = false
@@ -140,8 +197,7 @@ Scope {
             PopoutCoordinator.claim("wifi")
             root.isExpanded = true
             root.hudVisible = false
-            statusProcess.running = true
-            bandProcess.running = true
+            root.refreshStatus()
         }
         function close() {
             root.isExpanded = false
@@ -171,8 +227,7 @@ Scope {
                 PopoutCoordinator.claim("wifi")
                 root.isExpanded = true
                 root.hudVisible = false
-                statusProcess.running = true
-                bandProcess.running = true
+                root.refreshStatus()
             } else {
                 // 3rd Press or while expanded: Close
                 root.isExpanded = false
@@ -181,6 +236,27 @@ Scope {
                 PopoutCoordinator.release("wifi")
             }
         }
+    }
+
+    // Single entry point for kicking the two helper processes, mirroring the
+    // stock panel's `if (!detailsProc.running)` guard. Assigning `running = true`
+    // to an already-running Process is simply ignored, so a poller tick that
+    // lands mid-poll is a no-op rather than a queued respawn -- verified by
+    // measuring spawn cadence at 10/50/100ms ticks against a 400ms command, which
+    // comes out at the command's duration either way. The guard makes that
+    // "drop the tick" contract explicit instead of leaving it to be discovered.
+    // The real cost of the old form was that a refresh press during an in-flight
+    // poll vanished without a word.
+    function refreshStatus() {
+        if (!statusProcess.running) statusProcess.running = true
+        if (!bandProcess.running) bandProcess.running = true
+    }
+
+    // Drop any in-flight poll when the panel closes, so a poll started just
+    // before dismissal isn't left running against a panel nobody is looking at.
+    function stopStatus() {
+        statusProcess.running = false
+        bandProcess.running = false
     }
 
     function revealWifiCursor() {
@@ -222,7 +298,7 @@ Scope {
         interval: 1500
         running: root.isExpanded
         repeat: true
-        onTriggered: statusProcess.running = true
+        onTriggered: root.refreshStatus()
     }
 
     // Diagnostics Process (omarchy-network-status --verbose)
@@ -294,13 +370,10 @@ Scope {
 
     function connectToNetwork(net) {
         if (!net) return
-        if (net.security === "open" || net.security === 0) {
-            net.connect()
-        } else if (net.known) {
+        if (!Model.isProtected(net.security, WifiSecurityType.Open) || net.known) {
             net.connect()
         } else {
             root.activePasswordSsid = net.name
-            root.enteredPassword = ""
         }
     }
 
@@ -431,17 +504,20 @@ Scope {
                             })
                         }
                     }
+                    // The password field takes active focus while it is open, so
+                    // hand the keyboard back when it closes or arrow keys stop
+                    // working until the panel is clicked again.
+                    function onActivePasswordSsidChanged() {
+                        if (root.activePasswordSsid === "" && root.isExpanded) {
+                            Qt.callLater(function() {
+                                focusScope.forceActiveFocus()
+                            })
+                        }
+                    }
                 }
 
                 Keys.priority: Keys.BeforeItem
                 Keys.onPressed: function(event) {
-                    if (root.activePasswordSsid !== "") {
-                        if (event.key === Qt.Key_Escape) {
-                            root.activePasswordSsid = ""
-                            event.accepted = true
-                        }
-                        return
-                    }
 
                     if (event.key === Qt.Key_Escape) {
                         root.isExpanded = false
@@ -472,7 +548,17 @@ Scope {
                     // --- Arrow Up Navigation ---
                     if (event.key === Qt.Key_Up) {
                         if (root.focusSection === "wifi") {
-                            root.selectWifi(-1)
+                            // Up from the first row escapes to the DNS section
+                            // rather than wrapping to the bottom of the list.
+                            // The wrap used to make the options above the list
+                            // unreachable without Tab, since selectWifi(-1)
+                            // deliberately wraps within the list.
+                            if (root.networksCount > 0 && root.selectedWifiIndex <= 0) {
+                                root.focusSection = "dns"
+                                root.wifiActionFocused = false
+                            } else {
+                                root.selectWifi(-1)
+                            }
                         } else if (root.focusSection === "dns") {
                             root.focusSection = "header"
                         }
@@ -602,8 +688,7 @@ Scope {
                                     root.isExpanded = !root.isExpanded
                                     if (root.isExpanded) {
                                         root.hudVisible = false
-                                        statusProcess.running = true
-                                        bandProcess.running = true
+                                        root.refreshStatus()
                                     } else {
                                         root.hudVisible = false
                                         root.activePasswordSsid = ""
@@ -812,10 +897,10 @@ Scope {
                                 visible: root.hasConnection
 
                                 Text { text: "Ping:"; color: Theme.darkForeground; font.family: Theme.fontFamily; font.pixelSize: 10 }
-                                Text { text: Model.formatPingLatency(root.internetPingLatency, true); color: Theme.cyan; font.family: Theme.fontFamily; font.pixelSize: 10; font.bold: true }
+                                Text { text: Model.formatPingLatency(root.internetPingLatency, root.hasPingSamples); color: Theme.cyan; font.family: Theme.fontFamily; font.pixelSize: 10; font.bold: true }
 
                                 Text { text: "Loss:"; color: Theme.darkForeground; font.family: Theme.fontFamily; font.pixelSize: 10 }
-                                Text { text: Model.formatPacketLoss(root.internetPingPacketLoss, true); color: root.internetPingPacketLoss > 0 ? Theme.red : Theme.lightForeground; font.family: Theme.fontFamily; font.pixelSize: 10; font.bold: true }
+                                Text { text: Model.formatPacketLoss(root.internetPingPacketLoss, root.hasPingSamples); color: root.internetPingPacketLoss > 0 ? Theme.red : Theme.lightForeground; font.family: Theme.fontFamily; font.pixelSize: 10; font.bold: true }
 
                                 Text { text: "Down:"; color: Theme.darkForeground; font.family: Theme.fontFamily; font.pixelSize: 10 }
                                 Text { text: Model.formatRate(root.downloadRate); color: Theme.blue; font.family: Theme.fontFamily; font.pixelSize: 10; font.bold: true }
@@ -959,7 +1044,7 @@ Scope {
                                             }
 
                                             Text {
-                                                text: modelData.security !== "open" && modelData.security !== 0 ? "󰌾" : ""
+                                                text: Model.isProtected(modelData.security, WifiSecurityType.Open) ? "󰌾" : ""
                                                 color: Theme.yellow
                                                 font.family: Theme.fontFamily
                                                 font.pixelSize: 10
@@ -1016,6 +1101,7 @@ Scope {
                                                 border.width: 1
 
                                                 TextInput {
+                                                    id: passwordInput
                                                     anchors.fill: parent
                                                     anchors.margins: 3
                                                     echoMode: TextInput.Password
@@ -1023,10 +1109,23 @@ Scope {
                                                     font.family: Theme.fontFamily
                                                     font.pixelSize: 10
                                                     focus: passwordBox.visible
-                                                    onTextChanged: root.enteredPassword = text
+                                                    // The prompt is per-row and reuses the
+                                                    // delegate, so a stale passphrase would
+                                                    // still be sitting here from the last
+                                                    // time this network was picked.
+                                                    onVisibleChanged: if (visible) text = ""
+                                                    // Escape belongs to the field that has
+                                                    // focus: focusScope's Keys handler never
+                                                    // sees it while this prompt is up, so
+                                                    // without this the prompt is
+                                                    // undismissable from the keyboard.
+                                                    Keys.onEscapePressed: function(event) {
+                                                        root.activePasswordSsid = ""
+                                                        event.accepted = true
+                                                    }
                                                     onAccepted: {
                                                         if (modelData.networkObject) {
-                                                            modelData.networkObject.connectWithPsk(root.enteredPassword)
+                                                            modelData.networkObject.connectWithPsk(text)
                                                             root.activePasswordSsid = ""
                                                         }
                                                     }
@@ -1051,7 +1150,11 @@ Scope {
                                                     cursorShape: Qt.PointingHandCursor
                                                     onClicked: {
                                                         if (modelData.networkObject) {
-                                                            modelData.networkObject.connectWithPsk(root.enteredPassword)
+                                                            // Read the field itself rather than a
+                                                            // shared property, so a cancelled
+                                                            // prompt can never leak its passphrase
+                                                            // into the next network.
+                                                            modelData.networkObject.connectWithPsk(passwordInput.text)
                                                             root.activePasswordSsid = ""
                                                         }
                                                     }

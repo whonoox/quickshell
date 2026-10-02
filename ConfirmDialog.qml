@@ -52,6 +52,15 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: Qt.rgba(0, 0, 0, 0.55)
+
+        // The scrim is a plain Rectangle, which does not accept mouse events,
+        // so without this every click during the prompt would fall through to
+        // whatever is underneath -- the row the confirmation is about.
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            onClicked: {}
+        }
     }
 
     Rectangle {

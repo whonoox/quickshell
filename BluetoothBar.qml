@@ -53,6 +53,23 @@ Scope {
     }
     readonly property int totalDeviceCount: flattenedDevices.length
 
+    // Clamp the cursor whenever the list changes underneath it. Devices move
+    // between the connected/known/discovered buckets as they pair, connect and
+    // get forgotten, and stopping discovery drops the discovered block entirely
+    // -- so a stale index used to match no delegate at all, leaving the cursor
+    // invisible and making the next Up/Down compute from a row that is gone.
+    function clampDeviceCursor() {
+        if (flattenedDevices.length === 0) {
+            selectedDeviceIndex = 0
+            deviceActionFocused = false
+            return
+        }
+        if (selectedDeviceIndex >= flattenedDevices.length) selectedDeviceIndex = flattenedDevices.length - 1
+        if (selectedDeviceIndex < 0) selectedDeviceIndex = 0
+    }
+
+    onFlattenedDevicesChanged: root.clampDeviceCursor()
+
     // Focus Priming Timer (75ms Exclusive focus so Hyprland transfers keyboard focus immediately)
     Timer {
         id: focusPrimeTimer
