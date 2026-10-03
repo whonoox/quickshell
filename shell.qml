@@ -8,5 +8,6 @@ Scope {
     BluetoothBar{}
     RoundedOverlay{}
     OmarchyMenu{}
+    NotificationPanel{}
     ScoopTestPanel{}
 }

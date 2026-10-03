@@ -1,0 +1,89 @@
+#!/bin/bash
+# omarchy:summary=Send an IPC call to the running Omarchy shell
+# omarchy:args=[-q] <target> <method> [args...]
+# omarchy:examples=omarchy shell shell ping | omarchy-shell shell toggle omarchy.menu '{"menu":"root"}'
+
+# Pass-through for /usr/bin/omarchy-shell that re-routes the `notifications`
+# target to this user's own quickshell config, which is where the notification
+# daemon now lives.
+#
+# This is the single seam that keeps the rest of Omarchy working. The built-in
+# omarchy.notifications plugin is disabled, and these all call
+# `omarchy-shell notifications ...`:
+#
+#   omarchy-toggle-notification-silencing   the menu's trigger.toggle.notifications
+#   omarchy-notification-dismiss            the first-run notification flow
+#   omarchy-notification-wait               provisioning, migrations, crash watch
+#   SUPER + {SHIFT,} comma                  dismissOne / dismissAll
+#   SUPER + SHIFT + ALT + comma             invokeLast / showHistory
+#
+# Hyprland's PATH does include ~/.local/bin (position 3, well before /usr/bin),
+# so the keybindings pick this up rather than the packaged command.
+#
+# Every other target is forwarded to the packaged omarchy-shell untouched.
+
+set -uo pipefail
+
+QUIET=0
+if [[ ${1:-} == "-q" ]]; then
+  QUIET=1
+  shift
+fi
+
+fail() {
+  (( QUIET )) && exit 0
+  echo "$1" >&2
+  exit 1
+}
+
+if (( $# == 0 )) || [[ $1 == "-h" || $1 == "--help" ]]; then
+  exec /usr/bin/omarchy-shell "$@"
+fi
+
+# Anything that is not ours belongs to the omarchy shell. Re-add -q, which was
+# shifted off above.
+if [[ $1 != "notifications" ]]; then
+  if (( QUIET )); then
+    exec /usr/bin/omarchy-shell -q "$@"
+  fi
+  exec /usr/bin/omarchy-shell "$@"
+fi
+
+QS_PATH="${NOTIFICATION_QS_PATH:-$HOME/.config/quickshell}"
+
+(( $# >= 2 )) || fail "Usage: omarchy-shell <target> <method> [args...]"
+[[ -f $QS_PATH/shell.qml ]] || fail "notification panel config not found: $QS_PATH/shell.qml"
+
+# Mirrors the packaged command's recovery for callers with no display, e.g.
+# omarchy-restart-shell and the migrations it runs for.
+if [[ -z ${WAYLAND_DISPLAY:-} ]]; then
+  socket=$(ls -t "${XDG_RUNTIME_DIR:-/run/user/$UID}"/wayland-[0-9]* 2>/dev/null | grep -v '\.lock$' | head -n1)
+  [[ -n $socket ]] && export WAYLAND_DISPLAY=${socket##*/}
+fi
+
+# The -- keeps function names that shadow qs subcommands (e.g. show) as
+# positionals, and IPC-level failures arrive on stdout with exit 0, so they have
+# to be matched by text rather than by status.
+ipc_timeout=${OMARCHY_SHELL_IPC_TIMEOUT:-2s}
+output=$(timeout --kill-after=1s "$ipc_timeout" qs ipc -n -p "$QS_PATH" call -- "$@" 2>/dev/null)
+ipc_status=$?
+
+if (( ipc_status == 124 || ipc_status == 137 )); then
+  fail "omarchy-shell is not responding"
+elif (( ipc_status != 0 )); then
+  fail "omarchy-shell is not running"
+fi
+
+case $output in
+  "Target not found." | "Function not found." | "Too few arguments provided"* | "Too many arguments provided"*)
+    fail "$output"
+    ;;
+  "Not ready to accept queries yet"*)
+    fail "omarchy-shell is not ready"
+    ;;
+esac
+
+if (( ! QUIET )) && [[ -n $output ]]; then
+  echo "$output"
+fi
+exit 0
