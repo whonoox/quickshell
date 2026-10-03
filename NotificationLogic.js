@@ -173,3 +173,144 @@ function sortPopups(rows) {
   })
   return list
 }
+
+function desktopEntryFrom(notification) {
+  if (!notification) return ""
+  var entry = String(notification.desktopEntry || "")
+  try {
+    if (!entry && notification.hints && notification.hints["desktop-entry"]) {
+      entry = String(notification.hints["desktop-entry"])
+    }
+  } catch (e) { }
+  return entry.trim()
+}
+
+function extractImagePath(image, hints, appIcon, body, summary) {
+  var raw = ""
+  try {
+    if (hints && hints["image-path"]) raw = String(hints["image-path"])
+    else if (hints && hints["image_path"]) raw = String(hints["image_path"])
+  } catch (e) { }
+
+  if (!raw && image) raw = String(image)
+  if (!raw && appIcon && (appIcon.startsWith("/") || appIcon.startsWith("file://"))) raw = String(appIcon)
+
+  if (raw) {
+    if (raw.startsWith("image://icon/")) raw = raw.substring(13)
+    if (raw.startsWith("file://")) raw = raw.substring(7)
+    if (raw.startsWith("/")) return raw
+  }
+
+  // Check if body or summary references a local image file path
+  var text = String(body || "") + " " + String(summary || "")
+  var match = text.match(/(?:^|\s)(\/(?:[^\s'"<>]+\/)*[^\s'"<>]+\.(?:png|jpe?g|webp|bmp|gif))(?:$|\s|['">])/i)
+  if (match && match[1]) {
+    return match[1]
+  }
+  return ""
+}
+
+function isScreenshotNotification(entry) {
+  if (!entry) return false
+  var app = String(entry.app || "").toLowerCase()
+  var summary = String(entry.summary || "").toLowerCase()
+  var body = String(entry.body || "").toLowerCase()
+  var desktopEntry = String(entry.desktopEntry || "").toLowerCase()
+
+  var keywords = [
+    "screenshot", "screen-capture", "screen capture", "screencap",
+    "grim", "hyprshot", "grimblast", "flameshot", "tensaku", "swappy", "shot"
+  ]
+  for (var i = 0; i < keywords.length; i++) {
+    var k = keywords[i]
+    if (app.indexOf(k) !== -1 || summary.indexOf(k) !== -1 || body.indexOf(k) !== -1 || desktopEntry.indexOf(k) !== -1) {
+      return true
+    }
+  }
+  return false
+}
+
+function findPrimaryAction(actions) {
+  if (!actions || !actions.length) return null
+  // 1. Explicit default action (standard freedesktop body click)
+  for (var i = 0; i < actions.length; i++) {
+    var a = actions[i]
+    if (a && a.identifier === "default") return a
+  }
+  // 2. Common activation identifiers
+  var common = ["open", "view", "activate", "show", "read", "reply"]
+  for (var c = 0; c < common.length; c++) {
+    var target = common[c]
+    for (var j = 0; j < actions.length; j++) {
+      var act = actions[j]
+      if (act && act.identifier && String(act.identifier).toLowerCase() === target) return act
+    }
+  }
+  // 3. Fallback to first available action
+  return actions[0] || null
+}
+
+function actionListFrom(actions) {
+  if (!actions || !actions.length) return []
+  var list = []
+  for (var i = 0; i < actions.length; i++) {
+    var a = actions[i]
+    if (!a) continue
+    var id = String(a.identifier || "")
+    var txt = String(a.text || "").trim()
+    // "default" is the card body click; only expose actions with visible text labels as buttons
+    if (id !== "default" && txt.length > 0) {
+      list.push({ identifier: id, text: txt })
+    }
+  }
+  return list
+}
+
+function addCandidate(list, str) {
+  if (!str || typeof str !== "string") return
+  str = str.trim()
+  if (!str || str.startsWith("/") || str.startsWith("file://") || str.startsWith("image://")) return
+  list.push(str)
+  if (str.endsWith(".desktop")) {
+    var stripped = str.substring(0, str.length - 8)
+    if (stripped.length > 0) list.push(stripped)
+  }
+}
+
+function focusCandidatesFor(entry) {
+  if (!entry) return []
+  var rawList = []
+  addCandidate(rawList, entry.desktopEntry)
+  addCandidate(rawList, entry.appIcon)
+
+  var rawApp = String(entry.app || "").trim()
+  if (rawApp) {
+    var firstWord = rawApp.split(/[\s_-]+/)[0]
+    addCandidate(rawList, firstWord)
+    addCandidate(rawList, rawApp)
+  }
+
+  var ignored = {
+    "notify": true,
+    "notify-send": true,
+    "omarchy": true,
+    "omarchy-action": true,
+    "omarchy-notification-send": true,
+    "bash": true,
+    "sh": true,
+    "quickshell": true,
+    "qs": true
+  }
+
+  var out = []
+  var seen = {}
+  for (var i = 0; i < rawList.length; i++) {
+    var c = rawList[i]
+    var lower = c.toLowerCase()
+    if (!c || seen[lower] || ignored[lower]) continue
+    seen[lower] = true
+    out.push(c)
+  }
+  return out
+}
+

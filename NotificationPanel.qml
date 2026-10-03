@@ -47,6 +47,10 @@ Scope {
         var expireTimeout = Number(notification.expireTimeout)
         if (!isFinite(expireTimeout) || expireTimeout < 0) expireTimeout = 0
 
+        var desktopEntry = Logic.desktopEntryFrom(notification)
+        var imagePath = Logic.extractImagePath(notification.image, notification.hints, notification.appIcon, notification.body, notification.summary)
+        var actionsJson = JSON.stringify(Logic.actionListFrom(notification.actions))
+
         return {
             id: id,
             originalId: id,
@@ -59,6 +63,9 @@ Scope {
             execArgv: Logic.execArgvFromHints(notification.hints),
             urgency: notification.urgency,
             expireTimeout: expireTimeout,
+            desktopEntry: desktopEntry,
+            imagePath: imagePath,
+            actionsJson: actionsJson,
             timestamp: Date.now()
         }
     }
@@ -74,7 +81,7 @@ Scope {
         return next
     }
 
-    readonly property var popupRoles: ["app", "appIcon", "summary", "body", "image", "glyph", "execArgv", "urgency", "expireTimeout"]
+    readonly property var popupRoles: ["app", "appIcon", "summary", "body", "image", "glyph", "execArgv", "urgency", "expireTimeout", "desktopEntry", "imagePath", "actionsJson"]
 
     function popupRowChanged(before, after) {
         if (!before || !after) return false
@@ -94,7 +101,8 @@ Scope {
 
     property var updateSignals: [
         "summaryChanged", "bodyChanged", "appNameChanged", "appIconChanged",
-        "imageChanged", "urgencyChanged", "expireTimeoutChanged", "hintsChanged"
+        "imageChanged", "urgencyChanged", "expireTimeoutChanged", "hintsChanged",
+        "desktopEntryChanged", "actionsChanged"
     ]
 
     function handleNotification(notification) {
@@ -221,41 +229,123 @@ Scope {
         root.dismissTimer.restart()
     }
 
-    // Three tiers, matching the stock service: an omarchy-supplied argv wins,
-    // then the sender's libnotify "default" action, then fall back to focusing
-    // the sending window. Every path ends by dismissing the toast.
+    function resolveIcon(icon) {
+        if (!icon || icon.length === 0) return ""
+        if (icon.indexOf("/") !== -1) {
+            return icon.startsWith("file://") ? icon : ("file://" + icon)
+        }
+        var resolved = Quickshell.iconPath(icon, true)
+        if (resolved && resolved.length > 0) return resolved
+        return ""
+    }
+
+    function focusAppCandidates(entry) {
+        var candidates = Logic.focusCandidatesFor(entry)
+        if (!candidates || candidates.length === 0) return
+
+        var script = [
+            'for cand in "$@"; do',
+            '  [[ -n "$cand" ]] || continue',
+            '  match=$(hyprctl clients -j 2>/dev/null | jq -r --arg pattern "$cand" \'',
+            '    def matches($v): ($v // "") | test($pattern; "i");',
+            '    first(.[] | select(matches(.class) or matches(.initialClass) or matches(.title))) |',
+            '    "\\(.workspace.id // .workspace.name // "") \\(.address // "")"',
+            '  \')',
+            '  if [[ -n "$match" && "$match" != " " ]]; then',
+            '    read -r ws addr <<< "$match"',
+            '    if [[ -n "$ws" ]]; then',
+            '      hyprctl dispatch "hl.dsp.focus({ workspace = \\"$ws\\" })" >/dev/null 2>&1 || \\',
+            '        hyprctl dispatch workspace "$ws" >/dev/null 2>&1',
+            '    fi',
+            '    if [[ -n "$addr" ]]; then',
+            '      hyprctl dispatch "hl.dsp.focus({ window = \\"address:$addr\\" })" >/dev/null 2>&1 || \\',
+            '        hyprctl dispatch focuswindow "address:$addr" >/dev/null 2>&1',
+            '    fi',
+            '    exit 0',
+            '  fi',
+            'done',
+            'exit 1'
+        ].join('\n')
+
+        Quickshell.execDetached(["bash", "-c", script, "bash"].concat(candidates))
+    }
+
+    function openMediaFile(filePath, isScreenshot) {
+        if (!filePath) return
+        var script = [
+            'file="$1"',
+            'is_screen="$2"',
+            'if [[ "$is_screen" == "true" ]]; then',
+            '  editor="${OMARCHY_SCREENSHOT_EDITOR:-tensaku-edit}"',
+            '  if command -v "$editor" >/dev/null 2>&1; then',
+            '    exec "$editor" "$file"',
+            '  fi',
+            'fi',
+            'exec xdg-open "$file"'
+        ].join('\n')
+
+        Quickshell.execDetached(["bash", "-c", script, "bash", filePath, isScreenshot ? "true" : "false"])
+    }
+
     function invokePopupDefault(index) {
         if (index < 0 || index >= popupModel.count) return "none"
         var entry = popupModel.get(index)
         if (!entry) return "none"
 
+        // 1. omarchy-supplied argv (e.g. omarchy-capture-screenshot --exec)
         var argv = Logic.parseExecArgv(entry.execArgv)
         if (argv) {
-            // exec "$@" rather than a shell string, so nothing in the argv is
-            // ever word-split or glob-expanded.
             Quickshell.execDetached(["bash", "-c", 'exec "$@"', "bash"].concat(argv))
             root.dismissPopup(index)
             return "ok"
         }
 
+        // 2. Primary action in ref.actions (default, open, view, etc.)
         var ref = entry.originalId >= 0 ? root.liveRefs[entry.originalId] : null
-        var invoked = false
+        var actionInvoked = false
+        try {
+            if (ref && ref.actions && ref.actions.length > 0) {
+                var action = Logic.findPrimaryAction(ref.actions)
+                if (action) {
+                    action.invoke()
+                    actionInvoked = true
+                }
+            }
+        } catch (e) { }
+
+        // 3. Media / screenshot file fallback
+        var imagePath = String(entry.imagePath || "")
+        var isScreenshot = Logic.isScreenshotNotification(entry)
+        if (imagePath && (isScreenshot || !actionInvoked)) {
+            root.openMediaFile(imagePath, isScreenshot)
+        }
+
+        // 4. Focus sending window in Hyprland
+        root.focusAppCandidates(entry)
+
+        root.dismissPopup(index)
+        return "ok"
+    }
+
+    function invokePopupAction(index, actionId) {
+        if (index < 0 || index >= popupModel.count) return "none"
+        var entry = popupModel.get(index)
+        if (!entry) return "none"
+
+        var ref = entry.originalId >= 0 ? root.liveRefs[entry.originalId] : null
         try {
             if (ref && ref.actions) {
                 for (var i = 0; i < ref.actions.length; i++) {
                     var action = ref.actions[i]
-                    if (action && action.identifier === "default") {
+                    if (action && action.identifier === actionId) {
                         action.invoke()
-                        invoked = true
                         break
                     }
                 }
             }
         } catch (e) { }
 
-        if (!invoked) {
-            Quickshell.execDetached(["omarchy-hyprland-focus-app", String(entry.app)])
-        }
+        root.focusAppCandidates(entry)
         root.dismissPopup(index)
         return "ok"
     }
@@ -407,6 +497,23 @@ Scope {
             return "none"
         }
 
+        function inspectLast(): string {
+            if (popupModel.count === 0) return "{}"
+            var r = popupModel.get(0)
+            return JSON.stringify({
+                app: r.app,
+                appIcon: r.appIcon,
+                summary: r.summary,
+                body: r.body,
+                image: r.image,
+                glyph: r.glyph,
+                execArgv: r.execArgv,
+                desktopEntry: r.desktopEntry,
+                imagePath: r.imagePath,
+                actionsJson: r.actionsJson
+            })
+        }
+
         function ping(): string { return "ok" }
     }
 
@@ -514,6 +621,18 @@ Scope {
                         required property int urgency
                         required property int expireTimeout
 
+                        required property string desktopEntry
+                        required property string imagePath
+                        required property string actionsJson
+
+                        readonly property var actionList: {
+                            try {
+                                return row.actionsJson ? JSON.parse(row.actionsJson) : []
+                            } catch (e) {
+                                return []
+                            }
+                        }
+
                         readonly property real lifetime: root.durationFor(row.urgency, row.expireTimeout)
                         property real remaining: 1.0
                         readonly property bool ticking: row.lifetime > 0 && !rowMouse.containsMouse && !root.isDismissing
@@ -574,7 +693,7 @@ Scope {
                             anchors.topMargin: Theme.spacing * 1.5
                             spacing: Theme.spacing
 
-                            readonly property bool showIcon: row.glyph.length > 0 || row.appIcon.length > 0
+                            readonly property bool showIcon: row.glyph.length > 0 || row.image.length > 0 || row.appIcon.length > 0
 
                             // omarchy-notification-send passes its glyph through
                             // a custom hint rather than app_icon, so the glyph is
@@ -586,6 +705,7 @@ Scope {
                                 radius: 8
                                 color: Theme.surface
                                 anchors.verticalCenter: parent.verticalCenter
+                                clip: true
 
                                 Text {
                                     anchors.fill: parent
@@ -600,13 +720,13 @@ Scope {
 
                                 Image {
                                     anchors.fill: parent
-                                    anchors.margins: 5
-                                    visible: row.glyph.length === 0 && row.appIcon.length > 0
-                                    source: row.appIcon
+                                    anchors.margins: row.image.length > 0 ? 0 : 5
+                                    visible: row.glyph.length === 0 && (row.image.length > 0 || row.appIcon.length > 0)
+                                    source: row.image.length > 0 ? row.image : root.resolveIcon(row.appIcon)
                                     asynchronous: true
-                                    fillMode: Image.PreserveAspectFit
-                                    sourceSize.width: 18 * Screen.devicePixelRatio
-                                    sourceSize.height: 18 * Screen.devicePixelRatio
+                                    fillMode: row.image.length > 0 ? Image.PreserveAspectCrop : Image.PreserveAspectFit
+                                    sourceSize.width: 28 * Screen.devicePixelRatio
+                                    sourceSize.height: 28 * Screen.devicePixelRatio
                                 }
                             }
 
@@ -648,6 +768,46 @@ Scope {
                                     wrapMode: Text.WordWrap
                                     maximumLineCount: 4
                                     elide: Text.ElideRight
+                                }
+
+                                Flow {
+                                    width: parent.width
+                                    spacing: 6
+                                    visible: row.actionList && row.actionList.length > 0
+
+                                    Repeater {
+                                        model: row.actionList
+                                        delegate: Rectangle {
+                                            id: actionBtn
+                                            required property var modelData
+                                            width: btnText.implicitWidth + 14
+                                            height: 22
+                                            radius: 6
+                                            color: actionBtnMouse.containsMouse ? Theme.brand : Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.9)
+                                            border.width: 1
+                                            border.color: actionBtnMouse.containsMouse ? Theme.brand : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.6)
+
+                                            Text {
+                                                id: btnText
+                                                anchors.centerIn: parent
+                                                text: actionBtn.modelData.text
+                                                color: actionBtnMouse.containsMouse ? Theme.darkerBackground : Theme.foreground
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 11
+                                                font.bold: true
+                                            }
+
+                                            MouseArea {
+                                                id: actionBtnMouse
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    root.invokePopupAction(row.index, actionBtn.modelData.identifier)
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
