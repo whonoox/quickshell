@@ -1,0 +1,14 @@
+#!/bin/bash
+# Intercept volume OSD and route to AudioBar directly, suppressing stock Omarchy OSD.
+# Brightness and other non-audio OSDs pass through to /usr/share/omarchy/bin/omarchy-osd.
+
+for arg in "$@"; do
+  if [[ $arg =~ (volume-[a-z]+|volume|muted) ]]; then
+    QS_PATH="${NOTIFICATION_QS_PATH:-$HOME/.config/quickshell}"
+    timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- audioBar open >/dev/null 2>&1 || true
+    timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- audioBar refresh >/dev/null 2>&1 || true
+    exit 0
+  fi
+done
+
+exec /usr/share/omarchy/bin/omarchy-osd "$@"

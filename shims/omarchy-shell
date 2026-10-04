@@ -40,6 +40,31 @@ if (( $# == 0 )) || [[ $1 == "-h" || $1 == "--help" ]]; then
   exec /usr/bin/omarchy-shell "$@"
 fi
 
+QS_PATH="${NOTIFICATION_QS_PATH:-$HOME/.config/quickshell}"
+
+# Intercept volume OSD events and route to AudioBar instead of stock OSD
+if [[ ${1:-} == "osd" && ${2:-} == "show" ]]; then
+  payload="${3:-}"
+  if [[ $payload =~ \"icon\"[[:space:]]*:[[:space:]]*\"(volume-[a-z]+|volume|muted)\" ]]; then
+    timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- audioBar open >/dev/null 2>&1 || true
+    timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- audioBar refresh >/dev/null 2>&1 || true
+    exit 0
+  fi
+fi
+
+# Intercept omarchy.audio panel toggles and route to AudioBar
+if [[ ${1:-} == "shell" && ${2:-} == "toggle" && ${3:-} == "omarchy.audio" ]]; then
+  timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- audioBar toggle >/dev/null 2>&1 || true
+  exit 0
+fi
+
+# Route audioBar IPC targets directly to our quickshell
+if [[ ${1:-} == "audioBar" ]]; then
+  shift
+  timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- audioBar "$@" 2>/dev/null || true
+  exit 0
+fi
+
 # Anything that is not ours belongs to the omarchy shell. Re-add -q, which was
 # shifted off above.
 if [[ $1 != "notifications" ]]; then
@@ -48,8 +73,6 @@ if [[ $1 != "notifications" ]]; then
   fi
   exec /usr/bin/omarchy-shell "$@"
 fi
-
-QS_PATH="${NOTIFICATION_QS_PATH:-$HOME/.config/quickshell}"
 
 (( $# >= 2 )) || fail "Usage: omarchy-shell <target> <method> [args...]"
 [[ -f $QS_PATH/shell.qml ]] || fail "notification panel config not found: $QS_PATH/shell.qml"

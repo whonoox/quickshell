@@ -113,14 +113,19 @@ Scope{
                     Rectangle {
                         topLeftRadius: Theme.rounding
                         topRightRadius: Theme.rounding
+                        bottomLeftRadius: 4
+                        bottomRightRadius: 4
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         color: root.highBattery ? Theme.brandBgc : Theme.brand
+                        Behavior on color { ColorAnimation { duration: 120 } }
                     }
                     Rectangle {
+                        radius: 4
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         color: root.mediumBattery ? Theme.brandBgc : Theme.brand
+                        Behavior on color { ColorAnimation { duration: 120 } }
                     }
                     Text {
                         text: Math.round(root.battery.percentage * 100)
@@ -130,17 +135,22 @@ Scope{
                         font.weight: Font.Bold  
                     }
                     Rectangle {
+                        radius: 4
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         color: root.lowBattery ? Theme.brandBgc : Theme.brand
+                        Behavior on color { ColorAnimation { duration: 120 } }
                     }
                     Rectangle {
                         id: batteryBottom
+                        topLeftRadius: 4
+                        topRightRadius: 4
                         bottomLeftRadius: Theme.rounding
                         bottomRightRadius: Theme.rounding
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         color: root.criticalBattery ? "red" : root.lowBattery ? "orange" : Theme.brand
+                        Behavior on color { ColorAnimation { duration: 120 } }
                     }
                     
                 }
