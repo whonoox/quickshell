@@ -5,6 +5,7 @@ QtObject {
     id: root
 
     property string active: "" // "wifi" | "bluetooth" | "menu"
+    property string activeHud: "" // "audio" | "brightness"
 
     function claim(name) {
         active = name
@@ -13,6 +14,16 @@ QtObject {
     function release(name) {
         if (active === name) {
             active = ""
+        }
+    }
+
+    function claimHud(name) {
+        activeHud = name
+    }
+
+    function releaseHud(name) {
+        if (activeHud === name) {
+            activeHud = ""
         }
     }
 }

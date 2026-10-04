@@ -42,12 +42,16 @@ fi
 
 QS_PATH="${NOTIFICATION_QS_PATH:-$HOME/.config/quickshell}"
 
-# Intercept volume OSD events and route to AudioBar instead of stock OSD
+# Intercept volume and brightness OSD events and route to Quickshell instead of stock OSD
 if [[ ${1:-} == "osd" && ${2:-} == "show" ]]; then
   payload="${3:-}"
   if [[ $payload =~ \"icon\"[[:space:]]*:[[:space:]]*\"(volume-[a-z]+|volume|muted)\" ]]; then
     timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- audioBar open >/dev/null 2>&1 || true
     timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- audioBar refresh >/dev/null 2>&1 || true
+    exit 0
+  elif [[ $payload =~ \"icon\"[[:space:]]*:[[:space:]]*\"brightness\" ]]; then
+    timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- brightnessBar open >/dev/null 2>&1 || true
+    timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- brightnessBar refresh >/dev/null 2>&1 || true
     exit 0
   fi
 fi
@@ -58,10 +62,11 @@ if [[ ${1:-} == "shell" && ${2:-} == "toggle" && ${3:-} == "omarchy.audio" ]]; t
   exit 0
 fi
 
-# Route audioBar IPC targets directly to our quickshell
-if [[ ${1:-} == "audioBar" ]]; then
+# Route audioBar and brightnessBar IPC targets directly to our quickshell
+if [[ ${1:-} == "audioBar" || ${1:-} == "brightnessBar" ]]; then
+  target="$1"
   shift
-  timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- audioBar "$@" 2>/dev/null || true
+  timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- "$target" "$@" 2>/dev/null || true
   exit 0
 fi
 

@@ -48,6 +48,7 @@ Scope {
     }
 
     function reveal() {
+        PopoutCoordinator.claimHud("audio")
         root.hideBar = false
         autoHide.restart()
     }
@@ -143,9 +144,20 @@ Scope {
 
     onHideBarChanged: {
         if (!root.hideBar) {
+            PopoutCoordinator.claimHud("audio")
             autoHide.restart()
         } else {
+            PopoutCoordinator.releaseHud("audio")
             autoHide.stop()
+        }
+    }
+
+    Connections {
+        target: PopoutCoordinator
+        function onActiveHudChanged() {
+            if (PopoutCoordinator.activeHud !== "" && PopoutCoordinator.activeHud !== "audio") {
+                root.hideBar = true
+            }
         }
     }
 
@@ -188,10 +200,6 @@ Scope {
             implicitHeight: 160 + Theme.spacing * 4 + 8
             color: "transparent"
             margins.left: root.hideBar ? implicitWidth * -1 : 0
-
-            Behavior on margins.left {
-                NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
-            }
 
             // Unified single-vector background contour (position: centerLeft)
             ScoopV2 {
@@ -246,12 +254,10 @@ Scope {
                 }
 
                 Text {
-                    text: root.muted ? "" : (String(Math.round(Math.min(1, root.volume) * 100)) + (root.boosted ? "+" : ""))
+                    text: String(Math.round(Math.min(1, root.volume) * 100)) + (root.boosted ? "+" : "")
                     color: root.muted ? Theme.red : Theme.brand
-                    // The mute glyph is a Nerd Font private-use codepoint, so it
-                    // must not go through the brand face for the numerals.
-                    font.family: root.muted ? Theme.fontFamily : Theme.brandFont
-                    font.pixelSize: root.muted ? 18 : (root.boosted ? 16 : Theme.rounding)
+                    font.family: Theme.brandFont
+                    font.pixelSize: root.boosted ? 16 : Theme.rounding
                     font.weight: Font.Bold
                 }
 
@@ -275,6 +281,7 @@ Scope {
 
                 // Bar 1 (Bottom: 1% - 16%)
                 Rectangle {
+                    id: bottomBar
                     topLeftRadius: 4
                     topRightRadius: 4
                     bottomLeftRadius: Theme.rounding
@@ -283,6 +290,18 @@ Scope {
                     Layout.fillHeight: true
                     color: root.litBars >= 1 ? Theme.brand : Theme.brandBgc
                     Behavior on color { ColorAnimation { duration: 120 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: root.muted ? "" : ""
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 11
+                        font.weight: Font.Bold
+                        color: root.litBars >= 1
+                            ? Theme.bgc
+                            : (root.muted ? Theme.red : Theme.brand)
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
                 }
             }
 

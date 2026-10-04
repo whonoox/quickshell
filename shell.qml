@@ -5,6 +5,7 @@ Scope {
     TimeBar{}
     BatteryBar{}
     AudioBar{}
+    BrightnessBar{}
     WifiBar{}
     BluetoothBar{}
     RoundedOverlay{}
