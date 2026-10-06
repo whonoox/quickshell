@@ -2,6 +2,7 @@ import Quickshell
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQml.Models
 import Quickshell.Bluetooth
 import Quickshell.Hyprland
 import Quickshell.Wayland
@@ -25,8 +26,13 @@ Scope {
 
     // Bluetooth Adapter & Devices
     readonly property var adapter: Bluetooth.defaultAdapter
-    readonly property var allDevices: Bluetooth.devices ? Bluetooth.devices.values : []
-    readonly property var deviceGroups: Model.deviceLists(allDevices)
+    property int deviceStateVersion: 0
+
+    readonly property var allDevices: (Bluetooth.devices && Bluetooth.devices.values) ? Bluetooth.devices.values : []
+    readonly property var deviceGroups: {
+        var _ = deviceStateVersion
+        return Model.deviceLists(allDevices)
+    }
 
     readonly property var connectedDevices: deviceGroups.connected || []
     readonly property var knownDevices: deviceGroups.known || []
@@ -34,6 +40,89 @@ Scope {
 
     readonly property var primaryConnectedDevice: connectedDevices.length > 0 ? connectedDevices[0] : null
     readonly property bool hasConnection: primaryConnectedDevice !== null
+
+    // Connection Monitoring for Auto-Reveal on Connect
+    readonly property string connectedDevicesKey: {
+        var _ = deviceStateVersion
+        if (!connectedDevices || connectedDevices.length === 0) return ""
+        var addrs = []
+        for (var i = 0; i < connectedDevices.length; i++) {
+            var dev = connectedDevices[i]
+            if (dev && dev.address) addrs.push(dev.address)
+        }
+        addrs.sort()
+        return addrs.join(",")
+    }
+    property var prevConnectedAddrs: []
+    property bool connectionWatchReady: false
+
+    function currentConnectedAddrs() {
+        var addrs = []
+        if (root.connectedDevices) {
+            for (var i = 0; i < root.connectedDevices.length; i++) {
+                var d = root.connectedDevices[i]
+                if (d && d.address) addrs.push(d.address)
+            }
+        }
+        return addrs
+    }
+
+    function revealGlance() {
+        if (root.isExpanded) return
+        PopoutCoordinator.claim("bluetooth")
+        root.hudVisible = true
+        autoHideTimer.restart()
+    }
+
+    Timer {
+        id: connectionStartupTimer
+        interval: 1500
+        running: true
+        onTriggered: {
+            root.prevConnectedAddrs = root.currentConnectedAddrs()
+            root.connectionWatchReady = true
+        }
+    }
+
+    onConnectedDevicesKeyChanged: {
+        if (!root.connectionWatchReady) return
+        var current = root.currentConnectedAddrs()
+        var newlyConnected = false
+        for (var i = 0; i < current.length; i++) {
+            if (root.prevConnectedAddrs.indexOf(current[i]) === -1) {
+                newlyConnected = true
+                break
+            }
+        }
+        if (newlyConnected) {
+            root.revealGlance()
+        }
+        root.prevConnectedAddrs = current
+    }
+
+    Instantiator {
+        model: (Bluetooth.devices && Bluetooth.devices.values) ? Bluetooth.devices.values : []
+        delegate: Connections {
+            target: modelData
+            ignoreUnknownSignals: true
+            function onConnectedChanged() {
+                root.deviceStateVersion++
+                if (!root.connectionWatchReady) return
+                if (modelData && modelData.connected) {
+                    root.revealGlance()
+                }
+            }
+            function onPairedChanged() {
+                root.deviceStateVersion++
+            }
+            function onStateChanged() {
+                root.deviceStateVersion++
+            }
+            function onBatteryChanged() {
+                root.deviceStateVersion++
+            }
+        }
+    }
 
     // Flattened List of all interactive devices for unified ListView and keyboard navigation
     readonly property var flattenedDevices: {
@@ -129,9 +218,7 @@ Scope {
             }
         }
         function open() {
-            PopoutCoordinator.claim("bluetooth")
-            root.hudVisible = true
-            root.isExpanded = false
+            root.revealGlance()
         }
         function expand() {
             PopoutCoordinator.claim("bluetooth")
@@ -177,7 +264,7 @@ Scope {
     // Auto-hide Timer for Glance HUD (only active when collapsed)
     Timer {
         id: autoHideTimer
-        interval: 3000
+        interval: 3500
         running: root.hudVisible && !root.isExpanded
         onTriggered: {
             root.hudVisible = false

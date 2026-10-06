@@ -2,6 +2,7 @@ import Quickshell
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQml.Models
 import Quickshell.Networking
 import Quickshell.Hyprland
 import Quickshell.Wayland
@@ -25,17 +26,24 @@ Scope {
     property bool wifiActionFocused: false
 
     // Wi-Fi Connection Properties
-    readonly property var wifiDevice: Networking.devices.values.find(
+    readonly property var wifiDevice: (Networking.devices && Networking.devices.values) ? Networking.devices.values.find(
         dev => dev.type === DeviceType.Wifi
-    )
-
-    readonly property var connectedWifiDevice: Networking.devices.values.find(
-        dev => dev.type === DeviceType.Wifi && dev.state === ConnectionState.Connected
-    )
-
-    readonly property var connectedNetwork: connectedWifiDevice ? connectedWifiDevice.networks.values.find(
-        net => net.connected === true
     ) : null
+
+    property int networkStateVersion: 0
+
+    readonly property var connectedWifiDevice: (wifiDevice && wifiDevice.connected) ? wifiDevice : null
+
+    readonly property var connectedNetwork: {
+        var _ = networkStateVersion
+        if (!wifiDevice || !wifiDevice.connected || !wifiDevice.networks) return null
+        var values = wifiDevice.networks.values
+        for (var i = 0; i < values.length; i++) {
+            var net = values[i]
+            if (net && net.connected) return net
+        }
+        return null
+    }
 
     readonly property bool hasConnection: connectedNetwork !== undefined && connectedNetwork !== null
     readonly property real signalStrength: hasConnection && connectedNetwork.signalStrength !== undefined ? connectedNetwork.signalStrength : 0
@@ -44,6 +52,78 @@ Scope {
     property bool mediumSignal: hasConnection && signalStrength >= 0.25
     property bool strongSignal: hasConnection && signalStrength >= 0.5
     property bool veryStrongSignal: hasConnection && signalStrength >= 0.75
+
+    // Connection Monitoring for Auto-Reveal on Connect
+    readonly property string currentConnectionId: {
+        var _ = networkStateVersion
+        if (hasConnection && connectedNetwork && connectedNetwork.name) return connectedNetwork.name
+        if (hasConnection) return "connected"
+        if (sortedNetworks && sortedNetworks.length > 0 && sortedNetworks[0].connected) return sortedNetworks[0].ssid || "connected"
+        return ""
+    }
+    property string prevConnectionId: ""
+    property bool connectionWatchReady: false
+
+    function revealGlance() {
+        if (root.isExpanded) return
+        PopoutCoordinator.claim("wifi")
+        root.hudVisible = true
+        autoHideTimer.restart()
+    }
+
+    Timer {
+        id: connectionStartupTimer
+        interval: 1500
+        running: true
+        onTriggered: {
+            root.prevConnectionId = root.currentConnectionId
+            root.connectionWatchReady = true
+        }
+    }
+
+    onCurrentConnectionIdChanged: {
+        if (!root.connectionWatchReady) return
+        if (root.currentConnectionId !== "" && root.currentConnectionId !== root.prevConnectionId) {
+            root.revealGlance()
+        }
+        root.prevConnectionId = root.currentConnectionId
+    }
+
+    Connections {
+        target: root.wifiDevice || null
+        enabled: !!root.wifiDevice
+        ignoreUnknownSignals: true
+        function onConnectedChanged() {
+            root.networkStateVersion++
+            if (!root.connectionWatchReady) return
+            if (root.wifiDevice && root.wifiDevice.connected) {
+                root.revealGlance()
+            }
+        }
+        function onStateChanged() {
+            root.networkStateVersion++
+            if (!root.connectionWatchReady) return
+            if (root.wifiDevice && root.wifiDevice.state === ConnectionState.Connected) {
+                root.revealGlance()
+            }
+        }
+    }
+
+    Instantiator {
+        model: (root.wifiDevice && root.wifiDevice.networks) ? root.wifiDevice.networks.values : []
+        delegate: Connections {
+            target: modelData
+            ignoreUnknownSignals: true
+            function onConnectedChanged() {
+                root.networkStateVersion++
+                root.syncWifiNetworks()
+                if (!root.connectionWatchReady) return
+                if (modelData && modelData.connected) {
+                    root.revealGlance()
+                }
+            }
+        }
+    }
 
     // Diagnostics & Throughput State
     property var info: ({})
@@ -189,9 +269,7 @@ Scope {
             }
         }
         function open() {
-            PopoutCoordinator.claim("wifi")
-            root.hudVisible = true
-            root.isExpanded = false
+            root.revealGlance()
         }
         function expand() {
             PopoutCoordinator.claim("wifi")
@@ -286,7 +364,7 @@ Scope {
     // Auto-hide Timer for Glance HUD (only active when collapsed)
     Timer {
         id: autoHideTimer
-        interval: 3000
+        interval: 3500
         running: root.hudVisible && !root.isExpanded
         onTriggered: {
             root.hudVisible = false
