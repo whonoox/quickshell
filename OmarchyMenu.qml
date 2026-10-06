@@ -1441,12 +1441,13 @@ Scope {
                             visible: section === "drilldown"
 
                             Rectangle {
-                                anchors.fill: parent
+                                anchors.left: parent.left
+                                anchors.right: parent.right
                                 anchors.leftMargin: 6
                                 anchors.rightMargin: 6
                                 anchors.verticalCenter: parent.verticalCenter
                                 height: 1
-                                color: Qt.rgba(Theme.foreground.r, Theme.foreground.g, Theme.foreground.b, 0.2)
+                                color: Theme.selection
                             }
                         }
 
