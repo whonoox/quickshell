@@ -85,7 +85,7 @@ Scope {
     property int dividerHeight: 12
     property bool searchDivider: false
     // Fixed height for the card to prevent layout shifts when filtering or navigating.
-    readonly property int cardHeight: 500
+    readonly property int cardHeight: 450
     readonly property int maxCardHeight: cardHeight
     // Breathing room under the last row so it never sits on the bottom edge
     // (and so the scoop's bottom corners cannot crowd it).
