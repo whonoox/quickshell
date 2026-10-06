@@ -230,6 +230,12 @@ Scope {
             root.hudVisible = false
             PopoutCoordinator.release("bluetooth")
         }
+        function scan(): void {
+            root.triggerScan()
+        }
+        function rescan(): void {
+            root.triggerScan()
+        }
     }
 
     // Global Shortcut Handler
@@ -274,6 +280,14 @@ Scope {
     // Helper Actions
     function toggleDiscovery() {
         if (adapter) adapter.discovering = !adapter.discovering
+    }
+
+    function triggerScan() {
+        if (!adapter) return
+        if (!adapter.enabled) {
+            adapter.enabled = true
+        }
+        root.toggleDiscovery()
     }
 
     function togglePower() {
@@ -452,6 +466,13 @@ Scope {
                     if (event.key === Qt.Key_Escape) {
                         root.isExpanded = false
                         root.hudVisible = false
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Scan / Discovery ('s' / 'S') ---
+                    if (event.key === Qt.Key_S || event.key === Qt.Key_s || event.text.toLowerCase() === "s") {
+                        root.triggerScan()
                         event.accepted = true
                         return
                     }

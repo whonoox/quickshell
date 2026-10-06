@@ -260,6 +260,16 @@ Scope {
         }
     }
 
+    function rescanWifi() {
+        if (!Networking.wifiEnabled) {
+            Networking.wifiEnabled = true
+        }
+        if (root.wifiDevice) root.wifiDevice.scannerEnabled = true
+        Quickshell.execDetached(["nmcli", "device", "wifi", "rescan"])
+        scanTimer.restart()
+        root.syncWifiNetworks()
+    }
+
     onIsExpandedChanged: {
         if (isExpanded) {
             focusPrimed = false
@@ -267,14 +277,7 @@ Scope {
             focusSection = networksCount > 0 ? "wifi" : "dns"
             selectedWifiIndex = 0
             wifiActionFocused = false
-            if (wifiDevice) {
-                wifiDevice.scannerEnabled = true
-            }
-            if (Networking.wifiEnabled) {
-                Quickshell.execDetached(["nmcli", "device", "wifi", "rescan"])
-                scanTimer.restart()
-            }
-            root.syncWifiNetworks()
+            root.rescanWifi()
         } else {
             focusPrimeTimer.stop()
             focusPrimed = false
@@ -335,6 +338,12 @@ Scope {
             root.hudVisible = false
             root.activePasswordSsid = ""
             PopoutCoordinator.release("wifi")
+        }
+        function rescan(): void {
+            root.rescanWifi()
+        }
+        function scan(): void {
+            root.rescanWifi()
         }
     }
 
@@ -656,6 +665,15 @@ Scope {
                         root.activePasswordSsid = ""
                         event.accepted = true
                         return
+                    }
+
+                    // --- Rescan Wi-Fi ('s' / 'S') ---
+                    if (event.key === Qt.Key_S || event.key === Qt.Key_s || event.text.toLowerCase() === "s") {
+                        if (root.activePasswordSsid === "") {
+                            root.rescanWifi()
+                            event.accepted = true
+                            return
+                        }
                     }
 
                     // --- Arrow Down Navigation ---
