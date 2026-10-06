@@ -721,8 +721,8 @@ Scope {
         root.applySerial = root.requestSerial
         root.filterText = ""
         root.releaseCoordinator()
-        root.opened = false
         root.isDismissing = true
+        root.opened = false
         dismissTimer.restart()
     }
 
@@ -1039,10 +1039,12 @@ Scope {
 
     Timer {
         id: dismissTimer
-        // Outlasts the 220ms slide-out, otherwise the window is torn down
-        // mid-animation and the card appears to snap away.
-        interval: 260
-        onTriggered: root.isDismissing = false
+        // Safety timeout outlasting the 220ms slide-out in case the animation
+        // is interrupted or suspended.
+        interval: 400
+        onTriggered: {
+            if (root.isDismissing) root.isDismissing = false
+        }
     }
 
     // ------------------------------------------------------------------
@@ -1213,13 +1215,22 @@ Scope {
             anchors.bottom: parent.bottom
 
             transform: Translate {
-                // Constant offset, deliberately not derived from the card
-                // height: the height animates too, and a start value that
-                // moves underneath a running animation makes the slide stutter.
-                y: root.isPresented ? 0 : (panel.height + 50)
+                id: slideTranslate
+                // Slide off-screen by the card's height plus margin
+                y: root.isPresented ? 0 : (cardContainer.height + 40)
 
                 Behavior on y {
-                    NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+                    NumberAnimation {
+                        id: yAnim
+                        duration: 220
+                        easing.type: Easing.OutCubic
+                        onRunningChanged: {
+                            if (!running && root.isDismissing) {
+                                root.isDismissing = false
+                                dismissTimer.stop()
+                            }
+                        }
+                    }
                 }
             }
 
