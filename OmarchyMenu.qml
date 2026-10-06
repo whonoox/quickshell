@@ -84,10 +84,9 @@ Scope {
     property int rowSpacing: 3
     property int dividerHeight: 12
     property bool searchDivider: false
-    // Hard ceiling for the card, matching the wifi/bluetooth panels. No menu,
-    // submenu, provider list or dmenu request may grow past this -- long lists
-    // fold with a row peek instead (see foldedListHeight).
-    readonly property int maxCardHeight: 520
+    // Fixed height for the card to prevent layout shifts when filtering or navigating.
+    readonly property int cardHeight: 520
+    readonly property int maxCardHeight: cardHeight
     // Breathing room under the last row so it never sits on the bottom edge
     // (and so the scoop's bottom corners cannot crowd it).
     readonly property int bottomInset: Theme.rounding + Theme.borderWidth
@@ -420,13 +419,12 @@ Scope {
     }
 
     function naturalCardHeight() {
-        return root.contentMargin + root.bottomInset + root.headerHeight + root.contentSpacing + root.visibleRowsHeight - Theme.borderWidth
+        return root.cardHeight
     }
 
     function availableRowsHeight() {
-        // The card is capped, so the list gets whatever is left under the
-        // header inside that cap. Lists longer than this fold with a row peek.
-        var available = root.maxCardHeight - root.contentMargin - root.bottomInset - root.headerHeight - root.contentSpacing + Theme.borderWidth
+        // Space available for the list inside the fixed card height
+        var available = root.cardHeight - root.contentMargin - root.bottomInset - root.headerHeight - root.contentSpacing + Theme.borderWidth
         if (root.dmenuActive && root.dmenuMaxHeight > 0) available = Math.min(available, root.dmenuMaxHeight)
         return Math.max(available, root.baseRowHeight)
     }
@@ -1205,7 +1203,13 @@ Scope {
             // The item carries that slack; content is aligned to the painted
             // edge by the same inset.
             width: root.cardWidth + 2 * (Theme.rounding + Theme.borderWidth)
-            height: Math.min(root.naturalCardHeight(), root.maxCardHeight)
+            height: {
+                if (root.dmenuActive && root.mode === "input")
+                    return root.contentMargin + root.bottomInset + root.headerHeight + 2
+                if (root.dmenuActive && root.dmenuMaxHeight > 0)
+                    return Math.min(root.cardHeight, root.dmenuMaxHeight)
+                return root.cardHeight
+            }
             anchors.horizontalCenter: parent.horizontalCenter
             // Docked to the bottom edge like the other custom panels. The
             // slide rides a transform rather than anchors.bottomMargin, which
@@ -1424,14 +1428,16 @@ Scope {
 
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 1
+                    Layout.preferredHeight: 1
                     color: Theme.selection
+                    visible: !(root.dmenuActive && root.mode === "input")
                 }
 
                 // --- Rows ---
                 Item {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: root.visibleRowsHeight
+                    Layout.fillHeight: true
+                    visible: !(root.dmenuActive && root.mode === "input")
 
                     ListView {
                         id: resultList
