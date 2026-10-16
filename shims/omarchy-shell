@@ -62,8 +62,8 @@ if [[ ${1:-} == "shell" && ${2:-} == "toggle" && ${3:-} == "omarchy.audio" ]]; t
   exit 0
 fi
 
-# Route audioBar and brightnessBar IPC targets directly to our quickshell
-if [[ ${1:-} == "audioBar" || ${1:-} == "brightnessBar" ]]; then
+# Route audioBar, brightnessBar, and wallpaperPicker IPC targets directly to our quickshell
+if [[ ${1:-} == "audioBar" || ${1:-} == "brightnessBar" || ${1:-} == "wallpaperPicker" ]]; then
   target="$1"
   shift
   timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- "$target" "$@" 2>/dev/null || true

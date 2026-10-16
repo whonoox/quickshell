@@ -12,4 +12,5 @@ Scope {
     OmarchyMenu{}
     NotificationPanel{}
     ScoopTestPanel{}
+    WallpaperPicker{}
 }
