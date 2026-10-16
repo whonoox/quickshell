@@ -959,6 +959,7 @@ ShellRoot {
                                 font.pointSize: 14
                                 font.bold: true
                                 font.family: "NuuXFont"
+                                font.capitalization: Font.AllUppercase
                                 color: "#ffffff"
                                 text: root.getDayName() + " : " + Qt.formatDateTime(new Date(), "hh:mm AP")
                             }

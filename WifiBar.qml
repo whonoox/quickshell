@@ -857,6 +857,7 @@ Scope {
                                 font.family: Theme.brandFont
                                 font.pixelSize: Theme.rounding
                                 font.weight: Font.Bold
+                                font.capitalization: Font.AllUppercase
                             }
 
                             // Custom Wi-Fi Signal Bars (Nested Rounded Rectangles)

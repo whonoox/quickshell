@@ -123,6 +123,13 @@ Scope {
             if (root.liveRefs[snapshot.originalId] === notification) {
                 delete root.liveRefs[snapshot.originalId]
             }
+            for (var i = 0; i < popupModel.count; i++) {
+                var row = popupModel.get(i)
+                if (row && row.originalId === snapshot.originalId) {
+                    root.removePopup(i, "closed")
+                    break
+                }
+            }
         })
 
         if (root.doNotDisturb && !Logic.shouldBypassDnd(notification)) {
@@ -565,20 +572,11 @@ Scope {
                     NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
                 }
 
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.rightMargin: -tray.paintOutset
-                anchors.bottomMargin: -tray.paintOutset
+                x: parent ? parent.width - width + paintOutset : 0
+                y: parent ? (root.isPresented ? (parent.height - height + paintOutset) : (parent.height + 60)) : 0
 
-                // Slides up from below the corner edge as one unit, on a
-                // transform so the motion stays off the layout pass.
-                transform: Translate {
-                    id: slide
-                    y: root.isPresented ? 0 : (tray.height + 60)
-
-                    Behavior on y {
-                        NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
-                    }
+                Behavior on y {
+                    NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
                 }
 
                 ScoopV2 {
@@ -817,7 +815,9 @@ Scope {
                         MouseArea {
                             id: rowMouse
                             anchors.fill: parent
+                            z: -1
                             hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
                             enabled: !root.isDismissing
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
                             onClicked: function (mouse) {

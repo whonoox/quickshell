@@ -125,6 +125,7 @@ Scope {
                         font.family: Theme.brandFont
                         font.pixelSize: 14
                         font.weight: Font.Bold
+                        font.capitalization: Font.AllUppercase
                     }
                 }
 
@@ -149,6 +150,7 @@ Scope {
                         font.family: Theme.brandFont
                         font.pixelSize: 14
                         font.weight: Font.Bold
+                        font.capitalization: Font.AllUppercase
                     }
                 }
 
@@ -175,6 +177,7 @@ Scope {
                         font.family: Theme.brandFont
                         font.pixelSize: 14
                         font.weight: Font.Bold
+                        font.capitalization: Font.AllUppercase
                     }
                 }
 
@@ -200,6 +203,7 @@ Scope {
                         font.family: Theme.brandFont
                         font.pixelSize: 13
                         font.weight: Font.Bold
+                        font.capitalization: Font.AllUppercase
                     }
                 }
 
@@ -226,6 +230,7 @@ Scope {
                         font.family: Theme.brandFont
                         font.pixelSize: 14
                         font.weight: Font.Bold
+                        font.capitalization: Font.AllUppercase
                     }
                 }
 
@@ -250,6 +255,7 @@ Scope {
                         font.family: Theme.brandFont
                         font.pixelSize: 14
                         font.weight: Font.Bold
+                        font.capitalization: Font.AllUppercase
                     }
                 }
 
@@ -276,6 +282,7 @@ Scope {
                         font.family: Theme.brandFont
                         font.pixelSize: 14
                         font.weight: Font.Bold
+                        font.capitalization: Font.AllUppercase
                     }
                 }
 
@@ -301,6 +308,7 @@ Scope {
                         font.family: Theme.brandFont
                         font.pixelSize: 13
                         font.weight: Font.Bold
+                        font.capitalization: Font.AllUppercase
                     }
                 }
 
@@ -333,6 +341,7 @@ Scope {
                                     font.family: Theme.brandFont
                                     font.pixelSize: 18
                                     font.weight: Font.Bold
+                                    font.capitalization: Font.AllUppercase
                                 }
                                 Text {
                                     text: "8-Position Unified Continuous Vector Shapes"
@@ -413,6 +422,7 @@ Scope {
                                         font.family: Theme.brandFont
                                         font.pixelSize: 11
                                         font.weight: Font.Bold
+                                        font.capitalization: Font.AllUppercase
                                     }
 
                                     MouseArea {
@@ -455,6 +465,7 @@ Scope {
                                         font.family: Theme.brandFont
                                         font.pixelSize: 11
                                         font.weight: Font.Bold
+                                        font.capitalization: Font.AllUppercase
                                     }
 
                                     MouseArea {
@@ -473,6 +484,7 @@ Scope {
                                 font.family: Theme.brandFont
                                 font.pixelSize: 11
                                 font.weight: Font.Bold
+                                font.capitalization: Font.AllUppercase
                             }
                         }
 
@@ -499,6 +511,8 @@ Scope {
                                 color: Theme.brightForeground
                                 font.family: Theme.brandFont
                                 font.pixelSize: 11
+                                font.weight: Font.Bold
+                                font.capitalization: Font.AllUppercase
                             }
                             Rectangle {
                                 width: 28; height: 24; radius: 5
@@ -527,6 +541,8 @@ Scope {
                                 color: Theme.brightForeground
                                 font.family: Theme.brandFont
                                 font.pixelSize: 11
+                                font.weight: Font.Bold
+                                font.capitalization: Font.AllUppercase
                             }
                             Rectangle {
                                 width: 28; height: 24; radius: 5

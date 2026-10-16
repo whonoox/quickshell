@@ -191,6 +191,7 @@ Scope {
                     font.family: Theme.brandFont
                     font.pixelSize: Theme.rounding
                     font.weight: Font.Bold
+                    font.capitalization: Font.AllUppercase
                 }
 
                 // Bar 3 (34% - 50%)

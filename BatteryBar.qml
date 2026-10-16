@@ -132,7 +132,8 @@ Scope{
                         color: root.criticalBattery ? "red" : Theme.brand
                         font.family: Theme.brandFont
                         font.pixelSize: Theme.rounding
-                        font.weight: Font.Bold  
+                        font.weight: Font.Bold
+                        font.capitalization: Font.AllUppercase
                     }
                     Rectangle {
                         radius: 4

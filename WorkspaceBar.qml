@@ -660,6 +660,7 @@ Scope {
                                                 font.family: Theme.brandFont
                                                 font.pixelSize: 13
                                                 font.weight: Font.Bold
+                                                font.capitalization: Font.AllUppercase
                                             }
                                         }
                                     }
@@ -681,6 +682,7 @@ Scope {
                                             font.family: Theme.brandFont
                                             font.pixelSize: 13
                                             font.weight: Font.Bold
+                                            font.capitalization: Font.AllUppercase
                                         }
                                     }
                                 }

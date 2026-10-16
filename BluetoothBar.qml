@@ -566,7 +566,7 @@ Scope {
                     x: root.hideAll ? (parent.width + 30) : (parent.width - width)
                     y: root.hideAll ? -(height + 30) : 0
 
-                    width: (root.isExpanded ? 390 : Math.max(3 * Theme.rounding, headerLeftRow.implicitWidth + Theme.rounding * 3)) + 4
+                    width: (root.isExpanded ? 390 : Math.max(3 * Theme.rounding, btLabel.implicitWidth + (batteryPill.visible ? (batteryPill.width + Theme.spacing) : 0) + Theme.rounding * 3)) + 4
                     height: (root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) : (Theme.rounding * 3)) + 4
 
                     Behavior on width {
@@ -632,59 +632,58 @@ Scope {
                                 }
                             }
 
-                            // Device Label & Battery Pill Row
-                            RowLayout {
-                                id: headerLeftRow
+                            // Device Label (Visually centered with corner scoops icon)
+                            Text {
+                                id: btLabel
                                 anchors.left: parent.left
-                                anchors.leftMargin: Theme.spacing
                                 anchors.top: parent.top
-                                anchors.topMargin: Theme.spacing
-                                spacing: Theme.spacing
+                                anchors.topMargin: 10
+                                anchors.leftMargin: Theme.spacing
+                                text: {
+                                    if (!root.adapter || !root.adapter.enabled) return "Bluetooth Off"
+                                    if (root.hasConnection) {
+                                        return root.primaryConnectedDevice.name || root.primaryConnectedDevice.deviceName || "Connected"
+                                    }
+                                    return "Bluetooth"
+                                }
+                                color: root.hasConnection ? Theme.brand : (root.adapter && root.adapter.enabled ? Theme.lightForeground : Theme.darkForeground)
+                                font.family: Theme.brandFont
+                                font.pixelSize: Theme.rounding
+                                font.weight: Font.Bold
+                                font.capitalization: Font.AllUppercase
+                            }
+
+                            // Small Pill Badge with Percentage as Number
+                            Rectangle {
+                                id: batteryPill
+                                visible: root.hasConnection && root.primaryConnectedDevice.batteryAvailable && root.primaryConnectedDevice.battery > 0
+                                anchors.left: btLabel.right
+                                anchors.leftMargin: Theme.spacing
+                                anchors.verticalCenter: btLabel.verticalCenter
+                                anchors.verticalCenterOffset: -3
+                                height: 18
+                                width: batteryText.implicitWidth + 12
+                                radius: 9
+                                color: root.hasConnection && root.primaryConnectedDevice.battery < 0.2 
+                                    ? Qt.rgba(Theme.red.r, Theme.red.g, Theme.red.b, 0.25)
+                                    : (root.hasConnection && root.primaryConnectedDevice.battery < 0.4 
+                                        ? Qt.rgba(Theme.yellow.r, Theme.yellow.g, Theme.yellow.b, 0.25)
+                                        : Qt.rgba(Theme.brand.r, Theme.brand.g, Theme.brand.b, 0.25))
+                                border.color: root.hasConnection && root.primaryConnectedDevice.battery < 0.2 
+                                    ? Theme.red 
+                                    : (root.hasConnection && root.primaryConnectedDevice.battery < 0.4 ? Theme.yellow : Theme.brand)
+                                border.width: 1
 
                                 Text {
-                                    id: btLabel
-                                    text: {
-                                        if (!root.adapter || !root.adapter.enabled) return "Bluetooth Off"
-                                        if (root.hasConnection) {
-                                            return root.primaryConnectedDevice.name || root.primaryConnectedDevice.deviceName || "Connected"
-                                        }
-                                        return "Bluetooth"
-                                    }
-                                    color: root.hasConnection ? Theme.brand : (root.adapter && root.adapter.enabled ? Theme.lightForeground : Theme.darkForeground)
-                                    font.family: Theme.brandFont
-                                    font.pixelSize: Theme.rounding
-                                    font.weight: Font.Bold
-                                }
-
-                                // Small Pill Badge with Percentage as Number
-                                Rectangle {
-                                    id: batteryPill
-                                    visible: root.hasConnection && root.primaryConnectedDevice.batteryAvailable && root.primaryConnectedDevice.battery > 0
-                                    height: 18
-                                    width: batteryText.implicitWidth + 12
-                                    radius: 9
+                                    id: batteryText
+                                    anchors.centerIn: parent
+                                    text: root.hasConnection ? Model.formatBattery(root.primaryConnectedDevice.battery) : ""
                                     color: root.hasConnection && root.primaryConnectedDevice.battery < 0.2 
-                                        ? Qt.rgba(Theme.red.r, Theme.red.g, Theme.red.b, 0.25)
-                                        : (root.hasConnection && root.primaryConnectedDevice.battery < 0.4 
-                                            ? Qt.rgba(Theme.yellow.r, Theme.yellow.g, Theme.yellow.b, 0.25)
-                                            : Qt.rgba(Theme.brand.r, Theme.brand.g, Theme.brand.b, 0.25))
-                                    border.color: root.hasConnection && root.primaryConnectedDevice.battery < 0.2 
                                         ? Theme.red 
                                         : (root.hasConnection && root.primaryConnectedDevice.battery < 0.4 ? Theme.yellow : Theme.brand)
-                                    border.width: 1
-                                    Layout.alignment: Qt.AlignVCenter
-
-                                    Text {
-                                        id: batteryText
-                                        anchors.centerIn: parent
-                                        text: root.hasConnection ? Model.formatBattery(root.primaryConnectedDevice.battery) : ""
-                                        color: root.hasConnection && root.primaryConnectedDevice.battery < 0.2 
-                                            ? Theme.red 
-                                            : (root.hasConnection && root.primaryConnectedDevice.battery < 0.4 ? Theme.yellow : Theme.brand)
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: 10
-                                        font.bold: true
-                                    }
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 10
+                                    font.bold: true
                                 }
                             }
 
