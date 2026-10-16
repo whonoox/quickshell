@@ -127,8 +127,9 @@ Scope {
         // Find index of current wallpaper
         var curIdx = 0
         if (currentBackgroundPath) {
+            var curName = currentBackgroundPath.substring(currentBackgroundPath.lastIndexOf("/") + 1)
             for (var i = 0; i < wallpaperList.length; ++i) {
-                if (wallpaperList[i].path === currentBackgroundPath) {
+                if (wallpaperList[i].path === currentBackgroundPath || wallpaperList[i].name === curName) {
                     curIdx = i
                     break
                 }
@@ -246,7 +247,11 @@ Scope {
             "current_bg=$(readlink -f \"$HOME/.local/state/omarchy/current/background\" 2>/dev/null); " +
             "echo \"CURRENT:$current_bg\"; " +
             "theme_name=$(cat \"$HOME/.local/state/omarchy/current/theme.name\" 2>/dev/null); " +
-            "find -L \"$HOME/.local/state/omarchy/current/theme/backgrounds\" \"$HOME/.config/omarchy/backgrounds/$theme_name\" -maxdepth 1 -type f \\( -iname \"*.jpg\" -o -iname \"*.jpeg\" -o -iname \"*.png\" -o -iname \"*.gif\" -o -iname \"*.webp\" \\) -printf \"%p\\n\" 2>/dev/null | sort -u"
+            "bg_dir=\"$HOME/.config/omarchy/backgrounds/$theme_name\"; " +
+            "if [ ! -d \"$bg_dir\" ] || [ -z \"$(find -L \"$bg_dir\" -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.webp' \\) 2>/dev/null)\" ]; then " +
+            "  bg_dir=\"$HOME/.local/state/omarchy/current/theme/backgrounds\"; " +
+            "fi; " +
+            "find -L \"$bg_dir\" -maxdepth 1 -type f \\( -iname \"*.jpg\" -o -iname \"*.jpeg\" -o -iname \"*.png\" -o -iname \"*.gif\" -o -iname \"*.webp\" \\) -printf \"%p\\n\" 2>/dev/null | sort -V"
         ]
         stdout: StdioCollector {
             waitForEnd: true
@@ -255,20 +260,24 @@ Scope {
                 if (!raw) return
                 var lines = raw.split("\n")
                 var cur = ""
+                var curName = ""
                 var list = []
-                var foundCur = false
+                var seenNames = {}
 
                 for (var i = 0; i < lines.length; ++i) {
                     var l = lines[i].trim()
                     if (!l) continue
                     if (l.indexOf("CURRENT:") === 0) {
                         cur = l.substring(8).trim()
+                        if (cur) curName = cur.substring(cur.lastIndexOf("/") + 1)
                         continue
                     }
                     var name = l.substring(l.lastIndexOf("/") + 1)
+                    if (seenNames[name]) continue
+                    seenNames[name] = true
+
                     var ext = name.substring(name.lastIndexOf(".") + 1).toLowerCase()
                     var isAnim = (ext === "gif" || ext === "webp")
-                    if (l === cur) foundCur = true
                     list.push({
                         path: l,
                         name: name,
@@ -277,8 +286,7 @@ Scope {
                 }
 
                 // If active background was outside theme dirs, ensure it exists in list
-                if (cur && !foundCur) {
-                    var curName = cur.substring(cur.lastIndexOf("/") + 1)
+                if (cur && curName && !seenNames[curName]) {
                     var curExt = curName.substring(curName.lastIndexOf(".") + 1).toLowerCase()
                     list.unshift({
                         path: cur,
