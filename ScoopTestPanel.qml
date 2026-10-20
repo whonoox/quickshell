@@ -51,8 +51,8 @@ Scope {
         onPressed: root.opened = !root.opened
     }
 
-    Variants {
-        model: root.opened ? [Quickshell.screens[0]] : []
+    BarVariants {
+        model: root.opened ? (Quickshell.screens && Quickshell.screens.length > 0 ? [Quickshell.screens[0]] : []) : []
 
         PanelWindow {
             id: panelWindow

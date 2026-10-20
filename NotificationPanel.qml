@@ -216,7 +216,7 @@ Scope {
         if (popupModel.count <= 1) {
             root.isDismissing = true
             root.dismissTimer.restart()
-        } else {
+        } else if (index >= 0 && index < popupModel.count) {
             popupModel.remove(index)
         }
     }
@@ -528,8 +528,8 @@ Scope {
     // Window
     // ------------------------------------------------------------------
 
-    Variants {
-        model: Quickshell.screens
+    BarVariants {
+        primaryOnly: true
 
         PanelWindow {
             id: toastWindow
@@ -723,8 +723,7 @@ Scope {
                                     source: row.image.length > 0 ? row.image : root.resolveIcon(row.appIcon)
                                     asynchronous: true
                                     fillMode: row.image.length > 0 ? Image.PreserveAspectCrop : Image.PreserveAspectFit
-                                    sourceSize.width: 28 * Screen.devicePixelRatio
-                                    sourceSize.height: 28 * Screen.devicePixelRatio
+                                    sourceSize: Qt.size(64, 64)
                                 }
                             }
 

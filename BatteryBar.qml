@@ -1,5 +1,6 @@
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Services.UPower
@@ -26,20 +27,53 @@ Scope{
         }
     }
 
+    function reveal() {
+        if (!criticalBattery) {
+            root.hideBar = false
+            autoHide.restart()
+        }
+    }
+
+    onBatteryStateChanged: {
+        root.reveal()
+    }
+
+    onHideBarChanged: {
+        if (!root.hideBar && !criticalBattery) {
+            autoHide.restart()
+        } else {
+            autoHide.stop()
+        }
+    }
+
+    Timer {
+        id: autoHide
+        interval: 3500
+        onTriggered: {
+            root.hideBar = true
+        }
+    }
+
     // IPC Handler
     IpcHandler {
         target: "batteryBar"
         function toggle() {
             if (!criticalBattery) {
-                hideBar = !hideBar
+                if (root.hideBar) {
+                    root.reveal()
+                } else {
+                    root.hideBar = true
+                    autoHide.stop()
+                }
             }
         }
         function open() {
-            hideBar = false
+            root.reveal()
         }
         function close() {
             if (!criticalBattery) {
-                hideBar = true
+                root.hideBar = true
+                autoHide.stop()
             }
         }
     }
@@ -50,20 +84,13 @@ Scope{
         appid: "quickshell"
         onPressed: {
             if (!criticalBattery) {
-                hideBar = !hideBar
+                if (root.hideBar) {
+                    root.reveal()
+                } else {
+                    root.hideBar = true
+                    autoHide.stop()
+                }
             }
-        }
-    }
-
-    onBatteryStateChanged: {
-        root.hideBar = false
-    }
-
-    Timer {
-        interval: 3500
-        running: !hideBar && !criticalBattery
-        onTriggered: {
-            hideBar = true
         }
     }
 
@@ -73,22 +100,72 @@ Scope{
         }
     }
 
-    Variants {
-            model: Quickshell.screens
+    BarVariants {
+        PanelWindow {
+            id: panelWindow
+            required property var modelData
 
-            PanelWindow {
-                required property var modelData
+            screen: modelData
+            visible: false
 
-                screen: modelData
+            anchors.right: true
 
-                anchors.right: true
+            WlrLayershell.namespace: "battery-panel-main"
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            exclusionMode: ExclusionMode.Ignore
 
-                exclusionMode: ExclusionMode.Normal
+            implicitWidth: 48
+            implicitHeight: 160 + Theme.spacing * 4 + 8
+            color: "transparent"
 
-                implicitWidth: 48
-                implicitHeight: 160 + Theme.spacing * 4 + 8
-                color: "transparent"
-                margins.right: root.hideBar ? implicitWidth * -1 : 0
+            mask: Region {
+                item: !root.hideBar ? pillContainer : null
+            }
+
+            Item {
+                id: pillContainer
+                width: parent.width
+                height: parent.height
+                x: width + 10
+
+                Component.onCompleted: {
+                    if (!root.hideBar) {
+                        panelWindow.visible = true
+                        pillContainer.x = 0
+                    }
+                }
+
+                NumberAnimation {
+                    id: slideAnim
+                    target: pillContainer
+                    property: "x"
+                    duration: 250
+                    easing.type: Easing.OutCubic
+                    onFinished: {
+                        if (root.hideBar) {
+                            panelWindow.visible = false
+                        }
+                    }
+                }
+
+                Connections {
+                    target: root
+                    function onHideBarChanged() {
+                        if (!root.hideBar) {
+                            panelWindow.visible = true
+                            slideAnim.stop()
+                            slideAnim.from = pillContainer.x
+                            slideAnim.to = 0
+                            slideAnim.start()
+                        } else {
+                            slideAnim.stop()
+                            slideAnim.from = pillContainer.x
+                            slideAnim.to = pillContainer.width + 10
+                            slideAnim.start()
+                        }
+                    }
+                }
 
                 // Unified single-vector background contour (position: centerRight)
                 ScoopV2 {
@@ -97,6 +174,8 @@ Scope{
                     position: "centerRight"
                     color: Theme.bgc
                     radius: Theme.rounding
+                    cornerRadius: Theme.rounding
+                    borderWidth: Theme.borderWidth
                 }
 
                 FlexboxLayout {
@@ -153,7 +232,6 @@ Scope{
                         color: root.criticalBattery ? "red" : root.lowBattery ? "orange" : Theme.brand
                         Behavior on color { ColorAnimation { duration: 120 } }
                     }
-                    
                 }
 
                 Image {
@@ -170,6 +248,6 @@ Scope{
                     fillMode: Image.PreserveAspectFit
                 }
             }
-
+        }
     }
 }

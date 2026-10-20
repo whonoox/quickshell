@@ -523,13 +523,12 @@ Scope {
     }
 
     // Top-Left Panel Window
-    Variants {
-        model: [Quickshell.screens[0]]
-
+    BarVariants {
         PanelWindow {
             id: panelWindow
             required property var modelData
             screen: modelData
+            visible: root.hudVisible || (cardContainer.y > -(cardContainer.height + 10))
 
             anchors.top: true
             anchors.bottom: true

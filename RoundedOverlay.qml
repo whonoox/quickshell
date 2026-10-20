@@ -2,8 +2,8 @@ import Quickshell
 import QtQuick
 
 Scope {
-    Variants {
-        model: Quickshell.screens
+    BarVariants {
+        allScreens: true
 
         PanelWindow {
             required property var modelData

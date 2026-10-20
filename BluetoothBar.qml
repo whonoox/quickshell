@@ -362,7 +362,7 @@ Scope {
     }
 
     // Multi-Monitor Twin Dismissal (For secondary monitors only)
-    Variants {
+    BarVariants {
         model: root.isExpanded ? Quickshell.screens : []
 
         delegate: Component {
@@ -397,13 +397,14 @@ Scope {
     }
 
     // Main Bluetooth Bar & Controller Window
-    Variants {
-        model: [Quickshell.screens[0]]
+    BarVariants {
+        primaryOnly: true
 
         PanelWindow {
             id: panelWindow
             required property var modelData
             screen: modelData
+            visible: !root.hideAll || (cardContainer.y > -(cardContainer.height + 10))
 
             anchors.top: true
             anchors.bottom: true
@@ -563,7 +564,7 @@ Scope {
                 // ============================================================
                 Item {
                     id: cardContainer
-                    x: root.hideAll ? (parent.width + 30) : (parent.width - width)
+                    anchors.right: parent.right
                     y: root.hideAll ? -(height + 30) : 0
 
                     width: (root.isExpanded ? 390 : Math.max(3 * Theme.rounding, btLabel.implicitWidth + (batteryPill.visible ? (batteryPill.width + Theme.spacing) : 0) + Theme.rounding * 3)) + 4
@@ -574,9 +575,6 @@ Scope {
                     }
                     Behavior on height {
                         NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
-                    }
-                    Behavior on x {
-                        NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
                     }
                     Behavior on y {
                         NumberAnimation { duration: 220; easing.type: Easing.OutCubic }

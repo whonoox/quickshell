@@ -97,8 +97,26 @@ Scope {
     }
     property int visibleRowsHeight: 0
 
+    readonly property var activeScreen: {
+        var screens = Quickshell.screens
+        if (!screens || screens.length === 0) return null
+        if (screens.length === 1) return screens[0]
+
+        var targetName = (Hyprland.focusedMonitor && Hyprland.focusedMonitor.name)
+            ? Hyprland.focusedMonitor.name
+            : (Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.monitor && Hyprland.focusedWorkspace.monitor.name
+                ? Hyprland.focusedWorkspace.monitor.name : "")
+
+        if (targetName) {
+            for (var i = 0; i < screens.length; i++) {
+                if (screens[i].name === targetName) return screens[i]
+            }
+        }
+        return screens[0]
+    }
+
     function screen() {
-        return Quickshell.screens[0]
+        return root.activeScreen
     }
 
     // ------------------------------------------------------------------
@@ -785,6 +803,7 @@ Scope {
         // visibleRowsHeight stale for a frame, so the card slides in short and
         // grows as it arrives.
         root.rebuildDisplay()
+        panel.screen = root.activeScreen
         root.opened = true
         root.invalidateVolatileProvider(root.activeMenu)
         root.loadProviderForMenu(root.activeMenu)
@@ -815,6 +834,7 @@ Scope {
         // visibleRowsHeight stale for a frame, so the card slides in short and
         // grows as it arrives.
         root.rebuildDisplay()
+        panel.screen = root.activeScreen
         root.opened = true
 
         PopoutCoordinator.claim("menu")

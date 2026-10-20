@@ -10,8 +10,8 @@ Scope {
     id: root
 
     // ---- Configuration & Geometry ----
-    readonly property real monitorWidth: panel.width > 0 ? panel.width : 1920
-    readonly property real monitorHeight: panel.height > 0 ? panel.height : 1080
+    readonly property real monitorWidth: (Quickshell.screens && Quickshell.screens.length > 0 && Quickshell.screens[0].width > 0) ? Quickshell.screens[0].width : 1920
+    readonly property real monitorHeight: (Quickshell.screens && Quickshell.screens.length > 0 && Quickshell.screens[0].height > 0) ? Quickshell.screens[0].height : 1080
 
     readonly property real cardWidth: 440
     readonly property real cardHeight: 248
@@ -224,8 +224,7 @@ Scope {
         property: "zoomProgress"
         onFinished: {
             if (root.zoomProgress === 0.0) {
-                // Zoom-out finished, focus key listener
-                keyFilter.forceActiveFocus()
+                // Zoom-out finished
             } else if (root.zoomProgress === 1.0) {
                 // Zoom-in finished
                 if (root.isApplying) {
@@ -334,11 +333,13 @@ Scope {
     }
 
     // ---- Fullscreen Layershell Window ----
-    PanelWindow {
-        id: panel
+    BarVariants {
+        PanelWindow {
+            id: panel
+            required property var modelData
 
-        visible: root.opened || root.isDismissing || root.isApplying
-        screen: Quickshell.screens[0]
+            visible: root.opened || root.isDismissing || root.isApplying
+            screen: modelData
 
         anchors {
             top: true
@@ -374,6 +375,18 @@ Scope {
             id: keyFilter
             anchors.fill: parent
             focus: true
+
+            Component.onCompleted: forceActiveFocus()
+
+            Connections {
+                target: root
+                function onZoomProgressChanged() {
+                    if (root.zoomProgress === 0.0 && root.opened) keyFilter.forceActiveFocus()
+                }
+                function onOpenedChanged() {
+                    if (root.opened) keyFilter.forceActiveFocus()
+                }
+            }
 
             Keys.priority: Keys.BeforeItem
             Keys.onPressed: function(event) {
@@ -552,4 +565,5 @@ Scope {
             visible: opacity > 0.01 && root.selectedWallpaperName.length > 0
         }
     }
+}
 }

@@ -21,8 +21,7 @@ Scope {
 
     property bool hideBar: true
 
-    readonly property string probeCommand: 'device="$(omarchy-hw-display 2>/dev/null || echo amdgpu_bl1)"; '
-        + 'brightnessctl -d "$device" -m 2>/dev/null | awk -F, \'{ gsub("%", "", $4); print $4; found=1 } END{ if (!found) print "none" }\''
+    readonly property string probeCommand: 'omarchy-brightness-display 2>/dev/null || echo none'
 
     function refresh() {
         if (probeProcess.running) return
@@ -108,18 +107,18 @@ Scope {
     }
 
     Timer {
-        interval: 400
+        interval: 1000
         repeat: true
         running: !root.hideBar && root.available
         onTriggered: root.refresh()
     }
 
-    Variants {
-        model: Quickshell.screens
-
+    BarVariants {
         PanelWindow {
+            id: panelWindow
             required property var modelData
             screen: modelData
+            visible: false
 
             anchors.left: true
 
@@ -131,123 +130,164 @@ Scope {
             implicitWidth: 48
             implicitHeight: 160 + Theme.spacing * 4 + 8
             color: "transparent"
-            margins.left: root.hideBar ? implicitWidth * -1 : 0
 
-            // Unified single-vector background contour (position: centerLeft)
-            ScoopV2 {
-                id: backgroundShape
-                anchors.fill: parent
-                position: "centerLeft"
-                color: Theme.bgc
-                radius: Theme.rounding
-                cornerRadius: Theme.rounding
-                borderWidth: Theme.borderWidth
+            mask: Region {
+                item: !root.hideBar ? pillContainer : null
             }
 
-            FlexboxLayout {
-                id: brightnessFlex
-                anchors.fill: parent
-                anchors.topMargin: Theme.rounding + Theme.spacing * 2
-                anchors.bottomMargin: Theme.rounding + Theme.spacing * 2
-                anchors.leftMargin: Theme.borderWidth
-                anchors.rightMargin: Theme.spacing + Theme.borderWidth
-                direction: FlexboxLayout.Column
-                alignItems: FlexboxLayout.AlignCenter
-                gap: Theme.spacing / 2
+            Item {
+                id: pillContainer
+                width: parent.width
+                height: parent.height
+                x: -(width + 10)
 
-                // Bar 6 (Top: 84% - 100%)
-                Rectangle {
-                    topLeftRadius: Theme.rounding
-                    topRightRadius: Theme.rounding
-                    bottomLeftRadius: 4
-                    bottomRightRadius: 4
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    color: root.litBars >= 6 ? Theme.brand : Theme.brandBgc
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
-
-                // Bar 5 (67% - 83%)
-                Rectangle {
-                    radius: 4
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    color: root.litBars >= 5 ? Theme.brand : Theme.brandBgc
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
-
-                // Bar 4 (51% - 66%)
-                Rectangle {
-                    radius: 4
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    color: root.litBars >= 4 ? Theme.brand : Theme.brandBgc
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
-
-                Text {
-                    text: String(Math.round(Math.min(1, root.brightness) * 100))
-                    color: Theme.brand
-                    font.family: Theme.brandFont
-                    font.pixelSize: Theme.rounding
-                    font.weight: Font.Bold
-                    font.capitalization: Font.AllUppercase
-                }
-
-                // Bar 3 (34% - 50%)
-                Rectangle {
-                    radius: 4
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    color: root.litBars >= 3 ? Theme.brand : Theme.brandBgc
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
-
-                // Bar 2 (17% - 33%)
-                Rectangle {
-                    radius: 4
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    color: root.litBars >= 2 ? Theme.brand : Theme.brandBgc
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
-
-                // Bar 1 (Bottom: 1% - 16%)
-                Rectangle {
-                    id: bottomBar
-                    topLeftRadius: 4
-                    topRightRadius: 4
-                    bottomLeftRadius: Theme.rounding
-                    bottomRightRadius: Theme.rounding
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    color: root.litBars >= 1 ? Theme.brand : Theme.brandBgc
-                    Behavior on color { ColorAnimation { duration: 120 } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: ""
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 12
-                        font.weight: Font.Bold
-                        color: root.litBars >= 1 ? Theme.bgc : Theme.brand
-                        Behavior on color { ColorAnimation { duration: 120 } }
+                NumberAnimation {
+                    id: slideAnim
+                    target: pillContainer
+                    property: "x"
+                    duration: 250
+                    easing.type: Easing.OutCubic
+                    onFinished: {
+                        if (root.hideBar) {
+                            panelWindow.visible = false
+                        }
                     }
                 }
-            }
 
-            // Wheel steps the brightness level
-            MouseArea {
-                id: inputArea
-                anchors.fill: parent
-                hoverEnabled: true
-                acceptedButtons: Qt.LeftButton
-                onEntered: autoHide.stop()
-                onExited: autoHide.restart()
-                onWheel: function (wheel) {
-                    root.nudge(wheel.angleDelta.y > 0 ? 10 : -10)
-                    autoHide.restart()
-                    wheel.accepted = true
+                Connections {
+                    target: root
+                    function onHideBarChanged() {
+                        if (!root.hideBar) {
+                            panelWindow.visible = true
+                            slideAnim.stop()
+                            slideAnim.from = pillContainer.x
+                            slideAnim.to = 0
+                            slideAnim.start()
+                        } else {
+                            slideAnim.stop()
+                            slideAnim.from = pillContainer.x
+                            slideAnim.to = -(pillContainer.width + 10)
+                            slideAnim.start()
+                        }
+                    }
+                }
+
+                // Unified single-vector background contour (position: centerLeft)
+                ScoopV2 {
+                    id: backgroundShape
+                    anchors.fill: parent
+                    position: "centerLeft"
+                    color: Theme.bgc
+                    radius: Theme.rounding
+                    cornerRadius: Theme.rounding
+                    borderWidth: Theme.borderWidth
+                }
+
+                FlexboxLayout {
+                    id: brightnessFlex
+                    anchors.fill: parent
+                    anchors.topMargin: Theme.rounding + Theme.spacing * 2
+                    anchors.bottomMargin: Theme.rounding + Theme.spacing * 2
+                    anchors.leftMargin: Theme.borderWidth
+                    anchors.rightMargin: Theme.spacing + Theme.borderWidth
+                    direction: FlexboxLayout.Column
+                    alignItems: FlexboxLayout.AlignCenter
+                    gap: Theme.spacing / 2
+
+                    // Bar 6 (Top: 84% - 100%)
+                    Rectangle {
+                        topLeftRadius: Theme.rounding
+                        topRightRadius: Theme.rounding
+                        bottomLeftRadius: 4
+                        bottomRightRadius: 4
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        color: root.litBars >= 6 ? Theme.brand : Theme.brandBgc
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+
+                    // Bar 5 (67% - 83%)
+                    Rectangle {
+                        radius: 4
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        color: root.litBars >= 5 ? Theme.brand : Theme.brandBgc
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+
+                    // Bar 4 (51% - 66%)
+                    Rectangle {
+                        radius: 4
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        color: root.litBars >= 4 ? Theme.brand : Theme.brandBgc
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+
+                    Text {
+                        text: String(Math.round(Math.min(1, root.brightness) * 100))
+                        color: Theme.brand
+                        font.family: Theme.brandFont
+                        font.pixelSize: Theme.rounding
+                        font.weight: Font.Bold
+                        font.capitalization: Font.AllUppercase
+                    }
+
+                    // Bar 3 (34% - 50%)
+                    Rectangle {
+                        radius: 4
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        color: root.litBars >= 3 ? Theme.brand : Theme.brandBgc
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+
+                    // Bar 2 (17% - 33%)
+                    Rectangle {
+                        radius: 4
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        color: root.litBars >= 2 ? Theme.brand : Theme.brandBgc
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+
+                    // Bar 1 (Bottom: 1% - 16%)
+                    Rectangle {
+                        id: bottomBar
+                        topLeftRadius: 4
+                        topRightRadius: 4
+                        bottomLeftRadius: Theme.rounding
+                        bottomRightRadius: Theme.rounding
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        color: root.litBars >= 1 ? Theme.brand : Theme.brandBgc
+                        Behavior on color { ColorAnimation { duration: 120 } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: ""
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 12
+                            font.weight: Font.Bold
+                            color: root.litBars >= 1 ? Theme.bgc : Theme.brand
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                        }
+                    }
+                }
+
+                // Wheel steps the brightness level
+                MouseArea {
+                    id: inputArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.LeftButton
+                    onEntered: autoHide.stop()
+                    onExited: autoHide.restart()
+                    onWheel: function (wheel) {
+                        root.nudge(wheel.angleDelta.y > 0 ? 10 : -10)
+                        autoHide.restart()
+                        wheel.accepted = true
+                    }
                 }
             }
         }

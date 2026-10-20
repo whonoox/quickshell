@@ -26,6 +26,7 @@ Item{
 
     Shape {
         anchors.fill: parent
+        preferredRendererType: Shape.CurveRenderer
         ShapePath {
             strokeWidth: 0
             fillColor: root.bgColor

@@ -29,8 +29,7 @@ Item {
         id: shapeTopLeft
         visible: root.position === "topLeft"
         anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
+        preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
             strokeWidth: root.borderWidth * 2
@@ -84,8 +83,7 @@ Item {
         id: shapeTopCenter
         visible: root.position === "topCenter"
         anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
+        preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
             strokeWidth: root.borderWidth * 2
@@ -146,8 +144,7 @@ Item {
         id: shapeTopRight
         visible: root.position === "topRight"
         anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
+        preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
             strokeWidth: root.borderWidth * 2
@@ -201,8 +198,7 @@ Item {
         id: shapeCenterRight
         visible: root.position === "centerRight"
         anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
+        preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
             strokeWidth: root.borderWidth * 2
@@ -263,8 +259,7 @@ Item {
         id: shapeBottomRight
         visible: root.position === "bottomRight"
         anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
+        preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
             strokeWidth: root.borderWidth * 2
@@ -318,8 +313,7 @@ Item {
         id: shapeBottomCenter
         visible: root.position === "bottomCenter"
         anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
+        preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
             strokeWidth: root.borderWidth * 2
@@ -380,8 +374,7 @@ Item {
         id: shapeBottomLeft
         visible: root.position === "bottomLeft"
         anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
+        preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
             strokeWidth: root.borderWidth * 2
@@ -435,8 +428,7 @@ Item {
         id: shapeCenterLeft
         visible: root.position === "centerLeft"
         anchors.fill: parent
-        layer.enabled: true
-        layer.samples: 4
+        preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
             strokeWidth: root.borderWidth * 2
