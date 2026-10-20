@@ -53,6 +53,119 @@ Scope {
     property bool strongSignal: hasConnection && signalStrength >= 0.5
     property bool veryStrongSignal: hasConnection && signalStrength >= 0.75
 
+    // Connection State Tracking
+    property string pendingConnectingSsid: ""
+    property string pendingDisconnectingSsid: ""
+
+    Timer {
+        id: pendingTimeoutTimer
+        interval: 15000
+        onTriggered: {
+            root.pendingConnectingSsid = ""
+            root.pendingDisconnectingSsid = ""
+        }
+    }
+
+    readonly property bool isConnecting: {
+        var _ = networkStateVersion
+        if (pendingConnectingSsid !== "") return true
+        if (wifiDevice && wifiDevice.state === ConnectionState.Connecting) return true
+        if (sortedNetworks) {
+            for (var i = 0; i < sortedNetworks.length; i++) {
+                var n = sortedNetworks[i]
+                if (n && n.networkObject && n.networkObject.state === ConnectionState.Connecting) return true
+            }
+        }
+        return false
+    }
+
+    readonly property bool isDisconnecting: {
+        var _ = networkStateVersion
+        if (pendingDisconnectingSsid !== "") return true
+        if (wifiDevice && wifiDevice.state === ConnectionState.Disconnecting) return true
+        if (sortedNetworks) {
+            for (var i = 0; i < sortedNetworks.length; i++) {
+                var n = sortedNetworks[i]
+                if (n && n.networkObject && n.networkObject.state === ConnectionState.Disconnecting) return true
+            }
+        }
+        return false
+    }
+
+    readonly property string connectingSsid: {
+        var _ = networkStateVersion
+        if (pendingConnectingSsid !== "") return pendingConnectingSsid
+        if (sortedNetworks) {
+            for (var i = 0; i < sortedNetworks.length; i++) {
+                var n = sortedNetworks[i]
+                if (n && n.networkObject && n.networkObject.state === ConnectionState.Connecting) {
+                    return n.ssid || ""
+                }
+            }
+        }
+        return ""
+    }
+
+    readonly property string disconnectingSsid: {
+        var _ = networkStateVersion
+        if (pendingDisconnectingSsid !== "") return pendingDisconnectingSsid
+        if (sortedNetworks) {
+            for (var i = 0; i < sortedNetworks.length; i++) {
+                var n = sortedNetworks[i]
+                if (n && n.networkObject && n.networkObject.state === ConnectionState.Disconnecting) {
+                    return n.ssid || ""
+                }
+            }
+        }
+        if (connectedNetwork && connectedNetwork.name) return connectedNetwork.name
+        return ""
+    }
+
+    onIsConnectingChanged: {
+        if (root.isConnecting) {
+            root.revealGlance()
+        }
+    }
+
+    onIsDisconnectingChanged: {
+        if (root.isDisconnecting) {
+            root.revealGlance()
+        }
+    }
+
+    // Wi-Fi Signal Wave Animation Step Timers
+    property int connectingStep: 0
+    Timer {
+        interval: 220
+        running: root.isConnecting
+        repeat: true
+        onTriggered: root.connectingStep = (root.connectingStep + 1) % 4
+    }
+
+    property int disconnectingStep: 0
+    Timer {
+        interval: 220
+        running: root.isDisconnecting
+        repeat: true
+        onTriggered: root.disconnectingStep = (root.disconnectingStep + 1) % 4
+    }
+
+    function barColor(barLevel) {
+        if (root.isConnecting) {
+            var lit = root.connectingStep >= (barLevel - 1)
+            return lit ? Theme.yellow : Theme.brandBgc
+        }
+        if (root.isDisconnecting) {
+            var lit = (3 - root.disconnectingStep) >= (barLevel - 1)
+            return lit ? Theme.red : Theme.brandBgc
+        }
+        if (barLevel === 4) return root.veryStrongSignal ? Theme.brand : Theme.brandBgc
+        if (barLevel === 3) return root.strongSignal ? Theme.brand : Theme.brandBgc
+        if (barLevel === 2) return root.mediumSignal ? Theme.brand : Theme.brandBgc
+        if (barLevel === 1) return root.weakSignal ? Theme.brand : Theme.brandBgc
+        return Theme.brandBgc
+    }
+
     // Connection Monitoring for Auto-Reveal on Connect
     readonly property string currentConnectionId: {
         var _ = networkStateVersion
@@ -95,16 +208,23 @@ Scope {
         ignoreUnknownSignals: true
         function onConnectedChanged() {
             root.networkStateVersion++
-            if (!root.connectionWatchReady) return
             if (root.wifiDevice && root.wifiDevice.connected) {
-                root.revealGlance()
+                root.pendingConnectingSsid = ""
+                root.pendingDisconnectingSsid = ""
+                if (root.connectionWatchReady) root.revealGlance()
             }
         }
         function onStateChanged() {
             root.networkStateVersion++
-            if (!root.connectionWatchReady) return
-            if (root.wifiDevice && root.wifiDevice.state === ConnectionState.Connected) {
-                root.revealGlance()
+            if (root.wifiDevice) {
+                if (root.wifiDevice.state === ConnectionState.Connected) {
+                    root.pendingConnectingSsid = ""
+                    root.pendingDisconnectingSsid = ""
+                    if (root.connectionWatchReady) root.revealGlance()
+                } else if (root.wifiDevice.state === ConnectionState.Disconnected) {
+                    root.pendingConnectingSsid = ""
+                    root.pendingDisconnectingSsid = ""
+                }
             }
         }
     }
@@ -117,9 +237,18 @@ Scope {
             function onConnectedChanged() {
                 root.networkStateVersion++
                 root.syncWifiNetworks()
-                if (!root.connectionWatchReady) return
                 if (modelData && modelData.connected) {
-                    root.revealGlance()
+                    root.pendingConnectingSsid = ""
+                    root.pendingDisconnectingSsid = ""
+                    if (root.connectionWatchReady) root.revealGlance()
+                }
+            }
+            function onStateChanged() {
+                root.networkStateVersion++
+                root.syncWifiNetworks()
+                if (modelData.state === ConnectionState.Connected || modelData.state === ConnectionState.Disconnected) {
+                    if (root.pendingConnectingSsid === modelData.name) root.pendingConnectingSsid = ""
+                    if (root.pendingDisconnectingSsid === modelData.name) root.pendingDisconnectingSsid = ""
                 }
             }
         }
@@ -161,6 +290,10 @@ Scope {
 
     // Inline Password Entry
     property string activePasswordSsid: ""
+    property string passwordText: ""
+    property string passwordFocusItem: "input" // "input" | "ok" | "cancel"
+    signal requestPasswordInputFocus()
+    signal requestMainFocus()
 
     // The list used to be a live binding over the device's networks, so every
     // NetworkManager signal -- including a bare signal-strength tick -- produced
@@ -170,6 +303,7 @@ Scope {
     // only when the *set* of rows actually changes.
     property var sortedNetworks: []
     readonly property string networkKey: {
+        var _ = networkStateVersion
         if (!wifiDevice || !wifiDevice.networks) return ""
         var values = wifiDevice.networks.values
         var parts = []
@@ -177,11 +311,12 @@ Scope {
             var net = values[i]
             if (!net) continue
             // Deliberately excludes signal strength: a strength tick must not
-            // change the identity of the list.
-            parts.push((net.name || "") + "" + (net.connected ? 1 : 0) + "" + (net.known ? 1 : 0))
+            // change the identity of the list. State is included so transitions
+            // to connecting/disconnecting update row sorting and action buttons.
+            parts.push((net.name || "") + " " + (net.connected ? 1 : 0) + " " + (net.known ? 1 : 0) + " " + (net.state !== undefined ? net.state : 0))
         }
         parts.sort()
-        return parts.join("")
+        return parts.join(" ")
     }
     readonly property int networksCount: sortedNetworks.length
     readonly property bool hasKnownNetworks: sortedNetworks.length > 0 && (sortedNetworks[0].known || sortedNetworks[0].connected)
@@ -423,11 +558,11 @@ Scope {
         root.revealWifiCursor()
     }
 
-    // Auto-hide Timer for Glance HUD (only active when collapsed)
+    // Auto-hide Timer for Glance HUD (only active when collapsed and idle)
     Timer {
         id: autoHideTimer
         interval: 3500
-        running: root.hudVisible && !root.isExpanded
+        running: root.hudVisible && !root.isExpanded && !root.isConnecting && !root.isDisconnecting
         onTriggered: {
             root.hudVisible = false
         }
@@ -508,13 +643,63 @@ Scope {
         var p = Qt.createQmlObject('import Quickshell.Io; Process { running: true; command: ["omarchy-shell", "shell", "call", "omarchy.network", "setDns", "' + provider + '"] }', root)
     }
 
+    function wifiIndexForSsid(ssid) {
+        if (!ssid || !root.sortedNetworks) return -1
+        for (var i = 0; i < root.sortedNetworks.length; i++) {
+            if (root.sortedNetworks[i] && root.sortedNetworks[i].ssid === ssid) return i
+        }
+        return -1
+    }
+
+    function openPasswordPrompt(ssid) {
+        root.activePasswordSsid = ssid
+        root.passwordText = ""
+        root.passwordFocusItem = "input"
+        var idx = root.wifiIndexForSsid(ssid)
+        if (idx >= 0) {
+            root.selectedWifiIndex = idx
+            if (typeof networkList !== "undefined") {
+                networkList.positionViewAtIndex(idx, ListView.Contain)
+            }
+        }
+        root.requestPasswordInputFocus()
+    }
+
+    function submitPasswordPrompt() {
+        if (!root.activePasswordSsid) return
+        var idx = root.wifiIndexForSsid(root.activePasswordSsid)
+        if (idx >= 0 && root.sortedNetworks[idx] && root.sortedNetworks[idx].networkObject) {
+            var netObj = root.sortedNetworks[idx].networkObject
+            root.pendingConnectingSsid = root.activePasswordSsid
+            root.pendingDisconnectingSsid = ""
+            pendingTimeoutTimer.restart()
+            netObj.connectWithPsk(root.passwordText)
+            root.activePasswordSsid = ""
+            root.passwordText = ""
+            root.passwordFocusItem = "input"
+            root.requestMainFocus()
+        }
+    }
+
     function connectToNetwork(net) {
         if (!net) return
+        var ssid = net.name || ""
         if (!Model.isProtected(net.security, WifiSecurityType.Open) || net.known) {
+            root.pendingConnectingSsid = ssid
+            root.pendingDisconnectingSsid = ""
+            pendingTimeoutTimer.restart()
             net.connect()
         } else {
-            root.activePasswordSsid = net.name
+            root.openPasswordPrompt(ssid)
         }
+    }
+
+    function disconnectNetwork(net) {
+        if (!net) return
+        root.pendingDisconnectingSsid = net.name || (connectedNetwork ? connectedNetwork.name : "")
+        root.pendingConnectingSsid = ""
+        pendingTimeoutTimer.restart()
+        net.disconnect()
     }
 
     function activateHeader() {
@@ -538,8 +723,12 @@ Scope {
         if (root.selectedWifiIndex >= 0 && root.selectedWifiIndex < root.networksCount) {
             var row = root.sortedNetworks[root.selectedWifiIndex]
             if (!row || !row.networkObject) return
+            var isConnecting = (row.networkObject.state === ConnectionState.Connecting) || (root.pendingConnectingSsid === row.ssid)
+            var isDisconnecting = (row.networkObject.state === ConnectionState.Disconnecting) || (root.pendingDisconnectingSsid === row.ssid)
+            if (isConnecting || isDisconnecting) return
+
             if (row.connected) {
-                row.networkObject.disconnect()
+                disconnectNetwork(row.networkObject)
             } else {
                 connectToNetwork(row.networkObject)
             }
@@ -655,15 +844,118 @@ Scope {
                             })
                         }
                     }
+                    function onRequestMainFocus() {
+                        Qt.callLater(function() {
+                            focusScope.forceActiveFocus()
+                        })
+                    }
                 }
 
                 Keys.priority: Keys.BeforeItem
                 Keys.onPressed: function(event) {
 
                     if (event.key === Qt.Key_Escape) {
+                        if (root.activePasswordSsid !== "") {
+                            root.activePasswordSsid = ""
+                            root.passwordText = ""
+                            root.passwordFocusItem = "input"
+                            event.accepted = true
+                            return
+                        }
                         root.isExpanded = false
                         root.hudVisible = false
                         root.activePasswordSsid = ""
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- When inline password prompt is open ---
+                    if (root.activePasswordSsid !== "") {
+                        if (root.passwordFocusItem === "input") {
+                            // Let printable keys and text editing pass through to TextInput
+                            return
+                        }
+
+                        // When focus is on OK or Cancel buttons:
+                        if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+                            var fwd = event.key === Qt.Key_Tab && !(event.modifiers & Qt.ShiftModifier)
+                            if (fwd) {
+                                if (root.passwordFocusItem === "ok") {
+                                    root.passwordFocusItem = "cancel"
+                                } else if (root.passwordFocusItem === "cancel") {
+                                    // Tab out of the prompt to the next section (header)
+                                    root.passwordFocusItem = "input"
+                                    root.focusSection = "header"
+                                    root.headerIndex = 0
+                                }
+                            } else {
+                                if (root.passwordFocusItem === "cancel") {
+                                    root.passwordFocusItem = "ok"
+                                } else if (root.passwordFocusItem === "ok") {
+                                    root.passwordFocusItem = "input"
+                                    root.requestPasswordInputFocus()
+                                }
+                            }
+                            event.accepted = true
+                            return
+                        }
+
+                        if (event.key === Qt.Key_Right) {
+                            if (root.passwordFocusItem === "ok") {
+                                root.passwordFocusItem = "cancel"
+                                event.accepted = true
+                                return
+                            }
+                        }
+                        if (event.key === Qt.Key_Left) {
+                            if (root.passwordFocusItem === "cancel") {
+                                root.passwordFocusItem = "ok"
+                                event.accepted = true
+                                return
+                            } else if (root.passwordFocusItem === "ok") {
+                                root.passwordFocusItem = "input"
+                                root.requestPasswordInputFocus()
+                                event.accepted = true
+                                return
+                            }
+                        }
+
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                            if (root.passwordFocusItem === "ok") {
+                                root.submitPasswordPrompt()
+                            } else if (root.passwordFocusItem === "cancel") {
+                                root.activePasswordSsid = ""
+                                root.passwordText = ""
+                                root.passwordFocusItem = "input"
+                            }
+                            event.accepted = true
+                            return
+                        }
+
+                        if (event.key === Qt.Key_Down) {
+                            root.activePasswordSsid = ""
+                            root.passwordText = ""
+                            root.passwordFocusItem = "input"
+                            root.focusSection = "wifi"
+                            root.selectWifi(1)
+                            event.accepted = true
+                            return
+                        }
+                        if (event.key === Qt.Key_Up) {
+                            root.activePasswordSsid = ""
+                            root.passwordText = ""
+                            root.passwordFocusItem = "input"
+                            root.focusSection = "wifi"
+                            if (root.selectedWifiIndex <= 0) {
+                                root.focusSection = "dns"
+                                root.wifiActionFocused = false
+                            } else {
+                                root.selectWifi(-1)
+                            }
+                            event.accepted = true
+                            return
+                        }
+
                         event.accepted = true
                         return
                     }
@@ -747,12 +1039,24 @@ Scope {
                         var forward = event.key === Qt.Key_Tab && !(event.modifiers & Qt.ShiftModifier)
                         if (forward) {
                             if (root.focusSection === "header") root.focusSection = "dns"
-                            else if (root.focusSection === "dns") root.focusSection = "wifi"
+                            else if (root.focusSection === "dns") {
+                                root.focusSection = "wifi"
+                                if (root.activePasswordSsid !== "") {
+                                    root.passwordFocusItem = "input"
+                                    root.requestPasswordInputFocus()
+                                }
+                            }
                             else root.focusSection = "header"
                         } else {
                             if (root.focusSection === "wifi") root.focusSection = "dns"
                             else if (root.focusSection === "dns") root.focusSection = "header"
-                            else root.focusSection = "wifi"
+                            else {
+                                root.focusSection = "wifi"
+                                if (root.activePasswordSsid !== "") {
+                                    root.passwordFocusItem = "input"
+                                    root.requestPasswordInputFocus()
+                                }
+                            }
                         }
                         event.accepted = true
                         return
@@ -850,8 +1154,34 @@ Scope {
                                 anchors.top: parent.top
                                 anchors.topMargin: Theme.spacing
                                 anchors.leftMargin: Theme.spacing
-                                text: root.hasConnection && connectedNetwork.name ? connectedNetwork.name : "Wi-Fi"
-                                color: root.hasConnection ? Theme.brand : Theme.darkForeground
+                                text: {
+                                    if (root.isConnecting) {
+                                        var isNew = false
+                                        if (root.sortedNetworks && root.connectingSsid) {
+                                            for (var i = 0; i < root.sortedNetworks.length; i++) {
+                                                if (root.sortedNetworks[i] && root.sortedNetworks[i].ssid === root.connectingSsid) {
+                                                    isNew = !root.sortedNetworks[i].known
+                                                    break
+                                                }
+                                            }
+                                        }
+                                        var prefix = isNew ? "JOINING: " : "CONNECTING: "
+                                        return root.connectingSsid ? (prefix + root.connectingSsid) : (isNew ? "JOINING..." : "CONNECTING...")
+                                    }
+                                    if (root.isDisconnecting) {
+                                        return root.disconnectingSsid ? ("DISCONNECTING: " + root.disconnectingSsid) : "DISCONNECTING..."
+                                    }
+                                    if (root.hasConnection && connectedNetwork && connectedNetwork.name) {
+                                        return connectedNetwork.name
+                                    }
+                                    return Networking.wifiEnabled ? "Wi-Fi" : "Wi-Fi Off"
+                                }
+                                color: {
+                                    if (root.isConnecting) return Theme.yellow
+                                    if (root.isDisconnecting) return Theme.red
+                                    if (root.hasConnection) return Theme.brand
+                                    return Theme.darkForeground
+                                }
                                 font.family: Theme.brandFont
                                 font.pixelSize: Theme.rounding
                                 font.weight: Font.Bold
@@ -864,11 +1194,12 @@ Scope {
                                 anchors.top: parent.top
                                 implicitWidth: Theme.spacing * 4.5
                                 implicitHeight: implicitWidth
-                                color: root.veryStrongSignal ? Theme.brand : Theme.brandBgc
+                                color: root.barColor(4)
                                 radius: Theme.spacing
                                 bottomLeftRadius: Theme.rounding + Theme.spacing
                                 border.width: Theme.spacing / 2
                                 border.color: Theme.bgc
+                                Behavior on color { ColorAnimation { duration: 150 } }
                             }
 
                             Rectangle {
@@ -876,11 +1207,12 @@ Scope {
                                 anchors.top: parent.top
                                 implicitWidth: Theme.spacing * 3.5
                                 implicitHeight: implicitWidth
-                                color: root.strongSignal ? Theme.brand : Theme.brandBgc
+                                color: root.barColor(3)
                                 radius: Theme.spacing
                                 bottomLeftRadius: Theme.rounding + Theme.spacing
                                 border.width: Theme.spacing / 2
                                 border.color: Theme.bgc
+                                Behavior on color { ColorAnimation { duration: 150 } }
                             }
 
                             Rectangle {
@@ -888,11 +1220,12 @@ Scope {
                                 anchors.top: parent.top
                                 implicitWidth: Theme.spacing * 2.5
                                 implicitHeight: implicitWidth
-                                color: root.mediumSignal ? Theme.brand : Theme.brandBgc
+                                color: root.barColor(2)
                                 radius: Theme.spacing
                                 bottomLeftRadius: Theme.rounding + Theme.spacing
                                 border.width: Theme.spacing / 2
                                 border.color: Theme.bgc
+                                Behavior on color { ColorAnimation { duration: 150 } }
                             }
 
                             Rectangle {
@@ -900,11 +1233,12 @@ Scope {
                                 anchors.top: parent.top
                                 implicitWidth: Theme.spacing * 1.5
                                 implicitHeight: implicitWidth
-                                color: root.weakSignal ? Theme.brand : Theme.brandBgc
+                                color: root.barColor(1)
                                 radius: Theme.spacing
                                 bottomLeftRadius: Theme.rounding + Theme.spacing
                                 border.width: Theme.spacing / 2
                                 border.color: Theme.bgc
+                                Behavior on color { ColorAnimation { duration: 150 } }
                             }
                         }
 
@@ -938,13 +1272,53 @@ Scope {
                                 Layout.fillWidth: true
                                 spacing: Theme.spacing
 
-                                Text {
-                                    text: root.hasConnection ? "CONNECTED" : (Networking.wifiEnabled ? "NOT CONNECTED" : "WI-FI DISABLED")
-                                    color: root.hasConnection ? Theme.brand : (Networking.wifiEnabled ? Theme.yellow : Theme.red)
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: 10
-                                    font.bold: true
+                                RowLayout {
+                                    spacing: 6
                                     Layout.alignment: Qt.AlignVCenter
+
+                                    Rectangle {
+                                        width: 6
+                                        height: 6
+                                        radius: 3
+                                        color: root.isConnecting
+                                            ? Theme.yellow
+                                            : (root.isDisconnecting
+                                                ? Theme.red
+                                                : (root.hasConnection
+                                                    ? Theme.green
+                                                    : (Networking.wifiEnabled ? Theme.yellow : Theme.red)))
+                                        Layout.alignment: Qt.AlignVCenter
+
+                                        SequentialAnimation on opacity {
+                                            running: root.isConnecting || root.isDisconnecting
+                                            loops: Animation.Infinite
+                                            NumberAnimation { from: 1.0; to: 0.25; duration: 450; easing.type: Easing.InOutQuad }
+                                            NumberAnimation { from: 0.25; to: 1.0; duration: 450; easing.type: Easing.InOutQuad }
+                                        }
+                                    }
+
+                                    Text {
+                                        text: {
+                                            if (root.isConnecting) {
+                                                return root.connectingSsid ? ("CONNECTING TO " + root.connectingSsid.toUpperCase() + "...") : "CONNECTING..."
+                                            }
+                                            if (root.isDisconnecting) {
+                                                return root.disconnectingSsid ? ("DISCONNECTING " + root.disconnectingSsid.toUpperCase() + "...") : "DISCONNECTING..."
+                                            }
+                                            if (root.hasConnection) return "CONNECTED"
+                                            return Networking.wifiEnabled ? "NOT CONNECTED" : "WI-FI DISABLED"
+                                        }
+                                        color: {
+                                            if (root.isConnecting) return Theme.yellow
+                                            if (root.isDisconnecting) return Theme.red
+                                            if (root.hasConnection) return Theme.brand
+                                            return Networking.wifiEnabled ? Theme.yellow : Theme.red
+                                        }
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 10
+                                        font.bold: true
+                                        Layout.alignment: Qt.AlignVCenter
+                                    }
                                 }
 
                                 // Spacer to push action buttons strictly to the right
@@ -1126,13 +1500,19 @@ Scope {
                             ListView {
                                 id: networkList
                                 currentIndex: root.selectedWifiIndex
+                                onCurrentIndexChanged: if (currentIndex >= 0) positionViewAtIndex(currentIndex, ListView.Contain)
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: Math.min(Math.max(contentHeight, 35), 240)
+                                implicitHeight: Layout.preferredHeight
                                 Layout.fillHeight: false
                                 clip: true
                                 spacing: 4
                                 boundsBehavior: Flickable.StopAtBounds
-                                interactive: false
+                                interactive: contentHeight > height
+
+                                ScrollBar.vertical: ScrollBar {
+                                    policy: networkList.contentHeight > networkList.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+                                }
 
                                 WheelHandler {
                                     target: null
@@ -1164,19 +1544,50 @@ Scope {
 
                                     readonly property bool isFirstOther: !modelData.known && index > 0 && root.sortedNetworks[index - 1] && (root.sortedNetworks[index - 1].known || root.sortedNetworks[index - 1].connected)
 
+                                    readonly property bool isItemConnecting: {
+                                        var _ = root.networkStateVersion
+                                        if (delegateRoot.modelData.networkObject && delegateRoot.modelData.networkObject.state === ConnectionState.Connecting) return true
+                                        if (root.pendingConnectingSsid !== "" && root.pendingConnectingSsid === delegateRoot.modelData.ssid) return true
+                                        return false
+                                    }
+
+                                    readonly property bool isItemDisconnecting: {
+                                        var _ = root.networkStateVersion
+                                        if (delegateRoot.modelData.networkObject && delegateRoot.modelData.networkObject.state === ConnectionState.Disconnecting) return true
+                                        if (root.pendingDisconnectingSsid !== "" && root.pendingDisconnectingSsid === delegateRoot.modelData.ssid) return true
+                                        return false
+                                    }
+
                                     width: networkList.width
                                     height: delegateColumn.implicitHeight
 
-                                    ColumnLayout {
+                                    Connections {
+                                        target: delegateRoot.modelData.networkObject || null
+                                        ignoreUnknownSignals: true
+                                        function onConnectedChanged() {
+                                            if (delegateRoot.modelData.networkObject && delegateRoot.modelData.networkObject.connected) {
+                                                if (root.pendingConnectingSsid === delegateRoot.modelData.ssid) {
+                                                    root.pendingConnectingSsid = ""
+                                                }
+                                            }
+                                        }
+                                        function onConnectionFailed(reason) {
+                                            if (root.pendingConnectingSsid === delegateRoot.modelData.ssid) {
+                                                root.pendingConnectingSsid = ""
+                                                root.openPasswordPrompt(delegateRoot.modelData.ssid)
+                                            }
+                                        }
+                                    }
+
+                                    Column {
                                         id: delegateColumn
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
+                                        width: parent.width
                                         spacing: 4
 
                                         // Separator matching OmarchyMenu
                                         Item {
-                                            Layout.fillWidth: true
-                                            Layout.preferredHeight: delegateRoot.isFirstOther ? 12 : 0
+                                            width: parent.width
+                                            height: delegateRoot.isFirstOther ? 12 : 0
                                             visible: delegateRoot.isFirstOther
 
                                             Rectangle {
@@ -1192,7 +1603,7 @@ Scope {
 
                                         // Section header for other networks
                                         Text {
-                                            Layout.fillWidth: true
+                                            width: parent.width
                                             visible: delegateRoot.isFirstOther
                                             text: "OTHER NETWORKS"
                                             color: Theme.darkForeground
@@ -1202,8 +1613,9 @@ Scope {
                                         }
 
                                         Rectangle {
-                                            Layout.fillWidth: true
-                                            height: passwordBox.visible ? 68 : 30
+                                            id: rowCard
+                                            width: parent.width
+                                            height: passwordBox.visible ? 60 : 30
                                             radius: 6
                                             color: (root.focusSection === "wifi" && root.selectedWifiIndex === delegateRoot.index && !root.wifiActionFocused) ? Theme.selection : (delegateRoot.modelData.connected ? Theme.selection : Theme.surface)
 
@@ -1212,48 +1624,69 @@ Scope {
                                                 anchors.margins: 5
                                                 spacing: 4
 
-                                                RowLayout {
+                                                Item {
                                                     Layout.fillWidth: true
-                                                    spacing: 6
+                                                    height: 20
 
                                                     Text {
+                                                        id: signalIcon
                                                         text: Model.wifiIconFor(delegateRoot.modelData.signal)
-                                                        color: delegateRoot.modelData.connected ? Theme.green : Theme.blue
+                                                        color: delegateRoot.isItemConnecting ? Theme.yellow : (delegateRoot.isItemDisconnecting ? Theme.red : (delegateRoot.modelData.connected ? Theme.green : Theme.blue))
                                                         font.family: Theme.fontFamily
                                                         font.pixelSize: 12
-                                                    }
-
-                                                    Text {
-                                                        text: delegateRoot.modelData.ssid || "Hidden Network"
-                                                        color: delegateRoot.modelData.connected ? Theme.brand : Theme.foreground
-                                                        font.family: Theme.fontFamily
-                                                        font.pixelSize: 11
-                                                        font.bold: delegateRoot.modelData.connected
-                                                        elide: Text.ElideRight
-                                                        Layout.fillWidth: true
-                                                    }
-
-                                                    Text {
-                                                        text: Model.isProtected(delegateRoot.modelData.security, WifiSecurityType.Open) ? "󰌾" : ""
-                                                        color: Theme.yellow
-                                                        font.family: Theme.fontFamily
-                                                        font.pixelSize: 10
-                                                        visible: text !== ""
+                                                        anchors.left: parent.left
+                                                        anchors.verticalCenter: parent.verticalCenter
                                                     }
 
                                                     // Connect / Disconnect Action Button
                                                     Rectangle {
-                                                        width: 60
+                                                        id: actionBtn
+                                                        width: delegateRoot.isItemConnecting ? (delegateRoot.modelData.known ? 76 : 64) : (delegateRoot.isItemDisconnecting ? 82 : (delegateRoot.modelData.connected ? 64 : 56))
                                                         height: 20
                                                         radius: 4
-                                                        color: delegateRoot.modelData.connected ? Qt.rgba(Theme.red.r, Theme.red.g, Theme.red.b, 0.25) : Theme.brand
-                                                        border.color: root.focusSection === "wifi" && root.selectedWifiIndex === delegateRoot.index && root.wifiActionFocused ? Theme.foreground : (delegateRoot.modelData.connected ? Theme.red : Theme.brand)
+                                                        anchors.right: parent.right
+                                                        anchors.verticalCenter: parent.verticalCenter
+                                                        color: delegateRoot.isItemConnecting
+                                                            ? Qt.rgba(Theme.yellow.r, Theme.yellow.g, Theme.yellow.b, 0.25)
+                                                            : (delegateRoot.isItemDisconnecting
+                                                                ? Qt.rgba(Theme.red.r, Theme.red.g, Theme.red.b, 0.25)
+                                                                : (delegateRoot.modelData.connected
+                                                                    ? Qt.rgba(Theme.red.r, Theme.red.g, Theme.red.b, 0.25)
+                                                                    : Theme.brand))
+                                                        border.color: root.focusSection === "wifi" && root.selectedWifiIndex === delegateRoot.index && root.wifiActionFocused
+                                                            ? Theme.foreground
+                                                            : (delegateRoot.isItemConnecting
+                                                                ? Theme.yellow
+                                                                : (delegateRoot.isItemDisconnecting || delegateRoot.modelData.connected
+                                                                    ? Theme.red
+                                                                    : Theme.brand))
                                                         border.width: root.focusSection === "wifi" && root.selectedWifiIndex === delegateRoot.index && root.wifiActionFocused ? 1.5 : 1
+
+                                                        Behavior on width {
+                                                            NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+                                                        }
+
+                                                        SequentialAnimation on opacity {
+                                                            running: delegateRoot.isItemConnecting || delegateRoot.isItemDisconnecting
+                                                            loops: Animation.Infinite
+                                                            NumberAnimation { from: 1.0; to: 0.35; duration: 450; easing.type: Easing.InOutQuad }
+                                                            NumberAnimation { from: 0.35; to: 1.0; duration: 450; easing.type: Easing.InOutQuad }
+                                                        }
 
                                                         Text {
                                                             anchors.centerIn: parent
-                                                            text: delegateRoot.modelData.connected ? "Disconnect" : (delegateRoot.modelData.known ? "Connect" : "Join")
-                                                            color: delegateRoot.modelData.connected ? Theme.red : Theme.darkBackground
+                                                            text: delegateRoot.isItemConnecting
+                                                                ? (delegateRoot.modelData.known ? "Connecting" : "Joining")
+                                                                : (delegateRoot.isItemDisconnecting
+                                                                    ? "Disconnecting"
+                                                                    : (delegateRoot.modelData.connected
+                                                                        ? "Disconnect"
+                                                                        : (delegateRoot.modelData.known ? "Connect" : "Join")))
+                                                            color: delegateRoot.isItemConnecting
+                                                                ? Theme.yellow
+                                                                : (delegateRoot.isItemDisconnecting || delegateRoot.modelData.connected
+                                                                    ? Theme.red
+                                                                    : Theme.darkBackground)
                                                             font.family: Theme.fontFamily
                                                             font.pixelSize: 9
                                                             font.bold: true
@@ -1261,17 +1694,47 @@ Scope {
 
                                                         MouseArea {
                                                             anchors.fill: parent
-                                                            cursorShape: Qt.PointingHandCursor
+                                                            cursorShape: (delegateRoot.isItemConnecting || delegateRoot.isItemDisconnecting) ? Qt.ArrowCursor : Qt.PointingHandCursor
+                                                            enabled: !delegateRoot.isItemConnecting && !delegateRoot.isItemDisconnecting
                                                             hoverEnabled: true
                                                             onEntered: { root.focusSection = "wifi"; root.selectedWifiIndex = delegateRoot.index; root.wifiActionFocused = true }
                                                             onClicked: {
+                                                                root.selectedWifiIndex = delegateRoot.index
+                                                                root.wifiActionFocused = true
                                                                 if (delegateRoot.modelData.connected) {
-                                                                    delegateRoot.modelData.networkObject.disconnect()
+                                                                    root.disconnectNetwork(delegateRoot.modelData.networkObject)
                                                                 } else {
                                                                     root.connectToNetwork(delegateRoot.modelData.networkObject)
                                                                 }
                                                             }
                                                         }
+                                                    }
+
+                                                    Text {
+                                                        id: lockIcon
+                                                        text: Model.isProtected(delegateRoot.modelData.security, WifiSecurityType.Open) ? "󰌾" : ""
+                                                        color: Theme.yellow
+                                                        font.family: Theme.fontFamily
+                                                        font.pixelSize: 10
+                                                        visible: text !== ""
+                                                        anchors.right: actionBtn.left
+                                                        anchors.rightMargin: 6
+                                                        anchors.verticalCenter: parent.verticalCenter
+                                                    }
+
+                                                    Text {
+                                                        id: ssidText
+                                                        text: delegateRoot.modelData.ssid || "Hidden Network"
+                                                        color: delegateRoot.isItemConnecting ? Theme.yellow : (delegateRoot.isItemDisconnecting ? Theme.red : (delegateRoot.modelData.connected ? Theme.brand : Theme.foreground))
+                                                        font.family: Theme.fontFamily
+                                                        font.pixelSize: 11
+                                                        font.bold: delegateRoot.modelData.connected || delegateRoot.isItemConnecting
+                                                        elide: Text.ElideRight
+                                                        anchors.left: signalIcon.right
+                                                        anchors.leftMargin: 6
+                                                        anchors.right: lockIcon.visible ? lockIcon.left : actionBtn.left
+                                                        anchors.rightMargin: 6
+                                                        anchors.verticalCenter: parent.verticalCenter
                                                     }
                                                 }
 
@@ -1279,6 +1742,7 @@ Scope {
                                                 RowLayout {
                                                     id: passwordBox
                                                     Layout.fillWidth: true
+                                                    Layout.preferredHeight: 22
                                                     visible: root.activePasswordSsid !== "" && root.activePasswordSsid === (delegateRoot.modelData.ssid || "")
                                                     spacing: 4
 
@@ -1287,8 +1751,8 @@ Scope {
                                                         height: 22
                                                         radius: 4
                                                         color: Theme.darkBackground
-                                                        border.color: Theme.brand
-                                                        border.width: 1
+                                                        border.color: (root.activePasswordSsid === delegateRoot.modelData.ssid && root.passwordFocusItem === "input") ? Theme.brand : Theme.selection
+                                                        border.width: (root.activePasswordSsid === delegateRoot.modelData.ssid && root.passwordFocusItem === "input") ? 1.5 : 1
 
                                                         TextInput {
                                                             id: passwordInput
@@ -1298,35 +1762,108 @@ Scope {
                                                             color: Theme.brightForeground
                                                             font.family: Theme.fontFamily
                                                             font.pixelSize: 10
-                                                            focus: passwordBox.visible
-                                                            // The prompt is per-row and reuses the
-                                                            // delegate, so a stale passphrase would
-                                                            // still be sitting here from the last
-                                                            // time this network was picked.
-                                                            onVisibleChanged: if (visible) text = ""
-                                                            // Escape belongs to the field that has
-                                                            // focus: focusScope's Keys handler never
-                                                            // sees it while this prompt is up, so
-                                                            // without this the prompt is
-                                                            // undismissable from the keyboard.
-                                                            Keys.onEscapePressed: function(event) {
-                                                                root.activePasswordSsid = ""
-                                                                event.accepted = true
-                                                            }
-                                                            onAccepted: {
-                                                                if (delegateRoot.modelData.networkObject) {
-                                                                    delegateRoot.modelData.networkObject.connectWithPsk(text)
-                                                                    root.activePasswordSsid = ""
+                                                            focus: passwordBox.visible && root.passwordFocusItem === "input"
+                                                            text: (root.activePasswordSsid === (delegateRoot.modelData.ssid || "")) ? root.passwordText : ""
+                                                            onTextChanged: {
+                                                                if (root.activePasswordSsid === (delegateRoot.modelData.ssid || "") && root.passwordText !== text) {
+                                                                    root.passwordText = text
                                                                 }
+                                                            }
+                                                            onActiveFocusChanged: {
+                                                                if (activeFocus && root.activePasswordSsid === (delegateRoot.modelData.ssid || "")) {
+                                                                    root.passwordFocusItem = "input"
+                                                                }
+                                                            }
+
+                                                            Connections {
+                                                                target: root
+                                                                function onRequestPasswordInputFocus() {
+                                                                    if (root.activePasswordSsid === (delegateRoot.modelData.ssid || "")) {
+                                                                        passwordInput.forceActiveFocus()
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            onVisibleChanged: {
+                                                                if (visible) {
+                                                                    text = ""
+                                                                    Qt.callLater(function() {
+                                                                        passwordInput.forceActiveFocus()
+                                                                    })
+                                                                }
+                                                            }
+                                                            Component.onCompleted: {
+                                                                if (visible) {
+                                                                    Qt.callLater(function() {
+                                                                        passwordInput.forceActiveFocus()
+                                                                    })
+                                                                }
+                                                            }
+
+                                                            Keys.onPressed: function(event) {
+                                                                if (event.key === Qt.Key_Tab && !(event.modifiers & Qt.ShiftModifier)) {
+                                                                    root.passwordFocusItem = "ok"
+                                                                    root.requestMainFocus()
+                                                                    event.accepted = true
+                                                                    return
+                                                                }
+                                                                if (event.key === Qt.Key_Backtab || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier))) {
+                                                                    root.focusSection = "dns"
+                                                                    root.passwordFocusItem = "input"
+                                                                    root.requestMainFocus()
+                                                                    event.accepted = true
+                                                                    return
+                                                                }
+                                                                if (event.key === Qt.Key_Escape) {
+                                                                    root.activePasswordSsid = ""
+                                                                    root.passwordText = ""
+                                                                    root.passwordFocusItem = "input"
+                                                                    root.requestMainFocus()
+                                                                    event.accepted = true
+                                                                    return
+                                                                }
+                                                                if (event.key === Qt.Key_Down) {
+                                                                    root.activePasswordSsid = ""
+                                                                    root.passwordText = ""
+                                                                    root.passwordFocusItem = "input"
+                                                                    root.focusSection = "wifi"
+                                                                    root.selectWifi(1)
+                                                                    root.requestMainFocus()
+                                                                    event.accepted = true
+                                                                    return
+                                                                }
+                                                                if (event.key === Qt.Key_Up) {
+                                                                    root.activePasswordSsid = ""
+                                                                    root.passwordText = ""
+                                                                    root.passwordFocusItem = "input"
+                                                                    root.focusSection = "wifi"
+                                                                    if (root.selectedWifiIndex <= 0) {
+                                                                        root.focusSection = "dns"
+                                                                        root.wifiActionFocused = false
+                                                                    } else {
+                                                                        root.selectWifi(-1)
+                                                                    }
+                                                                    root.requestMainFocus()
+                                                                    event.accepted = true
+                                                                    return
+                                                                }
+                                                            }
+
+                                                            onAccepted: {
+                                                                root.submitPasswordPrompt()
                                                             }
                                                         }
                                                     }
 
                                                     Rectangle {
+                                                        id: okBtn
                                                         width: 40
                                                         height: 22
                                                         radius: 4
                                                         color: Theme.brand
+                                                        border.color: (root.activePasswordSsid === delegateRoot.modelData.ssid && root.passwordFocusItem === "ok") ? Theme.foreground : Theme.brand
+                                                        border.width: (root.activePasswordSsid === delegateRoot.modelData.ssid && root.passwordFocusItem === "ok") ? 1.5 : 1
+
                                                         Text {
                                                             anchors.centerIn: parent
                                                             text: "OK"
@@ -1338,26 +1875,22 @@ Scope {
                                                         MouseArea {
                                                             anchors.fill: parent
                                                             cursorShape: Qt.PointingHandCursor
+                                                            onEntered: { root.focusSection = "wifi"; root.selectedWifiIndex = delegateRoot.index; root.passwordFocusItem = "ok" }
                                                             onClicked: {
-                                                                if (delegateRoot.modelData.networkObject) {
-                                                                    // Read the field itself rather than a
-                                                                    // shared property, so a cancelled
-                                                                    // prompt can never leak its passphrase
-                                                                    // into the next network.
-                                                                    delegateRoot.modelData.networkObject.connectWithPsk(passwordInput.text)
-                                                                    root.activePasswordSsid = ""
-                                                                }
+                                                                root.submitPasswordPrompt()
                                                             }
                                                         }
                                                     }
 
                                                     Rectangle {
+                                                        id: cancelBtn
                                                         width: 40
                                                         height: 22
                                                         radius: 4
                                                         color: Theme.selection
-                                                        border.color: Theme.darkForeground
-                                                        border.width: 1
+                                                        border.color: (root.activePasswordSsid === delegateRoot.modelData.ssid && root.passwordFocusItem === "cancel") ? Theme.foreground : Theme.darkForeground
+                                                        border.width: (root.activePasswordSsid === delegateRoot.modelData.ssid && root.passwordFocusItem === "cancel") ? 1.5 : 1
+
                                                         Text {
                                                             anchors.centerIn: parent
                                                             text: "Cancel"
@@ -1368,7 +1901,13 @@ Scope {
                                                         MouseArea {
                                                             anchors.fill: parent
                                                             cursorShape: Qt.PointingHandCursor
-                                                            onClicked: root.activePasswordSsid = ""
+                                                            onEntered: { root.focusSection = "wifi"; root.selectedWifiIndex = delegateRoot.index; root.passwordFocusItem = "cancel" }
+                                                            onClicked: {
+                                                                root.activePasswordSsid = ""
+                                                                root.passwordText = ""
+                                                                root.passwordFocusItem = "input"
+                                                                root.requestMainFocus()
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -1380,8 +1919,10 @@ Scope {
                                                 hoverEnabled: true
                                                 onEntered: { root.focusSection = "wifi"; root.selectedWifiIndex = delegateRoot.index; root.wifiActionFocused = false }
                                                 onClicked: {
+                                                    root.selectedWifiIndex = delegateRoot.index
+                                                    root.wifiActionFocused = false
                                                     if (delegateRoot.modelData.connected) {
-                                                        delegateRoot.modelData.networkObject.disconnect()
+                                                        root.disconnectNetwork(delegateRoot.modelData.networkObject)
                                                     } else {
                                                         root.connectToNetwork(delegateRoot.modelData.networkObject)
                                                     }

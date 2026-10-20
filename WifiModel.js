@@ -252,7 +252,9 @@ function wifiRow(network) {
     ssid: network.name || "",
     signal: Math.round((network.signalStrength || 0) * 100),
     security: network.security,
-    networkObject: network
+    networkObject: network,
+    state: network.state !== undefined ? network.state : -1,
+    stateChanging: !!network.stateChanging
   }
 }
 
@@ -260,6 +262,9 @@ function sortWifiRows(rows) {
   var nets = Array.isArray(rows) ? rows.slice() : []
   nets.sort(function(a, b) {
     if (a.connected !== b.connected) return a.connected ? -1 : 1
+    var aActive = (a.state === 1 || a.state === 3)
+    var bActive = (b.state === 1 || b.state === 3)
+    if (aActive !== bActive) return aActive ? -1 : 1
     if (a.known !== b.known) return a.known ? -1 : 1
     return b.signal - a.signal
   })
