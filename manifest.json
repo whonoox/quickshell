@@ -1,0 +1,143 @@
+{
+  "name": "omarchy-quickshell-islands",
+  "version": "1.0.0",
+  "description": "Floating island desktop shell for Omarchy, built on Quickshell.",
+
+  "shell": {
+    "configPath": "~/.config/quickshell",
+    "root": "shell.qml",
+    "ipcPath": "~/.config/quickshell"
+  },
+
+  "state": {
+    "dir": "~/.local/state/omarchy-islands",
+    "manifest": "state.json",
+    "backupDir": "backups",
+    "backupManifest": "backup_manifest.json"
+  },
+
+  "dependencies": {
+    "pacman": [
+      "quickshell",
+      "hyprland",
+      "omarchy",
+      "networkmanager",
+      "wireplumber",
+      "libpulse",
+      "upower",
+      "awww",
+      "brightnessctl",
+      "jq",
+      "fontconfig",
+      "inotify-tools"
+    ],
+    "commands": {
+      "qs": "quickshell",
+      "hyprctl": "hyprland",
+      "nmcli": "networkmanager",
+      "wpctl": "wireplumber",
+      "pactl": "libpulse",
+      "upower": "upower",
+      "awww": "awww",
+      "awww-daemon": "awww",
+      "brightnessctl": "brightnessctl",
+      "jq": "jq",
+      "fc-cache": "fontconfig",
+      "inotifywait": "inotify-tools"
+    }
+  },
+
+  "files": [
+    { "src": "shell.qml", "dest": "~/.config/quickshell/shell.qml" },
+    { "src": "AppSearch.js", "dest": "~/.config/quickshell/AppSearch.js" },
+    { "src": "AudioBar.qml", "dest": "~/.config/quickshell/AudioBar.qml" },
+    { "src": "BarVariants.qml", "dest": "~/.config/quickshell/BarVariants.qml" },
+    { "src": "BatteryBar.qml", "dest": "~/.config/quickshell/BatteryBar.qml" },
+    { "src": "BluetoothBar.qml", "dest": "~/.config/quickshell/BluetoothBar.qml" },
+    { "src": "BluetoothModel.js", "dest": "~/.config/quickshell/BluetoothModel.js" },
+    { "src": "BrightnessBar.qml", "dest": "~/.config/quickshell/BrightnessBar.qml" },
+    { "src": "ConfirmDialog.qml", "dest": "~/.config/quickshell/ConfirmDialog.qml" },
+    { "src": "MenuModel.js", "dest": "~/.config/quickshell/MenuModel.js" },
+    { "src": "NotificationLogic.js", "dest": "~/.config/quickshell/NotificationLogic.js" },
+    { "src": "NotificationPanel.qml", "dest": "~/.config/quickshell/NotificationPanel.qml" },
+    { "src": "OmarchyMenu.qml", "dest": "~/.config/quickshell/OmarchyMenu.qml" },
+    { "src": "PopoutCoordinator.qml", "dest": "~/.config/quickshell/PopoutCoordinator.qml" },
+    { "src": "RoundedOverlay.qml", "dest": "~/.config/quickshell/RoundedOverlay.qml" },
+    { "src": "ScoopContour.qml", "dest": "~/.config/quickshell/ScoopContour.qml" },
+    { "src": "ScoopShape.qml", "dest": "~/.config/quickshell/ScoopShape.qml" },
+    { "src": "ScoopTestPanel.qml", "dest": "~/.config/quickshell/ScoopTestPanel.qml" },
+    { "src": "ScoopV2.qml", "dest": "~/.config/quickshell/ScoopV2.qml" },
+    { "src": "Theme.qml", "dest": "~/.config/quickshell/Theme.qml" },
+    { "src": "TimeBar.qml", "dest": "~/.config/quickshell/TimeBar.qml" },
+    { "src": "WallpaperPicker.qml", "dest": "~/.config/quickshell/WallpaperPicker.qml" },
+    { "src": "WifiBar.qml", "dest": "~/.config/quickshell/WifiBar.qml" },
+    { "src": "WifiModel.js", "dest": "~/.config/quickshell/WifiModel.js" },
+    { "src": "WorkspaceBar.qml", "dest": "~/.config/quickshell/WorkspaceBar.qml" },
+    { "src": "decorations/bluetooth.svg", "dest": "~/.config/quickshell/decorations/bluetooth.svg" },
+    { "src": "decorations/bluetoothidle.svg", "dest": "~/.config/quickshell/decorations/bluetoothidle.svg" },
+    { "src": "decorations/corner-center.svg", "dest": "~/.config/quickshell/decorations/corner-center.svg" },
+    { "src": "decorations/corner-left.svg", "dest": "~/.config/quickshell/decorations/corner-left.svg" },
+    { "src": "decorations/corner-right.svg", "dest": "~/.config/quickshell/decorations/corner-right.svg" },
+    { "src": "decorations/gauge.svg", "dest": "~/.config/quickshell/decorations/gauge.svg" },
+    { "src": "decorations/lightning-fill-red.svg", "dest": "~/.config/quickshell/decorations/lightning-fill-red.svg" },
+    { "src": "decorations/lightning-fill.svg", "dest": "~/.config/quickshell/decorations/lightning-fill.svg" },
+    { "src": "decorations/qr-code.svg", "dest": "~/.config/quickshell/decorations/qr-code.svg" },
+    { "src": "decorations/signal.svg", "dest": "~/.config/quickshell/decorations/signal.svg" }
+  ],
+
+  "shims": [
+    { "src": "shims/awww-omarchy-bridge", "dest": "~/.local/bin/awww-omarchy-bridge", "mode": "0755" },
+    { "src": "shims/omarchy", "dest": "~/.local/bin/omarchy", "mode": "0755" },
+    { "src": "shims/omarchy-audio-output-volume", "dest": "~/.local/bin/omarchy-audio-output-volume", "mode": "0755" },
+    { "src": "shims/omarchy-brightness-display", "dest": "~/.local/bin/omarchy-brightness-display", "mode": "0755" },
+    { "src": "shims/omarchy-brightness-display-ddc", "dest": "~/.local/bin/omarchy-brightness-display-ddc", "mode": "0755" },
+    { "src": "shims/omarchy-menu", "dest": "~/.local/bin/omarchy-menu", "mode": "0755" },
+    { "src": "shims/omarchy-menu-input", "dest": "~/.local/bin/omarchy-menu-input", "mode": "0755" },
+    { "src": "shims/omarchy-menu-select", "dest": "~/.local/bin/omarchy-menu-select", "mode": "0755" },
+    { "src": "shims/_omarchy-menu-shim", "dest": "~/.local/bin/_omarchy-menu-shim", "mode": "0644" },
+    { "src": "shims/omarchy-osd", "dest": "~/.local/bin/omarchy-osd", "mode": "0755" },
+    { "src": "shims/omarchy-shell", "dest": "~/.local/bin/omarchy-shell", "mode": "0755" },
+    { "src": "shims/omarchy-theme-bg-set", "dest": "~/.local/bin/omarchy-theme-bg-set", "mode": "0755" },
+    { "src": "shims/omarchy-theme-bg-switcher", "dest": "~/.local/bin/omarchy-theme-bg-switcher", "mode": "0755" }
+  ],
+
+  "fonts": [
+    { "src": "fonts/Nuuxfont-Regular.ttf", "dest": "~/.local/share/fonts/Nuuxfont-Regular.ttf", "mode": "0644" }
+  ],
+
+  "hypr": {
+    "module": {
+      "src": "hypr/quickshell-islands.lua",
+      "dest": "~/.config/hypr/quickshell-islands.lua"
+    },
+    "require": {
+      "file": "~/.config/hypr/hyprland.lua",
+      "line": "require(\"hypr.quickshell-islands\")",
+      "marker": "-- quickshell-islands:begin"
+    }
+  },
+
+  "omarchy": {
+    "shellConfig": "~/.config/omarchy/shell.json",
+    "disablePlugins": [
+      "omarchy.audio",
+      "omarchy.background",
+      "omarchy.menu",
+      "omarchy.notifications",
+      "omarchy.lock"
+    ]
+  },
+
+  "cli": {
+    "src": "bin/omarchy-islands",
+    "dest": "~/.local/bin/omarchy-islands",
+    "mode": "0755"
+  },
+
+  "hooks": {
+    "post_install": [
+      "hyprctl reload",
+      "omarchy-islands restart"
+    ]
+  }
+}

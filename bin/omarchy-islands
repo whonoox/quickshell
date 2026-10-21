@@ -1,0 +1,291 @@
+#!/usr/bin/env bash
+# omarchy-islands — management CLI for the Quickshell island desktop shell.
+#
+# Every operation is scoped to this shell's own config path. The stock
+# Omarchy shell runs as a separate Quickshell instance
+# (/usr/share/omarchy/shell), so a bare `qs kill` or an unqualified
+# `qs ipc call` would reach the wrong instance. Every command below passes
+# --path explicitly for that reason.
+
+set -euo pipefail
+
+QS_PATH="${OMARCHY_ISLANDS_QS_PATH:-$HOME/.config/quickshell}"
+IPC_TIMEOUT="${OMARCHY_ISLANDS_IPC_TIMEOUT:-3s}"
+
+# Friendly name -> IPC target. Verified against `qs ipc show` for this
+# config; a target that does not exist answers "Target not found.".
+declare -A IPC_TARGETS=(
+  [menu]="omarchyMenu"
+  [wifi]="wifiBar"
+  [bluetooth]="bluetoothBar"
+  [time]="timeBar"
+  [audio]="audioBar"
+  [battery]="batteryBar"
+  [brightness]="brightnessBar"
+  [wallpaper]="wallpaperPicker"
+  [notifications]="notifications"
+)
+
+# The menu is routed by route, not by a plain toggle: its handler takes the
+# route as a required argument and opens the root menu by default.
+declare -A IPC_DEFAULT_ARGS=(
+  [menu]="root"
+)
+
+# Modules whose handler is not named "toggle".
+declare -A IPC_FUNCTIONS=(
+  [notifications]="toggleDnd"
+)
+
+fail() {
+  echo "omarchy-islands: $*" >&2
+  exit 1
+}
+
+usage() {
+  cat <<'USAGE'
+Usage: omarchy-islands <command> [options]
+
+Commands:
+  start                Start the island shell if it is not already running
+  stop                 Stop this shell's Quickshell instance
+  restart              Stop and start again
+  log [-f] [-n N]      Show shell logs; -f follows, -n limits to N lines
+  status               Show instance, IPC health and available targets
+  toggle <module>      Toggle an island panel
+  ping                 Check that the shell answers over IPC
+  update               Pull the newest revision and restart the shell
+  uninstall            Remove the shell and restore the stock desktop
+  help                 Show this help
+
+Modules: menu, wifi, bluetooth, time, audio, battery, brightness,
+         wallpaper, notifications
+
+Environment:
+  OMARCHY_ISLANDS_QS_PATH       Config path (default ~/.config/quickshell)
+  OMARCHY_ISLANDS_IPC_TIMEOUT   IPC timeout (default 3s)
+USAGE
+}
+
+# Prints the PID of the instance serving our config path, if any.
+instance_pid() {
+  qs list 2>/dev/null |
+    awk -v path="$QS_PATH/shell.qml" '
+      /^Instance / { pid = ""; config = ""; next }
+      /Process ID:/ { pid = $3; next }
+      /Config path:/ { config = $3; next }
+      /^$/ { if (config == path && pid != "") { print pid; exit } }
+    '
+}
+
+# Calls an IPC function on our instance and echoes the reply. The reply text
+# is checked, not the exit status: `qs ipc call` exits 0 even when it prints
+# "Target not found." or "Function not found.".
+ipc_call() {
+  local target="$1"
+  shift
+  timeout --kill-after=1s "$IPC_TIMEOUT" \
+    qs ipc -n -p "$QS_PATH" call -- "$target" "$@" 2>/dev/null || true
+}
+
+cmd_status() {
+  if [[ ! -f $QS_PATH/shell.qml ]]; then
+    echo "config:  $QS_PATH/shell.qml (missing)"
+    return 1
+  fi
+
+  local pid
+  pid="$(instance_pid)"
+
+  echo "config:  $QS_PATH/shell.qml"
+  if [[ -n $pid ]]; then
+    echo "instance: running (pid $pid)"
+  else
+    echo "instance: not running"
+  fi
+
+  local ping_reply
+  ping_reply="$(ipc_call "${IPC_TARGETS[menu]}" ping)"
+  if [[ $ping_reply == "ok" ]]; then
+    echo "ipc:      responsive"
+  else
+    echo "ipc:      not responding${ping_reply:+ ($ping_reply)}"
+  fi
+
+  local targets
+  targets="$(timeout --kill-after=1s "$IPC_TIMEOUT" qs ipc -n -p "$QS_PATH" show 2>/dev/null | awk '/^target /{print $2}')"
+  if [[ -n $targets ]]; then
+    echo "targets:  $(echo "$targets" | tr '\n' ' ')"
+  fi
+}
+
+cmd_start() {
+  if [[ -n $(instance_pid) ]]; then
+    echo "omarchy-islands: already running (pid $(instance_pid))"
+    return 0
+  fi
+  [[ -f $QS_PATH/shell.qml ]] || fail "no shell at $QS_PATH/shell.qml"
+
+  # -d detaches so the shell outlives this command; -n keeps a second
+  # instance from racing us.
+  #
+  # Right after a kill, the old instance's lock is still registered for a
+  # moment and `qs -n` refuses to start with "An instance of this
+  # configuration is already running.". Retry until the lock clears.
+  local launched=0
+  local waited=0
+  while (( waited < 100 )); do
+    if qs -d -n -p "$QS_PATH" >/dev/null 2>&1; then
+      launched=1
+      break
+    fi
+    sleep 0.1
+    waited=$((waited + 1))
+  done
+  (( launched )) || fail "could not start the shell; another instance may still be running"
+
+  waited=0
+  while (( waited < 100 )); do
+    if [[ $(ipc_call "${IPC_TARGETS[menu]}" ping) == "ok" ]]; then
+      echo "omarchy-islands: started (pid $(instance_pid))"
+      return 0
+    fi
+    sleep 0.1
+    waited=$((waited + 1))
+  done
+
+  fail "shell did not answer over IPC; check 'omarchy-islands log'"
+}
+
+cmd_stop() {
+  local pid
+  pid="$(instance_pid)"
+  [[ -n $pid ]] || {
+    echo "omarchy-islands: not running"
+    return 0
+  }
+
+  qs kill -p "$QS_PATH" >/dev/null 2>&1 || kill "$pid" 2>/dev/null || true
+
+  # Wait for the instance to disappear from the registry. Starting a new one
+  # too early fails with "An instance of this configuration is already
+  # running.", because the old lock is still registered.
+  local waited=0
+  while (( waited < 100 )) && [[ -n $(instance_pid) ]]; do
+    sleep 0.1
+    waited=$((waited + 1))
+  done
+
+  echo "omarchy-islands: stopped"
+}
+
+cmd_restart() {
+  cmd_stop
+  cmd_start
+}
+
+cmd_log() {
+  local follow=0
+  local lines=0
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -f | --follow)
+        follow=1
+        shift
+        ;;
+      -n)
+        lines="${2:-0}"
+        shift 2
+        ;;
+      *)
+        fail "unknown log option: $1"
+        ;;
+    esac
+  done
+
+  local args=(-n -p "$QS_PATH")
+  (( follow )) && args+=(-f)
+  (( lines > 0 )) && args+=(-t "$lines")
+
+  qs log "${args[@]}"
+}
+
+cmd_toggle() {
+  local module="${1:-}"
+  [[ -n $module ]] || fail "toggle needs a module name"
+
+  local target="${IPC_TARGETS[$module]:-}"
+  [[ -n $target ]] || fail "unknown module '$module' (try 'omarchy-islands help')"
+
+  local -a args=("${IPC_FUNCTIONS[$module]:-toggle}")
+  local default_arg="${IPC_DEFAULT_ARGS[$module]:-}"
+  [[ -n $default_arg ]] && args+=("$default_arg")
+
+  local reply
+  reply="$(ipc_call "$target" "${args[@]}")"
+  case "$reply" in
+    "Target not found." | "Function not found.")
+      fail "$module: $reply"
+      ;;
+    *)
+      # A void handler answers with an empty string; that is a success.
+      [[ -n $reply ]] && echo "$reply"
+      ;;
+  esac
+}
+
+cmd_ping() {
+  local reply
+  reply="$(ipc_call "${IPC_TARGETS[menu]}" ping)"
+  [[ $reply == "ok" ]] || fail "no answer from ${QS_PATH} ($reply)"
+  echo "ok"
+}
+
+cmd_update() {
+  local repo="${OMARCHY_ISLANDS_REPO:-$QS_PATH}"
+
+  if [[ -d $repo/.git ]]; then
+    git -C "$repo" pull --ff-only || fail "git pull failed in $repo"
+  else
+    echo "omarchy-islands: $repo is not a git checkout; skipping pull"
+  fi
+
+  local installer="$repo/install.sh"
+  [[ -f $installer ]] || fail "no installer at $installer"
+  bash "$installer" --skip-deps
+
+  cmd_restart
+}
+
+cmd_uninstall() {
+  local repo="${OMARCHY_ISLANDS_REPO:-$QS_PATH}"
+  local uninstaller="$repo/uninstall.sh"
+  [[ -f $uninstaller ]] || fail "no uninstaller at $uninstaller"
+  bash "$uninstaller"
+}
+
+main() {
+  local command="${1:-help}"
+  [[ $# -gt 0 ]] && shift
+
+  case "$command" in
+    start) cmd_start "$@" ;;
+    stop) cmd_stop "$@" ;;
+    restart) cmd_restart "$@" ;;
+    log) cmd_log "$@" ;;
+    status) cmd_status "$@" ;;
+    toggle) cmd_toggle "$@" ;;
+    ping) cmd_ping "$@" ;;
+    update) cmd_update "$@" ;;
+    uninstall) cmd_uninstall "$@" ;;
+    help | -h | --help) usage ;;
+    *)
+      echo "omarchy-islands: unknown command '$command'" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+}
+
+main "$@"

@@ -1,20 +1,32 @@
-# Menu shims
+# Shims
 
-These route Omarchy's menu commands at this config's own Quickshell menu
-(`OmarchyMenu.qml`) instead of the one shipped in `/usr/share/omarchy/shell`.
+These are the command interceptors that route Omarchy's commands at this
+config's own Quickshell islands instead of the ones shipped in
+`/usr/share/omarchy/shell`.
 
-Two Quickshell instances run side by side. Anything that reaches the menu over
-IPC has to name this config explicitly, or it opens the stock menu and the two
-appear to disagree.
+Two Quickshell instances run side by side. Anything that reaches the shell
+over IPC has to name this config explicitly, or it opens the stock UI and the
+two appear to disagree.
+
+`install.sh` deploys all of them; see `../manifest.json` for the list and
+modes.
 
 ## Install
 
 ```sh
-install -Dm755 shims/omarchy              ~/.local/bin/omarchy
-install -Dm755 shims/omarchy-menu         ~/.local/bin/omarchy-menu
-install -Dm755 shims/omarchy-menu-select  ~/.local/bin/omarchy-menu-select
-install -Dm755 shims/omarchy-menu-input   ~/.local/bin/omarchy-menu-input
-install -Dm644 shims/_omarchy-menu-shim   ~/.local/bin/_omarchy-menu-shim
+install -Dm755 shims/omarchy                       ~/.local/bin/omarchy
+install -Dm755 shims/omarchy-shell                 ~/.local/bin/omarchy-shell
+install -Dm755 shims/omarchy-osd                   ~/.local/bin/omarchy-osd
+install -Dm755 shims/omarchy-menu                  ~/.local/bin/omarchy-menu
+install -Dm755 shims/omarchy-menu-select           ~/.local/bin/omarchy-menu-select
+install -Dm755 shims/omarchy-menu-input            ~/.local/bin/omarchy-menu-input
+install -Dm644 shims/_omarchy-menu-shim            ~/.local/bin/_omarchy-menu-shim
+install -Dm755 shims/omarchy-audio-output-volume  ~/.local/bin/omarchy-audio-output-volume
+install -Dm755 shims/omarchy-brightness-display   ~/.local/bin/omarchy-brightness-display
+install -Dm755 shims/omarchy-brightness-display-ddc ~/.local/bin/omarchy-brightness-display-ddc
+install -Dm755 shims/omarchy-theme-bg-set          ~/.local/bin/omarchy-theme-bg-set
+install -Dm755 shims/omarchy-theme-bg-switcher     ~/.local/bin/omarchy-theme-bg-switcher
+install -Dm755 shims/awww-omarchy-bridge           ~/.local/bin/awww-omarchy-bridge
 ```
 
 `~/.local/bin` must precede `/usr/bin` in `PATH`. `_omarchy-menu-shim` is
@@ -30,6 +42,28 @@ its own location, so `omarchy menu ...` resolves to `/usr/bin/omarchy-menu` and
 bypasses the shims above, which would make `omarchy menu` and `omarchy-menu`
 open different menus. This wrapper re-routes only the `menu` group and hands
 every other subcommand to the packaged binary untouched.
+
+`omarchy-shell` — intercepts the OSD show/hide calls that hardware media keys
+and daemons emit, parsing the payload to summon `AudioBar` or `BrightnessBar`
+instead of the stock on-screen display.
+
+`omarchy-osd` — the same interception for the dedicated OSD entry point.
+
+`omarchy-audio-output-volume` — applies the volume change with `pactl`
+against the active physical sink, then opens and refreshes the audio HUD.
+
+`omarchy-brightness-display` / `omarchy-brightness-display-ddc` — apply the
+backlight step via `brightnessctl` or DDC/CI, then open the brightness HUD.
+
+`omarchy-theme-bg-set` — points Omarchy's background symlink at the chosen
+image and syncs `awww` to it without a transition.
+
+`omarchy-theme-bg-switcher` — opens the Quickshell wallpaper picker instead of
+the stock switcher.
+
+`awww-omarchy-bridge` — a small daemon that keeps the `awww` wallpaper layer
+in sync with Omarchy's background state, including changes made by any
+switcher.
 
 ## Behaviour
 

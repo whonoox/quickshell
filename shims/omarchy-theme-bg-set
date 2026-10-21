@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+if [[ -z $1 ]]; then
+  echo "Usage: omarchy-theme-bg-set <path-to-image>" >&2
+  exit 1
+fi
+
+BACKGROUND="$(realpath "$1")"
+CURRENT_BACKGROUND_LINK="$HOME/.local/state/omarchy/current/background"
+
+if [[ ! -f $BACKGROUND ]]; then
+  echo "File does not exist: $BACKGROUND" >&2
+  exit 1
+fi
+
+# 1. Update the state symlink so Omarchy remembers the selection
+mkdir -p "$(dirname "$CURRENT_BACKGROUND_LINK")"
+ln -nsf "$BACKGROUND" "$CURRENT_BACKGROUND_LINK"
+
+# 2. Tell Omarchy shell to update instantly with no reveal animation
+omarchy-shell -q background setInstant "$BACKGROUND" 2>/dev/null || true
+
+# 3. Transition wallpaper instantly with awww (no animation)
+awww img "$BACKGROUND" --transition-type none 2>/dev/null || true

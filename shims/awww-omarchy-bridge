@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+TARGET="$HOME/.local/state/omarchy/current/background"
+DIR="$HOME/.local/state/omarchy/current"
+
+mkdir -p "$DIR"
+
+# Ensure daemon is running and responsive
+if ! pgrep -x awww-daemon > /dev/null; then
+    # Clean up any stale sockets from dead sessions
+    rm -f /run/user/$(id -u)/*awww*.sock
+    nohup awww-daemon >/dev/null 2>&1 &
+    disown
+    for _ in {1..30}; do
+        awww query >/dev/null 2>&1 && break
+        sleep 0.1
+    done
+fi
+
+# Give desktop shell 1.5s to finish booting before setting static layer
+(
+    sleep 1.5
+    if [[ -e "$TARGET" ]]; then
+        BG="$(readlink -f "$TARGET")"
+        if [[ -f "$BG" ]]; then
+            awww img "$BG" --transition-type none
+            omarchy-shell -q background setInstant "$BG" 2>/dev/null || true
+        fi
+    fi
+) &
+
+# Watch for wallpaper changes made by Omarchy switchers
+inotifywait -m -q -e create,moved_to,attrib "$DIR" | while read -r directory events filename; do
+    if [[ "$filename" == "background" ]]; then
+        BG="$(readlink -f "$TARGET")"
+        if [[ -f "$BG" ]]; then
+            awww img "$BG" --transition-type none
+            omarchy-shell -q background setInstant "$BG" 2>/dev/null || true
+        fi
+    fi
+done
