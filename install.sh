@@ -337,9 +337,20 @@ deconflict_hypr() {
   fi
 
   if [[ -f $looknfeel ]]; then
-    # Remove the previous hl.layer_rule block that matched the panel
-    # namespaces, including the comment that introduced it.
-    perl -0pi -e 's{\n-- Layer rules for Quickshell scoop panels.*?\n\}\)\n}{}s' "$looknfeel"
+    # Remove any previous hl.layer_rule block that matched the island
+    # namespaces, together with the blank and comment lines above it.
+    # Matching the rule itself rather than one specific comment means a
+    # user's own wording cannot leave a duplicate blur behind.
+    #
+    # The body is matched non-greedily across newlines: the namespace
+    # pattern is itself a regex containing braces and parentheses, so it
+    # cannot be described by counting braces.
+    #
+    # The pattern is written on one line on purpose. In perl's extended
+    # mode (/x) the whitespace is stripped, which would break the literal
+    # spaces around the "="; without /x, a pattern broken across lines
+    # would match those newlines literally and never match.
+    perl -0pi -e 's{\n(?:[ \t]*(?:--[^\n]*)?\n)*hl\.layer_rule\(\{.*?namespace\s*=\s*"[^"]*(?:-panel-main|quickshell-omarchy-menu|scoop-v2-inspector|notification-panel-main)[^"]*".*?\}\)\n}{}gs' "$looknfeel"
   fi
 
   if [[ -f $autostart ]]; then
@@ -532,18 +543,21 @@ main() {
   check_path_order
   write_state
 
+  # The manifest declares the activation hooks; they are run from there so
+  # the manifest stays the single source of truth.
+  local hook
+  while IFS= read -r hook; do
+    [[ -n $hook ]] || continue
+    info "Running hook: $hook"
+    run bash -c "$hook" || warn "hook failed: $hook"
+  done < <(manifest_list '.hooks.post_install')
+
   if (( DRY_RUN )); then
     info "Dry run complete"
     return 0
   fi
 
   verify
-
-  info "Reloading Hyprland"
-  run hyprctl reload || warn "hyprctl reload failed"
-
-  info "Restarting the island shell"
-  run "$BIN_DIR/omarchy-islands" restart || warn "shell restart failed; start it with 'omarchy-islands start'"
 
   ok "Install complete"
   cat <<'SUMMARY'

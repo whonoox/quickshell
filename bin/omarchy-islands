@@ -42,6 +42,10 @@ fail() {
   exit 1
 }
 
+warn() {
+  echo "omarchy-islands: $*" >&2
+}
+
 usage() {
   cat <<'USAGE'
 Usage: omarchy-islands <command> [options]
@@ -246,6 +250,11 @@ cmd_update() {
   local repo="${OMARCHY_ISLANDS_REPO:-$QS_PATH}"
 
   if [[ -d $repo/.git ]]; then
+    # A dirty tree means the user has local edits that a pull could
+    # conflict with. Say so plainly instead of surfacing git's error.
+    if [[ -n $(git -C "$repo" status --porcelain) ]]; then
+      warn "uncommitted changes in $repo; commit or stash them before updating"
+    fi
     git -C "$repo" pull --ff-only || fail "git pull failed in $repo"
   else
     echo "omarchy-islands: $repo is not a git checkout; skipping pull"

@@ -220,19 +220,23 @@ remove_hypr_module() {
   ok "Removed the Hyprland module and its require line"
 }
 
-restore_omarchy_config() {
-  local helper="/usr/share/omarchy/bin/omarchy-shell-config"
-  if [[ ! -f $helper ]]; then
-    warn "omarchy-shell-config helper not found; shell.json left as is"
+# shell.json is restored by restore_backups, which copies the pristine copy
+# over the current file. This only reports on the outcome, so a failure to
+# restore is not silently swallowed.
+report_omarchy_config() {
+  local config="$HOME/.config/omarchy/shell.json"
+
+  if [[ ! -e $config ]]; then
+    warn "shell.json is missing"
     return 0
   fi
 
   if (( DRY_RUN )); then
-    printf '  would restore: %s\n' "$HOME/.config/omarchy/shell.json"
+    printf '  would restore: %s\n' "$config"
     return 0
   fi
 
-  ok "shell.json restored from backup"
+  ok "shell.json restored from the pristine backup"
 }
 
 revive_stock_shell() {
@@ -278,7 +282,7 @@ main() {
   remove_installed
   remove_empty_dirs
   remove_hypr_module
-  restore_omarchy_config
+  report_omarchy_config
 
   if (( ! DRY_RUN )); then
     rm -rf "$STATE_DIR"
