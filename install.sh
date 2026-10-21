@@ -406,6 +406,14 @@ install_cli() {
 
   [[ -f $REPO_DIR/$src ]] || fail "manifest source missing: $src"
 
+  # The CLI is the one file a user is likely to have edited in the
+  # repository and then run from ~/.local/bin without reinstalling. Say so
+  # when the deployed copy is out of date, so a fix that appears to have no
+  # effect is explained.
+  if [[ -f $dest ]] && ! cmp -s "$REPO_DIR/$src" "$dest"; then
+    warn "$dest is out of date; updating it"
+  fi
+
   if (( DRY_RUN )); then
     printf '  would install: %s\n' "$dest"
     return 0
@@ -418,8 +426,11 @@ install_cli() {
 }
 
 check_path_order() {
+  # The greps below exit 1 when a path is not in PATH, which under set -e
+  # would abort the install. An explicit "|| true" keeps that from
+  # happening; the results are checked explicitly below.
   local bin_dir
-  bin_dir="$(printf '%s' "$PATH" | tr ':' '\n' | grep -n -x "$BIN_DIR" | head -1 | cut -d: -f1)"
+  bin_dir="$(printf '%s' "$PATH" | tr ':' '\n' | grep -n -x "$BIN_DIR" | head -1 | cut -d: -f1 || true)"
 
   if [[ -z $bin_dir ]]; then
     warn "$BIN_DIR is not in PATH; add it to your shell profile"
@@ -427,7 +438,7 @@ check_path_order() {
   fi
 
   local usr_bin
-  usr_bin="$(printf '%s' "$PATH" | tr ':' '\n' | grep -n -x "/usr/bin" | head -1 | cut -d: -f1)"
+  usr_bin="$(printf '%s' "$PATH" | tr ':' '\n' | grep -n -x "/usr/bin" | head -1 | cut -d: -f1 || true)"
   [[ -n $usr_bin ]] || return 0
 
   if (( bin_dir > usr_bin )); then

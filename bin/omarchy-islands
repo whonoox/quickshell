@@ -72,8 +72,11 @@ USAGE
 }
 
 # Prints the PID of the instance serving our config path, if any.
+# The path is named explicitly: without it, qs list falls back to the
+# "default" configuration, which is only the islands shell by coincidence of
+# the install layout.
 instance_pid() {
-  qs list 2>/dev/null |
+  qs list -p "$QS_PATH" 2>/dev/null |
     awk -v path="$QS_PATH/shell.qml" '
       /^Instance / { pid = ""; config = ""; next }
       /Process ID:/ { pid = $3; next }
@@ -234,7 +237,12 @@ cmd_toggle() {
       ;;
     *)
       # A void handler answers with an empty string; that is a success.
-      [[ -n $reply ]] && echo "$reply"
+      # The "if" form matters: a bare `[[ -n $reply ]] && echo` would be
+      # the last statement of the function, and its non-zero status would
+      # abort the script under set -e.
+      if [[ -n $reply ]]; then
+        echo "$reply"
+      fi
       ;;
   esac
 }

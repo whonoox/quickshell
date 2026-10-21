@@ -29,8 +29,8 @@ quickshell/                          (this repository)
 ├── fonts/
 │   └── Nuuxfont-Regular.ttf         brand font, loaded in-shell
 ├── shims/                           command interceptors installed to ~/.local/bin
-├── *.qml, *.js                      the shell itself (35 files)
-└── decorations/*.svg                vector assets
+├── *.qml, *.js                      the shell itself (25 files)
+└── decorations/*.svg                vector assets (10 files)
 ```
 
 ### Two Quickshell instances, always
@@ -294,8 +294,23 @@ equivalent hand-written blocks from `bindings.lua`, `looknfeel.lua` and
 
 `(( waited++ ))` returns exit status 1 when the variable is 0, because
 post-increment yields the old value. Under `set -e` that kills the script
-silently, with no output. Use `waited=$((waited + 1))` instead. The same
-applies to any arithmetic counter in a loop.
+silently, with no output. Use `waited=$((waited + 1))` instead.
+
+The same trap applies to any conditional as the last statement of a
+function. `[[ -n $reply ]] && echo "$reply"` returns 1 when the reply is
+empty, which is exactly the success case for a void IPC handler, and it
+aborts the script. Use an `if` block instead.
+
+A command substitution whose command can exit non-zero has the same problem:
+`bin_dir="$(... | grep -n -x "$BIN_DIR" | ...)"` aborts the install when
+the path is not in `PATH`. Add `|| true` and check the result explicitly.
+
+### A note on stale installs
+
+The CLI is deployed to `~/.local/bin/omarchy-islands`. Editing the copy in
+the repository does not change the installed one, so a bug fix can appear
+to have no effect. Re-run `./install.sh` after changing the CLI, or invoke
+`bin/omarchy-islands` directly from the repository to test the new code.
 
 ---
 
