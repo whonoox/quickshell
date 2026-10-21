@@ -56,6 +56,7 @@ Commands:
   restart              Stop and start again
   log [-f] [-n N]      Show shell logs; -f follows, -n limits to N lines
   status               Show instance, IPC health and available targets
+  doctor [--fix]       Check for stray instances and theme problems
   toggle <module>      Toggle an island panel
   ping                 Check that the shell answers over IPC
   update               Pull the newest revision and restart the shell
@@ -85,6 +86,22 @@ instance_pid() {
     '
 }
 
+# Lists "pid config" for every running Quickshell instance that is not
+# serving our config path. The stock Omarchy shell at
+# /usr/share/omarchy/shell is expected and is not reported.
+list_other_instances() {
+  qs list --all 2>/dev/null |
+    awk -v path="$QS_PATH/shell.qml" -v stock="/usr/share/omarchy/shell/shell.qml" '
+      /^Instance / { pid = ""; config = ""; next }
+      /Process ID:/ { pid = $3; next }
+      /Config path:/ { config = $3; next }
+      /^$/ {
+        if (config != "" && config != path && config != stock && pid != "")
+          print pid, config
+      }
+    '
+}
+
 # Calls an IPC function on our instance and echoes the reply. The reply text
 # is checked, not the exit status: `qs ipc call` exits 0 even when it prints
 # "Target not found." or "Function not found.".
@@ -93,6 +110,64 @@ ipc_call() {
   shift
   timeout --kill-after=1s "$IPC_TIMEOUT" \
     qs ipc -n -p "$QS_PATH" call -- "$target" "$@" 2>/dev/null || true
+}
+
+cmd_doctor() {
+  local pid
+  pid="$(instance_pid)"
+
+  echo "config:   $QS_PATH/shell.qml"
+  if [[ -n $pid ]]; then
+    echo "instance: running (pid $pid)"
+  else
+    echo "instance: not running"
+  fi
+
+  local ping_reply
+  ping_reply="$(ipc_call "${IPC_TARGETS[menu]}" ping)"
+  if [[ $ping_reply == "ok" ]]; then
+    echo "ipc:      responsive"
+  else
+    echo "ipc:      not responding${ping_reply:+ ($ping_reply)}"
+  fi
+
+  # The theme file is what makes the panels use the live Omarchy palette.
+  # An instance whose HOME does not have it falls back to the hardcoded
+  # default colors, which is the visible symptom of a stray instance.
+  local theme="$HOME/.local/state/omarchy/current/theme/colors.toml"
+  if [[ -f $theme ]]; then
+    echo "theme:    $theme"
+  else
+    echo "theme:    MISSING at $theme"
+    echo "          panels would use the default palette instead of the live theme"
+  fi
+
+  local others
+  others="$(list_other_instances)"
+
+  if [[ -z $others ]]; then
+    echo "strays:   none"
+    return 0
+  fi
+
+  echo "strays:   found"
+  local config
+  while read -r pid config; do
+    [[ -n $pid ]] || continue
+    echo "  pid $pid  $config"
+  done <<<"$others"
+
+  if [[ ${1:-} == "--fix" ]]; then
+    while read -r pid config; do
+      [[ -n $pid ]] || continue
+      qs kill --pid "$pid" >/dev/null 2>&1 || kill "$pid" 2>/dev/null || true
+      echo "  stopped pid $pid"
+    done <<<"$others"
+  else
+    echo
+    echo "A stray instance draws a second set of panels over the desktop."
+    echo "Stop them with: omarchy-islands doctor --fix"
+  fi
 }
 
 cmd_status() {
@@ -124,6 +199,33 @@ cmd_status() {
   if [[ -n $targets ]]; then
     echo "targets:  $(echo "$targets" | tr '\n' ' ')"
   fi
+
+  report_foreign_instances
+}
+
+# Any other Quickshell instance drawing island panels over the desktop
+# shows up as a second set of panels, often with the wrong colors because
+# its HOME does not point at the live Omarchy theme. List them so the
+# duplication is visible instead of a mystery.
+report_foreign_instances() {
+  local others
+  others="$(list_other_instances)"
+
+  if [[ -z $others ]]; then
+    return 0
+  fi
+
+  echo
+  echo "WARNING: other Quickshell instances are running:"
+  local pid config
+  while read -r pid config; do
+    [[ -n $pid ]] || continue
+    echo "  pid $pid  $config"
+  done <<<"$others"
+
+  echo
+  echo "These draw a second set of panels over the desktop. Stop them with:"
+  echo "  qs kill --pid <pid>"
 }
 
 cmd_start() {
@@ -292,6 +394,7 @@ main() {
     restart) cmd_restart "$@" ;;
     log) cmd_log "$@" ;;
     status) cmd_status "$@" ;;
+    doctor) cmd_doctor "$@" ;;
     toggle) cmd_toggle "$@" ;;
     ping) cmd_ping "$@" ;;
     update) cmd_update "$@" ;;

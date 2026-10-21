@@ -48,6 +48,7 @@ line, restores `shell.json`, and brings the stock Omarchy shell back up.
 
 ```bash
 omarchy-islands status        # instance, IPC health, available targets
+omarchy-islands doctor        # check for stray instances and theme problems
 omarchy-islands restart
 omarchy-islands log -f
 omarchy-islands toggle menu
@@ -56,6 +57,10 @@ omarchy-islands toggle menu
 Two Quickshell instances are always running: the stock Omarchy shell at
 `/usr/share/omarchy/shell` and the islands at `~/.config/quickshell`. The
 CLI scopes every operation to the islands instance with `qs --path`.
+
+If every panel appears twice, once in the live theme colors and once in the
+default palette, a stray instance is running. `omarchy-islands doctor`
+identifies it and `omarchy-islands doctor --fix` stops it.
 
 ## Layout
 

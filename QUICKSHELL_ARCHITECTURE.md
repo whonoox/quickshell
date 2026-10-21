@@ -398,3 +398,20 @@ Verify that `~/.local/bin` takes precedence in `$PATH`:
 which omarchy omarchy-shell omarchy-audio-output-volume
 # Expected: /home/nuux/.local/bin/...
 ```
+
+### 7.4 Diagnosing Doubled Panels
+If every panel appears twice — once in the live theme colors and once in
+the default palette — a second Quickshell instance is drawing the same
+panels. The stray runs with a `HOME` that has no
+`~/.local/state/omarchy/current/theme/colors.toml`, so `Theme.qml` falls
+back to its hardcoded palette.
+
+```bash
+omarchy-islands doctor        # lists strays and checks the theme file
+omarchy-islands doctor --fix  # stops the strays
+```
+
+To see the instances directly:
+```bash
+qs list --all
+```

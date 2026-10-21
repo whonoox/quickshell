@@ -27,6 +27,7 @@ OMARCHY_CONFIG="$HOME_DIR/.config/omarchy/shell.json"
 DRY_RUN=0
 ASSUME_YES=0
 SKIP_DEPS=0
+NO_START=0
 
 # Per-run backup of everything touched, plus a one-time pristine copy of the
 # files that existed before the first install.
@@ -518,6 +519,14 @@ main() {
         SKIP_DEPS=1
         shift
         ;;
+      --no-start)
+        # Do not start or restart the shell. Used by test installs that
+        # point HOME at a scratch directory: a shell started there would
+        # run with the wrong theme and keep drawing panels over the real
+        # desktop.
+        NO_START=1
+        shift
+        ;;
       -h | --help)
         sed -n '2,12p' "$0"
         exit 0
@@ -559,8 +568,16 @@ main() {
   local hook
   while IFS= read -r hook; do
     [[ -n $hook ]] || continue
+    # A hook that starts the shell is skipped under --no-start.
+    if (( NO_START )) && [[ $hook == *"omarchy-islands restart"* || $hook == *"omarchy-islands start"* ]]; then
+      info "Skipping hook (--no-start): $hook"
+      continue
+    fi
     info "Running hook: $hook"
-    run bash -c "$hook" || warn "hook failed: $hook"
+    # The hook targets the config that was just installed, not whatever
+    # $HOME resolves to. Without this, an install pointed at a scratch
+    # directory would start a shell against the wrong tree.
+    run env OMARCHY_ISLANDS_QS_PATH="$CONFIG_DIR" bash -c "$hook" || warn "hook failed: $hook"
   done < <(manifest_list '.hooks.post_install')
 
   if (( DRY_RUN )); then

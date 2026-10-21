@@ -264,7 +264,7 @@ equivalent hand-written blocks from `bindings.lua`, `looknfeel.lua` and
 
 `install.sh` runs these steps:
 
-1. **Parse flags** — `--dry-run`, `--yes`, `--skip-deps`.
+1. **Parse flags** — `--dry-run`, `--yes`, `--skip-deps`, `--no-start`.
 2. **Check dependencies** — packages from the manifest. `sudo pacman -S` is
    only run from an interactive terminal; a piped `curl | bash` has no tty
    to prompt on, so the script tells the user what to run instead.
@@ -288,7 +288,10 @@ equivalent hand-written blocks from `bindings.lua`, `looknfeel.lua` and
    `update` and `uninstall` know exactly what they own.
 8. **Verify** — every manifest entry must exist, every shim must be
    executable (except the `0644` sourced helper).
-9. **Activate** — `hyprctl reload`, then `omarchy-islands restart`.
+9. **Activate** — the hooks named in `manifest.json` are run, with the
+   config path they were installed to passed explicitly so a hook never
+   resolves a different tree from `$HOME`. `--no-start` skips the hook
+   that starts the shell.
 
 ### A note on `set -e` and counters
 
@@ -324,6 +327,7 @@ omarchy-islands stop                 Stop this shell's instance
 omarchy-islands restart              Stop and start again
 omarchy-islands log [-f] [-n N]      Show logs; -f follows, -n limits
 omarchy-islands status               Instance, IPC health, available targets
+omarchy-islands doctor [--fix]       Check for stray instances and theme problems
 omarchy-islands toggle <module>      Toggle an island panel
 omarchy-islands ping                 Check that the shell answers
 omarchy-islands update               Pull the newest revision and restart
@@ -334,6 +338,32 @@ Every command passes `--path` to `qs`, so the stock Omarchy shell is never
 touched. `toggle` maps the friendly names in §2.1 onto real targets and
 functions, supplies `root` for the menu's required route argument, and
 treats an empty reply as success.
+
+### Stray instances
+
+A second Quickshell instance drawing the same panels shows up as a doubled
+desktop: one set of panels in the live theme colors and one in the default
+palette. The cause is always the same — the stray runs with a `HOME` that
+has no `~/.local/state/omarchy/current/theme/colors.toml`, so `Theme.qml`
+falls back to its hardcoded palette.
+
+`status` lists any instance other than the islands shell and the stock
+Omarchy shell. `doctor` additionally checks that the theme file is present
+and can stop the strays:
+
+```bash
+omarchy-islands doctor        # report
+omarchy-islands doctor --fix  # stop them
+```
+
+Two rules keep strays from appearing in the first place:
+
+- The installer passes the config path it just deployed to the activation
+  hooks, so a hook never resolves a different tree from `$HOME`.
+- `install.sh --no-start` skips the hook that starts the shell. Use it for
+  any install that points `HOME` at a scratch directory: a shell started
+  there survives the directory being deleted and keeps drawing panels over
+  the real desktop.
 
 ---
 
