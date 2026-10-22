@@ -13,12 +13,23 @@
 
 set -uo pipefail
 
+existing=""
+
 TARGET="$HOME/.local/state/omarchy/current/background"
 DIR="$HOME/.local/state/omarchy/current"
 STATE_DIR="$HOME/.local/state/nooxshell"
 PID_FILE="$STATE_DIR/awww-bridge.pid"
 
 mkdir -p "$DIR" "$STATE_DIR"
+
+# Only one bridge may run. Two would both watch the symlink and both
+# redraw the wallpaper, which races and can leave a black one behind.
+if [[ -f $PID_FILE ]]; then
+  existing="$(cat "$PID_FILE" 2>/dev/null)"
+  if [[ -n $existing ]] && kill -0 "$existing" 2>/dev/null; then
+    exit 0
+  fi
+fi
 
 # Record the pid so a second bridge is not started, and so the CLI can
 # tell whether one is running without matching command lines.
