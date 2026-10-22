@@ -53,7 +53,15 @@ QtObject {
     readonly property real spacing: 6
     readonly property int borderWidth: 4
     // Typography
-    readonly property string brandFont: "Nuuxfont"
+    //
+    // The brand font is not bundled with the shell: it is a personal
+    // typeface that lives in the system font directory on the machines
+    // that have it. Resolve it at runtime from the installed families, so
+    // a machine without it falls back to the system font instead of
+    // rendering with a missing family.
+    readonly property string brandFontName: "Nuuxfont"
+    readonly property bool hasBrandFont: Qt.fontFamilies().indexOf(brandFontName) >= 0
+    readonly property string brandFont: hasBrandFont ? brandFontName : fontFamily
     property string systemFont: "monospace"
     property string fontFamily: systemFont
 

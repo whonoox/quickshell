@@ -1,1 +1,7 @@
 .qmlls.ini
+
+# The brand font is personal and is not published with this repository.
+# It is expected to be installed system-wide, where fontconfig makes it
+# available to the shell.
+fonts/
+*.ttf

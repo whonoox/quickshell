@@ -70,10 +70,23 @@ manifest.json                 declarative deployment manifest
 bin/omarchy-islands           management CLI
 hypr/                         Hyprland bindings, layer rules, autostart
 shims/                        command interceptors for ~/.local/bin
-fonts/                        brand font, loaded in-shell
 *.qml, *.js                   the shell
 decorations/                  vector assets
 ```
+
+## Brand font
+
+The shell asks for the `Nuuxfont` family by name. The font is not bundled
+here — it is a personal typeface, and this repository is public. Install it
+system-wide on any machine that should use it:
+
+```bash
+sudo install -Dm644 Nuuxfont-Regular.ttf /usr/share/fonts/NuuXFont/
+fc-cache -f
+```
+
+Without it the shell falls back to the system font and everything still
+works; `omarchy-islands doctor` reports which font is in use.
 
 ## Documentation
 

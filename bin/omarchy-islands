@@ -142,6 +142,20 @@ cmd_doctor() {
     echo "          panels would use the default palette instead of the live theme"
   fi
 
+  # The brand font is installed system-wide, not shipped with the shell.
+  # Theme.qml falls back to the system font when it is absent.
+  #
+  # The output is captured before grep runs: `grep -q` exits at the first
+  # match and closes the pipe, so fc-list takes a SIGPIPE, which under
+  # pipefail would turn a successful match into a failure.
+  local brand_count
+  brand_count="$(fc-list 2>/dev/null | grep -c ": Nuuxfont:")"
+  if (( brand_count > 0 )); then
+    echo "font:     Nuuxfont"
+  else
+    echo "font:     Nuuxfont not installed; using the system font"
+  fi
+
   local others
   others="$(list_other_instances)"
 

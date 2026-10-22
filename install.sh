@@ -86,6 +86,27 @@ require_tools() {
   (( ${#missing[@]} == 0 )) || fail "missing required tools: ${missing[*]}"
 }
 
+# Keeps only the most recent per-run backups. The pristine copy is never
+# pruned: it is what the uninstaller restores from.
+prune_backups() {
+  local keep="${OMARCHY_ISLANDS_BACKUP_KEEP:-3}"
+  local root="$STATE_DIR/backups"
+
+  [[ -d $root ]] || return 0
+
+  local count
+  count="$(find "$root" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+  (( count > keep )) || return 0
+
+  local old
+  while read -r old; do
+    [[ -n $old ]] || continue
+    rm -rf "$old"
+  done < <(find "$root" -mindepth 1 -maxdepth 1 -type d | sort | head -n "$((count - keep))")
+
+  info "Pruned old backups, keeping the $keep most recent"
+}
+
 check_dependencies() {
   (( SKIP_DEPS )) && {
     info "Skipping dependency check"
@@ -215,32 +236,26 @@ install_shims() {
   ok "Installed $count shims"
 }
 
-install_fonts() {
-  local entry
-  local count=0
+# The brand font is personal and is not distributed with the shell. It is
+# expected to be installed system-wide (or per-user) on the machines that
+# have it, where fontconfig makes it visible to every application. The
+# shell asks for it by family name and falls back to the system font when
+# it is absent, so nothing here is required for the shell to work.
+check_brand_font() {
+  local family="Nuuxfont"
 
-  while IFS= read -r entry; do
-    local src dest mode
-    src="$(jq -r '.src' <<<"$entry")"
-    dest="$(expand_path "$(jq -r '.dest' <<<"$entry")")"
-    mode="$(jq -r '.mode // "0644"' <<<"$entry")"
+  # `grep -q` exits at the first match and closes the pipe, so fc-list
+  # takes a SIGPIPE. Under pipefail that turns a successful match into a
+  # failure, so the output is captured first and grep runs on the result.
+  local installed
+  installed="$(fc-list 2>/dev/null | grep -c ": $family:")"
 
-    [[ -f $REPO_DIR/$src ]] || fail "manifest source missing: $src"
-
-    if (( DRY_RUN )); then
-      printf '  would install: %s\n' "$dest"
-      count=$((count + 1))
-      continue
-    fi
-
-    backup_file "$dest"
-    mkdir -p "$(dirname "$dest")"
-    install -Dm"$mode" "$REPO_DIR/$src" "$dest"
-    count=$((count + 1))
-  done < <(manifest_list '.fonts')
-
-  (( count > 0 )) && run fc-cache -f "$FONT_DIR"
-  ok "Installed $count fonts"
+  if (( installed > 0 )); then
+    ok "Brand font '$family' is installed system-wide"
+  else
+    warn "Brand font '$family' is not installed; the shell will use the system font"
+    warn "  install it with: sudo install -Dm644 Nuuxfont-Regular.ttf /usr/share/fonts/NuuXFont/ && fc-cache -f"
+  fi
 }
 
 # Installs the Hyprland module and the single require line that loads it.
@@ -550,12 +565,13 @@ main() {
     : >"$BACKUP_DIR/backup_manifest.json"
     [[ -f $PRISTINE_DIR/backup_manifest.json ]] || : >"$PRISTINE_DIR/backup_manifest.json"
     info "Backup directory: $BACKUP_DIR"
+    prune_backups
   fi
 
   check_dependencies
   install_files
   install_shims
-  install_fonts
+  check_brand_font
   install_hypr
   deconflict_hypr
   configure_omarchy

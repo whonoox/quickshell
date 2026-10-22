@@ -101,10 +101,6 @@
     { "src": "shims/omarchy-theme-bg-switcher", "dest": "~/.local/bin/omarchy-theme-bg-switcher", "mode": "0755" }
   ],
 
-  "fonts": [
-    { "src": "fonts/Nuuxfont-Regular.ttf", "dest": "~/.local/share/fonts/Nuuxfont-Regular.ttf", "mode": "0644" }
-  ],
-
   "hypr": {
     "module": {
       "src": "hypr/quickshell-islands.lua",

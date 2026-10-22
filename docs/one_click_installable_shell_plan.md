@@ -26,12 +26,9 @@ quickshell/                          (this repository)
 │   └── omarchy-islands              management CLI
 ├── hypr/
 │   └── quickshell-islands.lua       Hyprland bindings, layer rules, autostart
-├── fonts/
-│   └── Nuuxfont-Regular.ttf         brand font, loaded in-shell
 ├── shims/                           command interceptors installed to ~/.local/bin
 ├── *.qml, *.js                      the shell itself (25 files)
-└── decorations/*.svg                vector assets (10 files)
-```
+└── decorations/*.svg                vector assets (10 files)```
 
 ### Two Quickshell instances, always
 
@@ -113,21 +110,42 @@ file. Placed after it, they are silently ignored.
 //@ pragma DefaultEnv QS_NO_RELOAD_POPUP=1
 //@ pragma DefaultEnv QSG_RENDER_LOOP=threaded
 import Quickshell
-import QtQuick
 ```
 
 `QS_DROP_EXPENSIVE_FONTS` only excludes `woff`/`woff2` files. It does not
-help with font-cache problems and is not needed for the bundled TTF.
+help with font-cache problems and is not needed here.
 
-`FontLoader` lives in the `QtQuick` module, so `import QtQuick` is required
-in the root file. A missing font file is a warning, not a fatal error.
+The root file needs no `import QtQuick`: `Scope` comes from Quickshell, and
+the shell does not load fonts itself — the brand font is resolved through
+fontconfig (see §2.5).
 
 ### 2.5 Font family
 
 `fc-query` reports the family as `Nuuxfont` (not `NuuXFont`). `Theme.qml`
-uses `"Nuuxfont"`, which matches. The font ships in the repo and is loaded
-in-shell by `FontLoader`, so the shell renders correctly on a machine with
-no fontconfig entry for it.
+uses `"Nuuxfont"`, which matches.
+
+The brand font is **not distributed with the shell**. It is a personal
+typeface, and the repository is public, so the font file is not committed
+and the installer does not deploy it. Instead:
+
+- The font is expected to be installed system-wide on the machines that
+  have it, where fontconfig makes it visible to every application. On
+  this system it lives in `/usr/share/fonts/NuuXFont/`.
+- `Theme.qml` resolves the family at runtime from `Qt.fontFamilies()` and
+  falls back to the system font when it is absent, so a machine without
+  the font renders correctly instead of with a missing family.
+- The installer checks for the font and prints how to install it if it is
+  missing. This is a warning, not an error.
+
+To install it on another machine:
+
+```bash
+sudo install -Dm644 Nuuxfont-Regular.ttf /usr/share/fonts/NuuXFont/
+fc-cache -f
+```
+
+`QS_DROP_EXPENSIVE_FONTS` only excludes `woff`/`woff2` files and is not
+needed here.
 
 ### 2.6 Shell lifecycle
 
@@ -216,7 +234,6 @@ locations and the post-install hooks.
   "state":    { "dir": "~/.local/state/omarchy-islands", "manifest": "state.json" },
   "files":    [ { "src": "shell.qml", "dest": "~/.config/quickshell/shell.qml" } ],
   "shims":    [ { "src": "shims/omarchy", "dest": "~/.local/bin/omarchy", "mode": "0755" } ],
-  "fonts":    [ { "src": "fonts/Nuuxfont-Regular.ttf", "dest": "~/.local/share/fonts/..." } ],
   "hypr":     { "module": { "src": "hypr/quickshell-islands.lua", "dest": "~/.config/hypr/..." } },
   "dependencies": { "pacman": [ "quickshell", "hyprland", "..." ] },
   "hooks":    { "post_install": [ "hyprctl reload", "omarchy-islands restart" ] }

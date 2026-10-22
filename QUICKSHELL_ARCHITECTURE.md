@@ -201,7 +201,7 @@ The following core packages, daemons, and system utilities power this setup:
 | **`fontconfig`** (`fc-cache`) | Font Cache | Rebuilds the user font cache after the brand font is installed |
 | **`inotify-tools`** (`inotifywait`) | File Watch | Watches Omarchy's background state for the wallpaper bridge |
 | **`uwsm`** (`uwsm-app`) | App Session Manager | Launches desktop apps in isolated systemd scopes |
-| **`Nuuxfont`** | Brand Typography | Headlines, logo glyphs, and title styling, loaded in-shell by `FontLoader` |
+| **`Nuuxfont`** | Brand Typography | Headlines, logo glyphs, and title styling. Installed system-wide, not bundled with the shell; `Theme.qml` falls back to the system font when absent |
 
 ---
 
@@ -212,13 +212,8 @@ The following core packages, daemons, and system utilities power this setup:
 //@ pragma DefaultEnv QS_NO_RELOAD_POPUP=1
 //@ pragma DefaultEnv QSG_RENDER_LOOP=threaded
 import Quickshell
-import QtQuick
 
 Scope {
-    FontLoader {
-        source: Quickshell.shellPath("fonts/Nuuxfont-Regular.ttf")
-    }
-
     WorkspaceBar{}
     TimeBar{}
     BatteryBar{}
@@ -234,7 +229,8 @@ Scope {
 }
 ```
 
-Pragmas are only honored before the first `import` statement, and `FontLoader` lives in the `QtQuick` module. Loading the brand font in-shell means the shell renders correctly even where fontconfig has no entry for it.
+Pragmas are only honored before the first `import` statement. The root file needs no `import QtQuick`: `Scope` comes from Quickshell.
+
 All components are declared as top-level children of a root `Scope`. They share the same memory space, enabling fast, zero-latency communication via QML singletons (`Theme.qml`, `PopoutCoordinator.qml`).
 
 ---
@@ -350,17 +346,17 @@ The following diagram illustrates the screen positions of each component in this
 
 | Component | Position | Trigger / Reveal Mechanism |
 | :--- | :--- | :--- |
-| [`WorkspaceBar.qml`](file:///home/nuux/.config/quickshell/WorkspaceBar.qml) | `topLeft` | Auto-reveals on workspace/window switch in full-width mode; auto-hides |
-| [`TimeBar.qml`](file:///home/nuux/.config/quickshell/TimeBar.qml) | `topCenter` | Hourly glance, `SUPER + CTRL + T`, or IPC (`timeBar toggle`) |
-| [`WifiBar.qml`](file:///home/nuux/.config/quickshell/WifiBar.qml) | `topRight` | `SUPER + CTRL + W`, IPC (`wifiBar toggle`), or connecting state |
-| [`BluetoothBar.qml`](file:///home/nuux/.config/quickshell/BluetoothBar.qml) | `topRight` | `SUPER + CTRL + B` or IPC (`bluetoothBar toggle`) |
-| [`AudioBar.qml`](file:///home/nuux/.config/quickshell/AudioBar.qml) | `centerLeft` | Hardware volume keys via shim or `omarchy audio` commands |
-| [`BrightnessBar.qml`](file:///home/nuux/.config/quickshell/BrightnessBar.qml) | `centerLeft` | Hardware brightness keys via shim |
-| [`BatteryBar.qml`](file:///home/nuux/.config/quickshell/BatteryBar.qml) | `centerRight` | Power state changes, critical battery level, or `SUPER + CTRL + P` |
-| [`OmarchyMenu.qml`](file:///home/nuux/.config/quickshell/OmarchyMenu.qml) | `bottomCenter` | `SUPER + SPACE`, `SUPER + ALT + SPACE`, or `omarchy menu` |
-| [`NotificationPanel.qml`](file:///home/nuux/.config/quickshell/NotificationPanel.qml) | `bottomRight` | Incoming desktop notifications or `SUPER + SHIFT + ALT + comma` |
-| [`WallpaperPicker.qml`](file:///home/nuux/.config/quickshell/WallpaperPicker.qml) | Center Modal | `SUPER + CTRL + SPACE` |
-| [`RoundedOverlay.qml`](file:///home/nuux/.config/quickshell/RoundedOverlay.qml) | All Corners | Persistent inward bezel rounding across all connected monitors |
+| [`WorkspaceBar.qml`](file:///WorkspaceBar.qml) | `topLeft` | Auto-reveals on workspace/window switch in full-width mode; auto-hides |
+| [`TimeBar.qml`](file:///TimeBar.qml) | `topCenter` | Hourly glance, `SUPER + CTRL + T`, or IPC (`timeBar toggle`) |
+| [`WifiBar.qml`](file:///WifiBar.qml) | `topRight` | `SUPER + CTRL + W`, IPC (`wifiBar toggle`), or connecting state |
+| [`BluetoothBar.qml`](file:///BluetoothBar.qml) | `topRight` | `SUPER + CTRL + B` or IPC (`bluetoothBar toggle`) |
+| [`AudioBar.qml`](file:///AudioBar.qml) | `centerLeft` | Hardware volume keys via shim or `omarchy audio` commands |
+| [`BrightnessBar.qml`](file:///BrightnessBar.qml) | `centerLeft` | Hardware brightness keys via shim |
+| [`BatteryBar.qml`](file:///BatteryBar.qml) | `centerRight` | Power state changes, critical battery level, or `SUPER + CTRL + P` |
+| [`OmarchyMenu.qml`](file:///OmarchyMenu.qml) | `bottomCenter` | `SUPER + SPACE`, `SUPER + ALT + SPACE`, or `omarchy menu` |
+| [`NotificationPanel.qml`](file:///NotificationPanel.qml) | `bottomRight` | Incoming desktop notifications or `SUPER + SHIFT + ALT + comma` |
+| [`WallpaperPicker.qml`](file:///WallpaperPicker.qml) | Center Modal | `SUPER + CTRL + SPACE` |
+| [`RoundedOverlay.qml`](file:///RoundedOverlay.qml) | All Corners | Persistent inward bezel rounding across all connected monitors |
 
 ---
 
@@ -396,7 +392,7 @@ qs ipc -p ~/.config/quickshell call omarchyMenu toggle root
 Verify that `~/.local/bin` takes precedence in `$PATH`:
 ```bash
 which omarchy omarchy-shell omarchy-audio-output-volume
-# Expected: /home/nuux/.local/bin/...
+# Expected: ~/.local/bin/...
 ```
 
 ### 7.4 Diagnosing Doubled Panels

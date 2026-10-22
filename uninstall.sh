@@ -163,8 +163,7 @@ remove_installed() {
     fi
   done < <(manifest_list '.fonts')
 
-  local cli_dest
-  cli_dest="$(expand_path "$(jq -r '.cli.dest' "$MANIFEST")")"
+  local cli_dest  cli_dest="$(expand_path "$(jq -r '.cli.dest' "$MANIFEST")")"
   if [[ -e $cli_dest ]]; then
     if (( DRY_RUN )); then
       printf '  would remove: %s\n' "$cli_dest"
@@ -286,7 +285,6 @@ main() {
 
   if (( ! DRY_RUN )); then
     rm -rf "$STATE_DIR"
-    fc-cache -f "$HOME/.local/share/fonts" >/dev/null 2>&1 || true
   fi
 
   revive_stock_shell
