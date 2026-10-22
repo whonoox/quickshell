@@ -21,7 +21,7 @@ CONFIG_DIR="$HOME_DIR/.config/quickshell"
 HYPR_DIR="$HOME_DIR/.config/hypr"
 BIN_DIR="$HOME_DIR/.local/bin"
 FONT_DIR="$HOME_DIR/.local/share/fonts"
-STATE_DIR="$HOME_DIR/.local/state/omarchy-islands"
+STATE_DIR="$HOME_DIR/.local/state/nooxshell"
 OMARCHY_CONFIG="$HOME_DIR/.config/omarchy/shell.json"
 
 DRY_RUN=0
@@ -84,6 +84,34 @@ require_tools() {
     command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
   done
   (( ${#missing[@]} == 0 )) || fail "missing required tools: ${missing[*]}"
+}
+
+# The CLI was named "omarchy-islands" before it became "nooxshell", and
+# the state directory was renamed with it. Move an existing installation's
+# state across so the pristine backup — the only record of the user's
+# original files — is not lost, and remove the old command so it does not
+# linger on PATH.
+migrate_old_state() {
+  local old_state="$HOME_DIR/.local/state/omarchy-islands"
+  local old_cli="$HOME_DIR/.local/bin/omarchy-islands"
+
+  if [[ -d $old_state && ! -d $STATE_DIR ]]; then
+    mv "$old_state" "$STATE_DIR"
+    info "Migrated state directory to $STATE_DIR"
+  elif [[ -d $old_state ]]; then
+    # Both exist: keep the new one, but rescue the pristine backup if the
+    # new directory does not have one yet.
+    if [[ ! -f $STATE_DIR/pristine/backup_manifest.json && -f $old_state/pristine/backup_manifest.json ]]; then
+      cp -a "$old_state/pristine" "$STATE_DIR/pristine"
+      info "Recovered the pristine backup from $old_state"
+    fi
+    rm -rf "$old_state"
+  fi
+
+  if [[ -e $old_cli ]]; then
+    rm -f "$old_cli"
+    info "Removed the old omarchy-islands command"
+  fi
 }
 
 # Keeps only the most recent per-run backups. The pristine copy is never
@@ -438,7 +466,7 @@ install_cli() {
   backup_file "$dest"
   mkdir -p "$(dirname "$dest")"
   install -Dm"$mode" "$REPO_DIR/$src" "$dest"
-  ok "Installed omarchy-islands CLI"
+  ok "Installed nooxshell CLI"
 }
 
 check_path_order() {
@@ -558,6 +586,7 @@ main() {
   if (( DRY_RUN )); then
     info "Dry run: no changes will be made"
   else
+    migrate_old_state
     mkdir -p "$STATE_DIR"
     BACKUP_DIR="$STATE_DIR/backups/$(date +%Y%m%d-%H%M%S)"
     PRISTINE_DIR="$STATE_DIR/pristine"
@@ -585,7 +614,7 @@ main() {
   while IFS= read -r hook; do
     [[ -n $hook ]] || continue
     # A hook that starts the shell is skipped under --no-start.
-    if (( NO_START )) && [[ $hook == *"omarchy-islands restart"* || $hook == *"omarchy-islands start"* ]]; then
+    if (( NO_START )) && [[ $hook == *"nooxshell restart"* || $hook == *"nooxshell start"* ]]; then
       info "Skipping hook (--no-start): $hook"
       continue
     fi
@@ -616,7 +645,7 @@ Shortcuts
   Super+Ctrl+Space    Wallpaper picker
 
 Management
-  omarchy-islands status | log -f | restart | toggle menu
+  nooxshell status | log -f | restart | toggle menu
 SUMMARY
 }
 

@@ -386,7 +386,7 @@ qs ipc -p ~/.config/quickshell call audioBar open
 qs ipc -p ~/.config/quickshell call omarchyMenu toggle root
 ```
 
-`qs ipc call` always exits 0, even when it prints `Target not found.` or `Function not found.` — read the reply text, not the exit status. The `omarchy-islands toggle <module>` wrapper handles both the target names and this distinction.
+`qs ipc call` always exits 0, even when it prints `Target not found.` or `Function not found.` — read the reply text, not the exit status. The `nooxshell toggle <module>` wrapper handles both the target names and this distinction.
 
 ### 7.3 Verifying Shim Routing
 Verify that `~/.local/bin` takes precedence in `$PATH`:
@@ -403,8 +403,8 @@ panels. The stray runs with a `HOME` that has no
 back to its hardcoded palette.
 
 ```bash
-omarchy-islands doctor        # lists strays and checks the theme file
-omarchy-islands doctor --fix  # stops the strays
+nooxshell doctor        # lists strays and checks the theme file
+nooxshell doctor --fix  # stops the strays
 ```
 
 To see the instances directly:

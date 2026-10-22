@@ -18,7 +18,7 @@ set -euo pipefail
 REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 MANIFEST="$REPO_DIR/manifest.json"
 
-STATE_DIR="$HOME/.local/state/omarchy-islands"
+STATE_DIR="$HOME/.local/state/nooxshell"
 STATE_FILE="$STATE_DIR/state.json"
 BACKUP_ROOT="$STATE_DIR/backups"
 PRISTINE_DIR="$STATE_DIR/pristine"
@@ -62,13 +62,27 @@ manifest_list() {
 # under backups/ capture what a later run touched, which may already be the
 # files the installer deployed, so they cannot be used to restore the
 # user's originals.
+#
+# The state directory was renamed from "omarchy-islands" to "nooxshell"
+# along with the CLI, so an installation made before the rename is looked
+# for in both places.
 pristine_backup() {
-  [[ -f $PRISTINE_DIR/backup_manifest.json ]] || return 1
-  printf '%s' "$PRISTINE_DIR"
+  if [[ -f $PRISTINE_DIR/backup_manifest.json ]]; then
+    printf '%s' "$PRISTINE_DIR"
+    return 0
+  fi
+
+  local old="$HOME/.local/state/omarchy-islands/pristine"
+  if [[ -f $old/backup_manifest.json ]]; then
+    printf '%s' "$old"
+    return 0
+  fi
+
+  return 1
 }
 
 stop_shell() {
-  local cli="$HOME/.local/bin/omarchy-islands"
+  local cli="$HOME/.local/bin/nooxshell"
   if [[ -x $cli ]]; then
     info "Stopping the island shell"
     run "$cli" stop || warn "could not stop the shell cleanly"
@@ -163,12 +177,24 @@ remove_installed() {
     fi
   done < <(manifest_list '.fonts')
 
-  local cli_dest  cli_dest="$(expand_path "$(jq -r '.cli.dest' "$MANIFEST")")"
+  local cli_dest
+  cli_dest="$(expand_path "$(jq -r '.cli.dest' "$MANIFEST")")"
   if [[ -e $cli_dest ]]; then
     if (( DRY_RUN )); then
       printf '  would remove: %s\n' "$cli_dest"
     else
       rm -f "$cli_dest"
+    fi
+    count=$((count + 1))
+  fi
+
+  # The CLI was named "omarchy-islands" before it became "nooxshell".
+  local old_cli="$HOME/.local/bin/omarchy-islands"
+  if [[ -e $old_cli ]]; then
+    if (( DRY_RUN )); then
+      printf '  would remove: %s\n' "$old_cli"
+    else
+      rm -f "$old_cli"
     fi
     count=$((count + 1))
   fi
@@ -285,6 +311,9 @@ main() {
 
   if (( ! DRY_RUN )); then
     rm -rf "$STATE_DIR"
+    # The pre-rename state directory, in case the install was never
+    # migrated.
+    rm -rf "$HOME/.local/state/omarchy-islands"
   fi
 
   revive_stock_shell

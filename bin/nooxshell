@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# omarchy-islands — management CLI for the Quickshell island desktop shell.
+# nooxshell — management CLI for the Quickshell island desktop shell.
 #
 # Every operation is scoped to this shell's own config path. The stock
 # Omarchy shell runs as a separate Quickshell instance
@@ -38,17 +38,17 @@ declare -A IPC_FUNCTIONS=(
 )
 
 fail() {
-  echo "omarchy-islands: $*" >&2
+  echo "nooxshell: $*" >&2
   exit 1
 }
 
 warn() {
-  echo "omarchy-islands: $*" >&2
+  echo "nooxshell: $*" >&2
 }
 
 usage() {
   cat <<'USAGE'
-Usage: omarchy-islands <command> [options]
+Usage: nooxshell <command> [options]
 
 Commands:
   start                Start the island shell if it is not already running
@@ -180,7 +180,7 @@ cmd_doctor() {
   else
     echo
     echo "A stray instance draws a second set of panels over the desktop."
-    echo "Stop them with: omarchy-islands doctor --fix"
+    echo "Stop them with: nooxshell doctor --fix"
   fi
 }
 
@@ -244,7 +244,7 @@ report_foreign_instances() {
 
 cmd_start() {
   if [[ -n $(instance_pid) ]]; then
-    echo "omarchy-islands: already running (pid $(instance_pid))"
+    echo "nooxshell: already running (pid $(instance_pid))"
     return 0
   fi
   [[ -f $QS_PATH/shell.qml ]] || fail "no shell at $QS_PATH/shell.qml"
@@ -270,21 +270,21 @@ cmd_start() {
   waited=0
   while (( waited < 100 )); do
     if [[ $(ipc_call "${IPC_TARGETS[menu]}" ping) == "ok" ]]; then
-      echo "omarchy-islands: started (pid $(instance_pid))"
+      echo "nooxshell: started (pid $(instance_pid))"
       return 0
     fi
     sleep 0.1
     waited=$((waited + 1))
   done
 
-  fail "shell did not answer over IPC; check 'omarchy-islands log'"
+  fail "shell did not answer over IPC; check 'nooxshell log'"
 }
 
 cmd_stop() {
   local pid
   pid="$(instance_pid)"
   [[ -n $pid ]] || {
-    echo "omarchy-islands: not running"
+    echo "nooxshell: not running"
     return 0
   }
 
@@ -299,7 +299,7 @@ cmd_stop() {
     waited=$((waited + 1))
   done
 
-  echo "omarchy-islands: stopped"
+  echo "nooxshell: stopped"
 }
 
 cmd_restart() {
@@ -339,7 +339,7 @@ cmd_toggle() {
   [[ -n $module ]] || fail "toggle needs a module name"
 
   local target="${IPC_TARGETS[$module]:-}"
-  [[ -n $target ]] || fail "unknown module '$module' (try 'omarchy-islands help')"
+  [[ -n $target ]] || fail "unknown module '$module' (try 'nooxshell help')"
 
   local -a args=("${IPC_FUNCTIONS[$module]:-toggle}")
   local default_arg="${IPC_DEFAULT_ARGS[$module]:-}"
@@ -381,7 +381,7 @@ cmd_update() {
     fi
     git -C "$repo" pull --ff-only || fail "git pull failed in $repo"
   else
-    echo "omarchy-islands: $repo is not a git checkout; skipping pull"
+    echo "nooxshell: $repo is not a git checkout; skipping pull"
   fi
 
   local installer="$repo/install.sh"
@@ -415,7 +415,7 @@ main() {
     uninstall) cmd_uninstall "$@" ;;
     help | -h | --help) usage ;;
     *)
-      echo "omarchy-islands: unknown command '$command'" >&2
+      echo "nooxshell: unknown command '$command'" >&2
       usage >&2
       exit 2
       ;;

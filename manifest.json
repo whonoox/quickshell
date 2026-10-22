@@ -1,5 +1,5 @@
 {
-  "name": "omarchy-quickshell-islands",
+  "name": "nooxshell",
   "version": "1.0.0",
   "description": "Floating island desktop shell for Omarchy, built on Quickshell.",
 
@@ -10,7 +10,7 @@
   },
 
   "state": {
-    "dir": "~/.local/state/omarchy-islands",
+    "dir": "~/.local/state/nooxshell",
     "manifest": "state.json",
     "backupDir": "backups",
     "backupManifest": "backup_manifest.json"
@@ -125,15 +125,15 @@
   },
 
   "cli": {
-    "src": "bin/omarchy-islands",
-    "dest": "~/.local/bin/omarchy-islands",
+    "src": "bin/nooxshell",
+    "dest": "~/.local/bin/nooxshell",
     "mode": "0755"
   },
 
   "hooks": {
     "post_install": [
       "hyprctl reload",
-      "omarchy-islands restart"
+      "nooxshell restart"
     ]
   }
 }

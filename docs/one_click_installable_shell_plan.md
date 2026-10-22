@@ -1,4 +1,4 @@
-# One-Click Installable Quickshell for Omarchy
+# One-Click Installable Nooxshell for Omarchy
 
 Implementation plan for distributing the floating-island desktop shell as a
 one-command install on any Omarchy machine, following the patterns of
@@ -23,7 +23,7 @@ quickshell/                          (this repository)
 ├── uninstall.sh                     atomic rollback uninstaller
 ├── manifest.json                    declarative deployment manifest
 ├── bin/
-│   └── omarchy-islands              management CLI
+│   └── nooxshell                    management CLI
 ├── hypr/
 │   └── quickshell-islands.lua       Hyprland bindings, layer rules, autostart
 ├── shims/                           command interceptors installed to ~/.local/bin
@@ -231,12 +231,12 @@ locations and the post-install hooks.
   "name": "omarchy-quickshell-islands",
   "version": "1.0.0",
   "shell":    { "configPath": "~/.config/quickshell", "root": "shell.qml" },
-  "state":    { "dir": "~/.local/state/omarchy-islands", "manifest": "state.json" },
+  "state":    { "dir": "~/.local/state/nooxshell", "manifest": "state.json" },
   "files":    [ { "src": "shell.qml", "dest": "~/.config/quickshell/shell.qml" } ],
   "shims":    [ { "src": "shims/omarchy", "dest": "~/.local/bin/omarchy", "mode": "0755" } ],
   "hypr":     { "module": { "src": "hypr/quickshell-islands.lua", "dest": "~/.config/hypr/..." } },
   "dependencies": { "pacman": [ "quickshell", "hyprland", "..." ] },
-  "hooks":    { "post_install": [ "hyprctl reload", "omarchy-islands restart" ] }
+  "hooks":    { "post_install": [ "hyprctl reload", "nooxshell restart" ] }
 }
 ```
 
@@ -286,10 +286,10 @@ equivalent hand-written blocks from `bindings.lua`, `looknfeel.lua` and
    only run from an interactive terminal; a piped `curl | bash` has no tty
    to prompt on, so the script tells the user what to run instead.
 3. **Back up** — every file it is about to touch is copied into
-   `~/.local/state/omarchy-islands/backups/<timestamp>/files/`, with the
+   `~/.local/state/nooxshell/backups/<timestamp>/files/`, with the
    list of backed-up paths in `backup_manifest.json`.
 
-   A second, permanent copy goes to `~/.local/state/omarchy-islands/pristine/`.
+   A second, permanent copy goes to `~/.local/state/nooxshell/pristine/`.
    It is written **once** and never overwritten: a later install would
    otherwise capture the files the first install already deployed, and the
    uninstaller would restore the installer's own copies instead of the
@@ -300,7 +300,7 @@ equivalent hand-written blocks from `bindings.lua`, `looknfeel.lua` and
 5. **Deconflict Hyprland** — strip the now-duplicated hand-written blocks.
 6. **Configure Omarchy** — add the disabled plugin ids to `shell.json` via
    Omarchy's own `omarchy-shell-config` helper.
-7. **Write state** — `~/.local/state/omarchy-islands/state.json` records
+7. **Write state** — `~/.local/state/nooxshell/state.json` records
    the version, timestamp, repo path, config path and the Hyprland paths, so
    `update` and `uninstall` know exactly what they own.
 8. **Verify** — every manifest entry must exist, every shim must be
@@ -327,28 +327,30 @@ the path is not in `PATH`. Add `|| true` and check the result explicitly.
 
 ### A note on stale installs
 
-The CLI is deployed to `~/.local/bin/omarchy-islands`. Editing the copy in
+The CLI is deployed to `~/.local/bin/nooxshell`. Editing the copy in
 the repository does not change the installed one, so a bug fix can appear
 to have no effect. Re-run `./install.sh` after changing the CLI, or invoke
-`bin/omarchy-islands` directly from the repository to test the new code.
+`bin/nooxshell` directly from the repository to test the new code.
 
 ---
 
 ## 6. The Management CLI
 
-`bin/omarchy-islands` installs to `~/.local/bin/omarchy-islands`.
+`bin/nooxshell` installs to `~/.local/bin/nooxshell`. It was previously
+called `omarchy-islands`; the installer migrates an older installation's
+state directory and removes the old command.
 
 ```
-omarchy-islands start                Start the shell if it is not running
-omarchy-islands stop                 Stop this shell's instance
-omarchy-islands restart              Stop and start again
-omarchy-islands log [-f] [-n N]      Show logs; -f follows, -n limits
-omarchy-islands status               Instance, IPC health, available targets
-omarchy-islands doctor [--fix]       Check for stray instances and theme problems
-omarchy-islands toggle <module>      Toggle an island panel
-omarchy-islands ping                 Check that the shell answers
-omarchy-islands update               Pull the newest revision and restart
-omarchy-islands uninstall            Remove the shell, restore the desktop
+nooxshell start                Start the shell if it is not running
+nooxshell stop                 Stop this shell's instance
+nooxshell restart              Stop and start again
+nooxshell log [-f] [-n N]      Show logs; -f follows, -n limits
+nooxshell status               Instance, IPC health, available targets
+nooxshell doctor [--fix]       Check for stray instances and theme problems
+nooxshell toggle <module>      Toggle an island panel
+nooxshell ping                 Check that the shell answers
+nooxshell update               Pull the newest revision and restart
+nooxshell uninstall            Remove the shell, restore the desktop
 ```
 
 Every command passes `--path` to `qs`, so the stock Omarchy shell is never
@@ -369,8 +371,8 @@ Omarchy shell. `doctor` additionally checks that the theme file is present
 and can stop the strays:
 
 ```bash
-omarchy-islands doctor        # report
-omarchy-islands doctor --fix  # stop them
+nooxshell doctor        # report
+nooxshell doctor --fix  # stop them
 ```
 
 Two rules keep strays from appearing in the first place:
@@ -408,7 +410,7 @@ survives a repeated install: after installing twice and uninstalling once,
 
 ```bash
 # Syntax
-bash -n install.sh uninstall.sh bin/omarchy-islands
+bash -n install.sh uninstall.sh bin/nooxshell
 bash -n shims/awww-omarchy-bridge shims/omarchy shims/omarchy-audio-output-volume \
         shims/omarchy-brightness-display shims/omarchy-brightness-display-ddc \
         shims/omarchy-menu shims/omarchy-menu-input shims/omarchy-menu-select \
@@ -421,14 +423,14 @@ jq . manifest.json
 ./install.sh --dry-run
 
 # Lifecycle
-omarchy-islands status
-omarchy-islands restart
-omarchy-islands log -f
+nooxshell status
+nooxshell restart
+nooxshell log -f
 
 # IPC, against the live instance
-omarchy-islands toggle menu
-omarchy-islands toggle wifi
-omarchy-islands toggle notifications
+nooxshell toggle menu
+nooxshell toggle wifi
+nooxshell toggle notifications
 ```
 
 Do not lint `shims/*` with a glob: it picks up `shims/README.md`, which is

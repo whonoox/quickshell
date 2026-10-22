@@ -1,8 +1,10 @@
-# Quickshell Islands
+# Nooxshell
 
 A floating-island desktop shell for [Omarchy](https://omarchy.org), built on
 [Quickshell](https://quickshell.org). Panels float over the stock Omarchy
 desktop as single-vector "scoop" shapes with a compositor-level X-Ray blur.
+
+Managed with the `nooxshell` command.
 
 ## Install
 
@@ -19,8 +21,8 @@ From a checkout:
 ```
 
 The installer backs up every file it touches to
-`~/.local/state/omarchy-islands/backups/<timestamp>/` and writes the
-installed state to `~/.local/state/omarchy-islands/state.json`.
+`~/.local/state/nooxshell/backups/<timestamp>/` and writes the
+installed state to `~/.local/state/nooxshell/state.json`.
 
 ## Uninstall
 
@@ -47,11 +49,11 @@ line, restores `shell.json`, and brings the stock Omarchy shell back up.
 ## Managing the shell
 
 ```bash
-omarchy-islands status        # instance, IPC health, available targets
-omarchy-islands doctor        # check for stray instances and theme problems
-omarchy-islands restart
-omarchy-islands log -f
-omarchy-islands toggle menu
+nooxshell status        # instance, IPC health, available targets
+nooxshell doctor        # check for stray instances and theme problems
+nooxshell restart
+nooxshell log -f
+nooxshell toggle menu
 ```
 
 Two Quickshell instances are always running: the stock Omarchy shell at
@@ -59,15 +61,15 @@ Two Quickshell instances are always running: the stock Omarchy shell at
 CLI scopes every operation to the islands instance with `qs --path`.
 
 If every panel appears twice, once in the live theme colors and once in the
-default palette, a stray instance is running. `omarchy-islands doctor`
-identifies it and `omarchy-islands doctor --fix` stops it.
+default palette, a stray instance is running. `nooxshell doctor`
+identifies it and `nooxshell doctor --fix` stops it.
 
 ## Layout
 
 ```
 install.sh / uninstall.sh     one-click installer and rollback
 manifest.json                 declarative deployment manifest
-bin/omarchy-islands           management CLI
+bin/nooxshell           management CLI
 hypr/                         Hyprland bindings, layer rules, autostart
 shims/                        command interceptors for ~/.local/bin
 *.qml, *.js                   the shell
@@ -86,7 +88,7 @@ fc-cache -f
 ```
 
 Without it the shell falls back to the system font and everything still
-works; `omarchy-islands doctor` reports which font is in use.
+works; `nooxshell doctor` reports which font is in use.
 
 ## Documentation
 
