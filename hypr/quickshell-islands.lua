@@ -13,6 +13,14 @@
 -- from Hyprland. install.sh removes the equivalent hand-written blocks from
 -- bindings.lua, looknfeel.lua and autostart.lua so nothing is bound twice.
 
+-- Ensure ~/.local/bin takes precedence over /usr/share/omarchy/bin for custom user shims
+local home = os.getenv("HOME")
+if home and home ~= "" then
+  hl.env("PATH", home .. "/.local/bin:" .. (os.getenv("PATH") or ""))
+end
+
+local bin = (home and home ~= "") and (home .. "/.local/bin/") or ""
+
 local M = {}
 
 -- The shell's global shortcuts are registered by the Quickshell instance and
@@ -25,6 +33,7 @@ M.bindings = {
   { key = "SUPER + CTRL + B", desc = "Bluetooth HUD and Panel", dispatch = "quickshell:bluetoothToggle" },
   { key = "SUPER + CTRL + T", desc = "Time HUD and Panel", dispatch = "quickshell:timeToggle" },
   { key = "SUPER + CTRL + P", desc = "Power HUD and Panel", dispatch = "quickshell:batteryToggle" },
+  { key = "SUPER + CTRL + D", desc = "Brightness HUD and Panel", dispatch = "quickshell:brightnessToggle" },
   { key = "SUPER + CTRL + SPACE", desc = "Wallpaper switcher", dispatch = "quickshell:wallpaperToggle" },
   { key = "SUPER + SHIFT + CTRL + SPACE", desc = "Theme switcher", dispatch = "quickshell:themeToggle" },
 }
@@ -33,10 +42,10 @@ M.bindings = {
 -- the shims in ~/.local/bin shadow the packaged binaries, so the islands HUD
 -- answers instead of the stock OSD.
 M.hardware_bindings = {
-  { key = "XF86AudioRaiseVolume", desc = "Volume up", cmd = "omarchy-audio-output-volume +10" },
-  { key = "XF86AudioLowerVolume", desc = "Volume down", cmd = "omarchy-audio-output-volume -10" },
-  { key = "XF86MonBrightnessUp", desc = "Brightness up", cmd = "omarchy-brightness-display +10%" },
-  { key = "XF86MonBrightnessDown", desc = "Brightness down", cmd = "omarchy-brightness-display 10%-" },
+  { key = "XF86AudioRaiseVolume", desc = "Volume up", cmd = bin .. "omarchy-audio-output-volume +10" },
+  { key = "XF86AudioLowerVolume", desc = "Volume down", cmd = bin .. "omarchy-audio-output-volume -10" },
+  { key = "XF86MonBrightnessUp", desc = "Brightness up", cmd = bin .. "omarchy-brightness-display +10%" },
+  { key = "XF86MonBrightnessDown", desc = "Brightness down", cmd = bin .. "omarchy-brightness-display 10%-" },
 }
 
 -- Panel surfaces that get the compositor-level X-Ray blur: a hairline border

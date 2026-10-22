@@ -198,6 +198,16 @@ cmd_doctor() {
     fi
   fi
 
+  # Check if brightness control is responding
+  local brightness_val
+  brightness_val="$(omarchy-brightness-display 2>/dev/null || true)"
+  if [[ $brightness_val =~ ^[0-9]+$ ]]; then
+    echo "brightness: ready ($brightness_val%)"
+  else
+    echo "brightness: unavailable"
+    echo "          no backlight device or DDC monitor detected"
+  fi
+
   local others
   others="$(list_other_instances)"
 

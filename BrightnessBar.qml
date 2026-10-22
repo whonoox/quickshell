@@ -54,6 +54,21 @@ Scope {
         function ping(): string { return "ok" }
     }
 
+    GlobalShortcut {
+        name: "brightnessToggle"
+        description: "Toggle display brightness HUD"
+        appid: "quickshell"
+        onPressed: {
+            if (root.hideBar) {
+                root.reveal()
+                root.refresh()
+            } else {
+                root.hideBar = true
+                autoHide.stop()
+            }
+        }
+    }
+
     Process {
         id: probeProcess
         command: ["bash", "-c", root.probeCommand]

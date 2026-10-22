@@ -26,7 +26,12 @@ done
 
 # Get the brightness of the passed display
 backlight_brightness() {
-  brightnessctl -d "$1" -m 2>/dev/null | awk -F, '{ gsub("%", "", $4); print $4; found=1 } END{ exit !found }'
+  local dev="${1:-}"
+  if [[ -n $dev ]]; then
+    brightnessctl -d "$dev" -m 2>/dev/null | awk -F, '{ gsub("%", "", $4); print $4; found=1 } END{ exit !found }'
+  else
+    brightnessctl -m 2>/dev/null | awk -F, '{ gsub("%", "", $4); print $4; found=1 } END{ exit !found }'
+  fi
 }
 
 [[ -n $monitor ]] || monitor="$(omarchy-hyprland-monitor-focused 2>/dev/null || true)"
@@ -52,7 +57,7 @@ if (( $# == 0 )); then
     exit
   fi
 
-  device="$(omarchy-hw-display)" || exit 1
+  device="$(omarchy-hw-display 2>/dev/null || true)"
   backlight_brightness "$device"
   exit
 fi
@@ -93,8 +98,8 @@ elif use_ddc_display; then
   brightness="$(omarchy-brightness-display-ddc "$monitor" "$step")" || exit 1
   notify_brightness_bar
 else
-  # Current device highlighted
-  device="$(omarchy-hw-display)" || exit 1
+  # Current device highlighted (falls back to auto-detection if unset)
+  device="$(omarchy-hw-display 2>/dev/null || true)"
 
   # Current brightness percentage
   current=$(backlight_brightness "$device") || exit 1
@@ -111,7 +116,11 @@ else
   fi
 
   # Set brightness of the display device.
-  brightnessctl -d "$device" set "$step" >/dev/null
+  if [[ -n $device ]]; then
+    brightnessctl -d "$device" set "$step" >/dev/null
+  else
+    brightnessctl set "$step" >/dev/null
+  fi
 
   # Show the new brightness in Quickshell BrightnessBar HUD
   notify_brightness_bar

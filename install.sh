@@ -461,6 +461,8 @@ deconflict_hypr() {
       -e '/^o\.bind("SUPER + CTRL + T", "Time HUD and Panel", hl\.dsp\.global("quickshell:timeToggle"))$/d' \
       -e '/^hl\.unbind("SUPER + CTRL + P")$/d' \
       -e '/^o\.bind("SUPER + CTRL + P", "Power HUD and Panel", hl\.dsp\.global("quickshell:batteryToggle"))$/d' \
+      -e '/^hl\.unbind("SUPER + CTRL + D")$/d' \
+      -e '/^o\.bind("SUPER + CTRL + D", "Brightness HUD and Panel", hl\.dsp\.global("quickshell:brightnessToggle"))$/d' \
       -e '/^hl\.unbind("SUPER + CTRL + SPACE")$/d' \
       -e '/^o\.bind("SUPER + CTRL + SPACE", "Wallpaper switcher", hl\.dsp\.global("quickshell:wallpaperToggle"))$/d' \
       -e '/^hl\.unbind("XF86AudioRaiseVolume")$/d' \
