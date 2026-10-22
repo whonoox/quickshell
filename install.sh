@@ -536,6 +536,10 @@ configure_omarchy() {
     plugin_json="$(printf '%s\n' "$plugins" | jq -R . | jq -s .)"
     if commit "$program" --argjson plugins "$plugin_json" >/dev/null; then
       ok "Configured Omarchy shell.json"
+      # If notifications were disabled, restart the stock shell so it releases org.freedesktop.Notifications
+      if [[ $plugins == *"omarchy.notifications"* ]] && command -v omarchy-restart-shell >/dev/null 2>&1; then
+        omarchy-restart-shell >/dev/null 2>&1 || true
+      fi
     else
       warn "could not update shell.json"
     fi

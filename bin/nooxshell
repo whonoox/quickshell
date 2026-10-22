@@ -208,6 +208,39 @@ cmd_doctor() {
     echo "          no backlight device or DDC monitor detected"
   fi
 
+  # Check notification server ownership
+  local notif_pid our_pid
+  notif_pid="$(busctl --user status org.freedesktop.Notifications 2>/dev/null | awk -F= '$1=="PID"{print $2}')"
+  our_pid="$(instance_pid)"
+
+  if [[ -n $notif_pid && -n $our_pid && $notif_pid -eq $our_pid ]]; then
+    echo "notifs:   ready (owned by nooxshell)"
+  elif [[ -n $notif_pid ]]; then
+    echo "notifs:   CONFLICT (owned by PID $notif_pid, stock omarchy-shell)"
+    echo "          notifications are being drawn by stock Omarchy instead of nooxshell"
+    if [[ ${1:-} == "--fix" ]]; then
+      local helper="/usr/share/omarchy/bin/omarchy-shell-config"
+      if [[ -f $helper ]]; then
+        # shellcheck source=/dev/null
+        source "$helper"
+        local fix_notif='
+          .disabledPlugins = (((.disabledPlugins // []) + ["omarchy.notifications"]) | unique)
+        '
+        commit "$fix_notif" >/dev/null 2>&1 || true
+      fi
+      if command -v omarchy-restart-shell >/dev/null 2>&1; then
+        omarchy-restart-shell >/dev/null 2>&1 || true
+        sleep 0.5
+      fi
+      cmd_restart >/dev/null 2>&1
+      echo "  fixed: disabled omarchy.notifications and restarted shell"
+    else
+      echo "          fix with: nooxshell doctor --fix"
+    fi
+  else
+    echo "notifs:   no daemon registered"
+  fi
+
   local others
   others="$(list_other_instances)"
 
