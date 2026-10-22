@@ -77,19 +77,24 @@ USAGE
 # "default" configuration, which is only the islands shell by coincidence of
 # the install layout.
 instance_pid() {
+  # The status is discarded: qs may exit non-zero when the instance is
+  # gone, and under pipefail that would abort the caller. An empty result
+  # already means "not running".
   qs list -p "$QS_PATH" 2>/dev/null |
     awk -v path="$QS_PATH/shell.qml" '
       /^Instance / { pid = ""; config = ""; next }
       /Process ID:/ { pid = $3; next }
       /Config path:/ { config = $3; next }
       /^$/ { if (config == path && pid != "") { print pid; exit } }
-    '
+    ' || true
 }
 
 # Lists "pid config" for every running Quickshell instance that is not
 # serving our config path. The stock Omarchy shell at
 # /usr/share/omarchy/shell is expected and is not reported.
 list_other_instances() {
+  # As in instance_pid: the status is discarded so a failure to list
+  # instances does not abort the caller.
   qs list --all 2>/dev/null |
     awk -v path="$QS_PATH/shell.qml" -v stock="/usr/share/omarchy/shell/shell.qml" '
       /^Instance / { pid = ""; config = ""; next }
@@ -99,7 +104,7 @@ list_other_instances() {
         if (config != "" && config != path && config != stock && pid != "")
           print pid, config
       }
-    '
+    ' || true
 }
 
 # Calls an IPC function on our instance and echoes the reply. The reply text
@@ -145,11 +150,11 @@ cmd_doctor() {
   # The brand font is installed system-wide, not shipped with the shell.
   # Theme.qml falls back to the system font when it is absent.
   #
-  # The output is captured before grep runs: `grep -q` exits at the first
-  # match and closes the pipe, so fc-list takes a SIGPIPE, which under
-  # pipefail would turn a successful match into a failure.
+  # The count is taken with awk, which always succeeds: `grep -c` exits 1
+  # when it finds nothing, and under set -e that would abort the command
+  # on a machine without the font.
   local brand_count
-  brand_count="$(fc-list 2>/dev/null | grep -c ": Nuuxfont:")"
+  brand_count="$(fc-list 2>/dev/null | awk -v f=": Nuuxfont:" 'index($0, f) { c++ } END { print c + 0 }')"
   if (( brand_count > 0 )); then
     echo "font:     Nuuxfont"
   else
@@ -208,8 +213,11 @@ cmd_status() {
     echo "ipc:      not responding${ping_reply:+ ($ping_reply)}"
   fi
 
+  # The target list is best-effort. `timeout` returns 124 when it has to
+  # kill qs, and under pipefail that would abort the command, so the
+  # status is discarded and the (possibly empty) output is used.
   local targets
-  targets="$(timeout --kill-after=1s "$IPC_TIMEOUT" qs ipc -n -p "$QS_PATH" show 2>/dev/null | awk '/^target /{print $2}')"
+  targets="$(timeout --kill-after=1s "$IPC_TIMEOUT" qs ipc -n -p "$QS_PATH" show 2>/dev/null | awk '/^target /{print $2}' || true)"
   if [[ -n $targets ]]; then
     echo "targets:  $(echo "$targets" | tr '\n' ' ')"
   fi

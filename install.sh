@@ -340,8 +340,12 @@ check_brand_font() {
   # `grep -q` exits at the first match and closes the pipe, so fc-list
   # takes a SIGPIPE. Under pipefail that turns a successful match into a
   # failure, so the output is captured first and grep runs on the result.
+  #
+  # `grep -c` exits 1 when it counts nothing, which is exactly the case
+  # of a machine without the font. Under set -e that would abort the
+  # install, so the count is taken with awk, which always succeeds.
   local installed
-  installed="$(fc-list 2>/dev/null | grep -c ": $family:")"
+  installed="$(fc-list 2>/dev/null | awk -v f=": $family:" 'index($0, f) { c++ } END { print c + 0 }')"
 
   if (( installed > 0 )); then
     ok "Brand font '$family' is installed system-wide"
