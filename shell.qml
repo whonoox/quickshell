@@ -48,4 +48,5 @@ Scope {
     NotificationPanel{}
     ScoopTestPanel{}
     WallpaperPicker{}
+    ThemePicker{}
 }

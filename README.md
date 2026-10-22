@@ -48,6 +48,7 @@ line, restores `shell.json`, and brings the stock Omarchy shell back up.
 | `Super+Ctrl+T` | Time |
 | `Super+Ctrl+P` | Power |
 | `Super+Ctrl+Space` | Wallpaper picker |
+| `Super+Shift+Ctrl+Space` | Theme picker |
 | Volume / Brightness keys | Island HUDs |
 
 ## Managing the shell

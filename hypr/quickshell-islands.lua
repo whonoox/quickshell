@@ -26,6 +26,7 @@ M.bindings = {
   { key = "SUPER + CTRL + T", desc = "Time HUD and Panel", dispatch = "quickshell:timeToggle" },
   { key = "SUPER + CTRL + P", desc = "Power HUD and Panel", dispatch = "quickshell:batteryToggle" },
   { key = "SUPER + CTRL + SPACE", desc = "Wallpaper switcher", dispatch = "quickshell:wallpaperToggle" },
+  { key = "SUPER + SHIFT + CTRL + SPACE", desc = "Theme switcher", dispatch = "quickshell:themeToggle" },
 }
 
 -- Hardware keys. Omarchy binds these to the same command names by default;
@@ -83,6 +84,15 @@ end
 -- Theme.rounding, so the island corners line up with the window corners.
 function M.decorations()
   hl.config({
+    general = {
+      -- The gaps are part of the same calculation as the shell's own
+      -- border. The scoops are drawn with a 4px border, the same as
+      -- gaps_out, and the gap between two windows is the same again, so
+      -- the islands and the windows sit in one rhythm.
+      gaps_in = 2,
+      gaps_out = 4,
+      border_size = 0,
+    },
     decoration = {
       rounding = 20,
 

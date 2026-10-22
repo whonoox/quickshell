@@ -68,6 +68,7 @@
     { "src": "ScoopTestPanel.qml", "dest": "~/.config/quickshell/ScoopTestPanel.qml" },
     { "src": "ScoopV2.qml", "dest": "~/.config/quickshell/ScoopV2.qml" },
     { "src": "Theme.qml", "dest": "~/.config/quickshell/Theme.qml" },
+    { "src": "ThemePicker.qml", "dest": "~/.config/quickshell/ThemePicker.qml" },
     { "src": "TimeBar.qml", "dest": "~/.config/quickshell/TimeBar.qml" },
     { "src": "WallpaperPicker.qml", "dest": "~/.config/quickshell/WallpaperPicker.qml" },
     { "src": "WifiBar.qml", "dest": "~/.config/quickshell/WifiBar.qml" },

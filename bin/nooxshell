@@ -23,6 +23,7 @@ declare -A IPC_TARGETS=(
   [battery]="batteryBar"
   [brightness]="brightnessBar"
   [wallpaper]="wallpaperPicker"
+  [theme]="themePicker"
   [notifications]="notifications"
 )
 
@@ -64,7 +65,7 @@ Commands:
   help                 Show this help
 
 Modules: menu, wifi, bluetooth, time, audio, battery, brightness,
-         wallpaper, notifications
+         wallpaper, theme, notifications
 
 Environment:
   OMARCHY_ISLANDS_QS_PATH       Config path (default ~/.config/quickshell)

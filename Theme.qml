@@ -49,6 +49,11 @@ QtObject {
     property color urgent: red
 
     // Dimensions
+    //
+    // borderWidth matches the compositor's gaps_out, which the shell's
+    // Hyprland module sets. The scoops are drawn with the same border as
+    // the gap between two windows, so the islands and the windows sit in
+    // one rhythm. Keep the two in step.
     readonly property int rounding: 20
     readonly property real spacing: 6
     readonly property int borderWidth: 4

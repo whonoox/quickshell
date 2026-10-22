@@ -107,6 +107,15 @@ than left to the user's look'n'feel:
 
 ```lua
 hl.config({
+  general = {
+    -- The gaps are part of the same calculation as the shell's own
+    -- border. The scoops are drawn with a 4px border, the same as
+    -- gaps_out, and the gap between two windows is the same again, so
+    -- the islands and the windows sit in one rhythm.
+    gaps_in = 2,
+    gaps_out = 4,
+    border_size = 0,
+  },
   decoration = {
     rounding = 20,          -- matches Theme.rounding
     blur = {
@@ -119,6 +128,9 @@ hl.config({
   },
 })
 ```
+
+`Theme.borderWidth` in `Theme.qml` is 4 for the same reason, and the two
+have to stay in step.
 
 The module is required last in `hyprland.lua`, so its values win. On a
 machine that already has these values the result is identical; on a
@@ -303,6 +315,32 @@ IpcHandler {
 
 and the `omarchy-shell` shim forwards `shell applyTheme` to this instance
 as well, while the stock shell still receives it for the bar.
+
+### 2.12 The theme picker
+
+Omarchy's stock binding for the theme menu is:
+
+```lua
+o.bind("SUPER + SHIFT + CTRL + SPACE", "Theme menu", "omarchy-menu toggle theme")
+```
+
+That routes into this shell's menu, which has no `theme` route, so the
+binding did nothing at all.
+
+The shell provides the theme UI itself, in the same language as the
+wallpaper picker: `ThemePicker.qml` is a grid of theme previews with the
+same camera zoom, the same card shapes, the same keyboard handling and the
+same accent outline on the selection. The Hyprland module binds the
+shortcut straight to it, and unbinds the stock one.
+
+A theme is applied with `omarchy theme set <name>`, which is Omarchy's own
+command, so the palette, the background and the theme's hooks all run
+exactly as they do from the stock switcher. The islands follow through the
+`applyTheme` interface in §2.11.
+
+The preview for a theme is the same one Omarchy's switcher uses: the
+theme's `preview.*` if it has one, otherwise the first image in its
+`backgrounds/` directory.
 
 ---
 
@@ -528,6 +566,8 @@ not a script, and `_omarchy-menu-shim`, which is a sourced fragment.
 - The frosted X-Ray edge is visible on each panel.
 - Volume and brightness keys raise the islands HUD, not the stock OSD.
 - `Super+Ctrl+Space` opens the wallpaper picker and the background changes.
+- `Super+Shift+Ctrl+Space` opens the theme picker, and picking a theme
+  changes the desktop and the islands together.
 - `omarchy menu` opens the islands menu, and falls back to the stock menu
   when the shell is stopped.
 - `omarchy theme set <theme>` changes the islands' colours as well as the
