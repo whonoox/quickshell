@@ -356,7 +356,35 @@ The following diagram illustrates the screen positions of each component in this
 | [`OmarchyMenu.qml`](file:///OmarchyMenu.qml) | `bottomCenter` | `SUPER + SPACE`, `SUPER + ALT + SPACE`, or `omarchy menu` |
 | [`NotificationPanel.qml`](file:///NotificationPanel.qml) | `bottomRight` | Incoming desktop notifications or `SUPER + SHIFT + ALT + comma` |
 | [`WallpaperPicker.qml`](file:///WallpaperPicker.qml) | Center Modal | `SUPER + CTRL + SPACE` |
+| [`ThemePicker.qml`](file:///ThemePicker.qml) | Center Modal | `SUPER + SHIFT + CTRL + SPACE` |
 | [`RoundedOverlay.qml`](file:///RoundedOverlay.qml) | All Corners | Persistent inward bezel rounding across all connected monitors |
+
+### 6.6 Bluetooth Bar Keys
+
+The Bluetooth controller follows bluetui's keybindings. The legend at the
+bottom of the expanded card shows them.
+
+| Key | Action |
+| :--- | :--- |
+| `↑` / `↓` | Move through the device list. Up from the first row escapes to the header rather than wrapping |
+| `s` | Scan on/off |
+| `u` | Unpair the selected device |
+| `↵` | Disconnect or connect the selected device |
+| `t` | Trust or untrust the selected device |
+| `f` | Mark the selected device as a favorite |
+| `e` | Rename the selected device |
+| `⇥` | Move between the header and the device list |
+
+Device actions go through the Quickshell Bluetooth API
+(`connect()`, `disconnect()`, `forget()`, `pair()`, and the writable
+`name` alias) rather than shelling out. The packaged
+`omarchy-bluetooth-device` needs `bluetoothctl` and swallows every
+error, so a machine without it showed buttons that did nothing.
+
+Trust is the one exception: BlueZ's `Trusted` property is writable, but
+Quickshell only exposes it read-only, so it goes through the system bus
+with the device's own object path. Favorites are this shell's own
+property and live in `~/.local/state/nooxshell/bluetooth-favorites`.
 
 ---
 

@@ -24,6 +24,24 @@ Scope {
     property int selectedDeviceIndex: 0
     property bool deviceActionFocused: false
 
+    // Rename state
+    property bool renaming: false
+    property string renameAddress: ""
+    property string renameText: ""
+
+    // The favorited device addresses, re-read whenever the file changes.
+    readonly property var favoriteAddresses: {
+        var raw = favoritesFile.text
+        if (!raw) return []
+        var out = []
+        var lines = String(raw).split("\n")
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim()
+            if (line) out.push(line)
+        }
+        return out
+    }
+
     // Bluetooth Adapter & Devices
     readonly property var adapter: Bluetooth.defaultAdapter
     property int deviceStateVersion: 0
@@ -278,6 +296,11 @@ Scope {
     }
 
     // Helper Actions
+    //
+    // These go through the Quickshell Bluetooth API rather than shelling
+    // out to omarchy-bluetooth-device. The packaged command needs
+    // bluetoothctl and swallows every error, so a machine without it
+    // showed buttons that silently did nothing.
     function toggleDiscovery() {
         if (adapter) adapter.discovering = !adapter.discovering
     }
@@ -299,18 +322,96 @@ Scope {
     }
 
     function connectDevice(dev) {
-        if (!dev || !dev.address) return
-        Quickshell.execDetached(["omarchy-bluetooth-device", dev.paired ? "connect" : "pair", dev.address])
+        if (!dev || !dev.deviceObject) return
+        if (dev.connected) {
+            dev.deviceObject.disconnect()
+        } else if (dev.paired) {
+            dev.deviceObject.connect()
+        } else {
+            dev.deviceObject.pair()
+        }
     }
 
     function disconnectDevice(dev) {
-        if (!dev || !dev.address) return
-        Quickshell.execDetached(["omarchy-bluetooth-device", "disconnect", dev.address])
+        if (!dev || !dev.deviceObject) return
+        dev.deviceObject.disconnect()
     }
 
     function forgetDevice(dev) {
+        if (!dev || !dev.deviceObject) return
+        dev.deviceObject.forget()
+    }
+
+    // Trust is a writable BlueZ property, but Quickshell only exposes it
+    // read-only, so it goes through the system bus using the device's own
+    // object path.
+    function toggleTrust(dev) {
+        if (!dev || !dev.deviceObject) return
+        var path = dev.deviceObject.dbusPath
+        if (!path) return
+        var value = dev.deviceObject.trusted ? "false" : "true"
+        Quickshell.execDetached(["busctl", "--system", "set", "org.bluez", path, "org.bluez.Device1", "Trusted", "b", value])
+    }
+
+    // Favorites are a property of this shell, not of Bluetooth. They are
+    // kept in a state file, one address per line.
+    function toggleFavorite(dev) {
         if (!dev || !dev.address) return
-        Quickshell.execDetached(["omarchy-bluetooth-device", "forget", dev.address])
+        Quickshell.execDetached([
+            "bash", "-c",
+            "file=\"$1\"; addr=\"$2\"; mkdir -p \"$(dirname \"$file\")\"; touch \"$file\"; " +
+            "if grep -qxF \"$addr\" \"$file\"; then grep -vxF \"$addr\" \"$file\" >\"$file.tmp\" && mv \"$file.tmp\" \"$file\"; " +
+            "else printf '%s\\n' \"$addr\" >>\"$file\"; fi",
+            "_", favoritesFile.path, dev.address
+        ])
+
+        // The file is written by another process, so the watch may not see
+        // it. Re-read it shortly after.
+        favoritesReload.restart()
+    }
+
+    function isFavorite(dev) {
+        if (!dev || !dev.address) return false
+        return root.favoriteAddresses.indexOf(dev.address) >= 0
+    }
+
+    // Rename writes the device's alias, which is the writable "name"
+    // property on the Quickshell device.
+    //
+    // The text field lives inside the panel's delegate, so the root
+    // cannot reach it directly. The state is held here and the field
+    // binds to it; the focus is moved by the delegate's Connections
+    // block, which watches renamingChanged.
+    function beginRename(dev) {
+        if (!dev || !dev.deviceObject) return
+        root.renameAddress = dev.address
+        root.renameText = dev.deviceObject.name || dev.deviceName || dev.name || ""
+        root.renaming = true
+    }
+
+    function commitRename() {
+        if (!root.renaming) return
+        var target = null
+        for (var i = 0; i < root.flattenedDevices.length; i++) {
+            var item = root.flattenedDevices[i]
+            if (item && item.data && item.data.address === root.renameAddress) {
+                target = item.data
+                break
+            }
+        }
+        if (target && target.deviceObject) {
+            var text = String(root.renameText).trim()
+            target.deviceObject.name = text
+        }
+        root.renaming = false
+        root.renameText = ""
+        root.renameAddress = ""
+    }
+
+    function cancelRename() {
+        root.renaming = false
+        root.renameText = ""
+        root.renameAddress = ""
     }
 
     function revealDeviceCursor() {
@@ -351,14 +452,36 @@ Scope {
             if (!item || !item.data) return
             var dev = item.data
 
-            if (root.deviceActionFocused && item.section === "known") {
-                forgetDevice(dev)
-            } else if (dev.connected) {
+            if (dev.connected) {
                 disconnectDevice(dev)
             } else {
                 connectDevice(dev)
             }
         }
+    }
+
+    // The device the keyboard actions apply to.
+    function selectedDevice() {
+        if (root.selectedDeviceIndex < 0 || root.selectedDeviceIndex >= root.totalDeviceCount) return null
+        var item = root.flattenedDevices[root.selectedDeviceIndex]
+        return item && item.data ? item.data : null
+    }
+
+    // Favorites live in a state file, one address per line. The file is
+    // watched so the star in the device list follows a change made
+    // elsewhere.
+    FileView {
+        id: favoritesFile
+        path: Quickshell.env("HOME") + "/.local/state/nooxshell/bluetooth-favorites"
+        watchChanges: true
+        blockLoading: true
+        onFileChanged: reload()
+    }
+
+    Timer {
+        id: favoritesReload
+        interval: 300
+        onTriggered: favoritesFile.reload()
     }
 
     // Multi-Monitor Twin Dismissal (For secondary monitors only)
@@ -460,10 +583,36 @@ Scope {
                             })
                         }
                     }
+                    function onRenamingChanged() {
+                        // The rename field lives down in the details
+                        // column, so the focus is moved from here.
+                        if (root.renaming) {
+                            Qt.callLater(function() {
+                                renameInput.forceActiveFocus()
+                                renameInput.selectAll()
+                            })
+                        } else {
+                            Qt.callLater(function() {
+                                focusScope.forceActiveFocus()
+                            })
+                        }
+                    }
                 }
 
                 Keys.priority: Keys.BeforeItem
                 Keys.onPressed: function(event) {
+                    // While renaming, the text field owns the keyboard.
+                    if (root.renaming) {
+                        if (event.key === Qt.Key_Escape) {
+                            root.cancelRename()
+                            event.accepted = true
+                        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                            root.commitRename()
+                            event.accepted = true
+                        }
+                        return
+                    }
+
                     if (event.key === Qt.Key_Escape) {
                         root.isExpanded = false
                         root.hudVisible = false
@@ -471,14 +620,68 @@ Scope {
                         return
                     }
 
-                    // --- Scan / Discovery ('s' / 'S') ---
-                    if (event.key === Qt.Key_S || event.key === Qt.Key_s || event.text.toLowerCase() === "s") {
+                    // A modifier means the key belongs to something else.
+                    var plain = !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
+                    var key = event.text ? event.text.toLowerCase() : ""
+
+                    // --- Scan on/off ('s') ---
+                    if (plain && key === "s") {
                         root.triggerScan()
                         event.accepted = true
                         return
                     }
 
-                    // --- Arrow Down Navigation ---
+                    // --- Unpair ('u') ---
+                    if (plain && key === "u") {
+                        var unpairTarget = root.selectedDevice()
+                        if (unpairTarget) root.forgetDevice(unpairTarget)
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Un/Trust ('t') ---
+                    if (plain && key === "t") {
+                        var trustTarget = root.selectedDevice()
+                        if (trustTarget) root.toggleTrust(trustTarget)
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Un/Favorite ('f') ---
+                    if (plain && key === "f") {
+                        var favoriteTarget = root.selectedDevice()
+                        if (favoriteTarget) root.toggleFavorite(favoriteTarget)
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Rename ('e') ---
+                    if (plain && key === "e") {
+                        var renameTarget = root.selectedDevice()
+                        if (renameTarget) root.beginRename(renameTarget)
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Up (Arrow Up) ---
+                    if (event.key === Qt.Key_Up) {
+                        if (root.focusSection === "devices") {
+                            // Up from the first row escapes to the header
+                            // rather than wrapping to the bottom of the
+                            // list. Wrapping made everything above the
+                            // list unreachable without Tab.
+                            if (root.selectedDeviceIndex <= 0) {
+                                root.focusSection = "header"
+                                root.deviceActionFocused = false
+                            } else {
+                                root.selectDevice(-1)
+                            }
+                        }
+                        event.accepted = true
+                        return
+                    }
+
+                    // --- Down (Arrow Down) ---
                     if (event.key === Qt.Key_Down) {
                         if (root.focusSection === "header") {
                             if (root.totalDeviceCount > 0) {
@@ -489,22 +692,6 @@ Scope {
                             }
                         } else if (root.focusSection === "devices") {
                             root.selectDevice(1)
-                        }
-                        event.accepted = true
-                        return
-                    }
-
-                    // --- Arrow Up Navigation ---
-                    if (event.key === Qt.Key_Up) {
-                        if (root.focusSection === "devices") {
-                            root.selectDevice(-1)
-                        } else if (root.focusSection === "header") {
-                            if (root.totalDeviceCount > 0) {
-                                root.focusSection = "devices"
-                                root.selectedDeviceIndex = root.totalDeviceCount - 1
-                                root.deviceActionFocused = false
-                                root.revealDeviceCursor()
-                            }
                         }
                         event.accepted = true
                         return
@@ -546,7 +733,7 @@ Scope {
                         return
                     }
 
-                    // --- Activation (Return / Enter / Space) ---
+                    // --- Dis/Connect (Return / Enter / Space) ---
                     if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
                         if (root.focusSection === "header") {
                             root.activateHeader()
@@ -902,6 +1089,16 @@ Scope {
                                             font.pixelSize: 13
                                         }
 
+                                        // Favorite Star
+                                        Text {
+                                            text: "★"
+                                            color: Theme.yellow
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 11
+                                            visible: root.isFavorite(dev)
+                                            Layout.alignment: Qt.AlignVCenter
+                                        }
+
                                         // Device Name
                                         Text {
                                             text: dev.name || dev.deviceName || dev.address
@@ -1011,6 +1208,167 @@ Scope {
                                                 root.disconnectDevice(dev)
                                             } else {
                                                 root.connectDevice(dev)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // --- Rename Field (shown while renaming) ---
+                            RowLayout {
+                                id: renameRow
+                                Layout.fillWidth: true
+                                spacing: Theme.spacing
+                                visible: root.renaming
+                                opacity: root.renaming ? 1 : 0
+
+                                Behavior on opacity {
+                                    NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
+                                }
+
+                                Text {
+                                    text: "RENAME"
+                                    color: Theme.accent
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 22
+                                    radius: 4
+                                    color: Theme.surface
+                                    border.color: Theme.accent
+                                    border.width: 1
+
+                                    TextInput {
+                                        id: renameInput
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 6
+                                        anchors.rightMargin: 6
+                                        verticalAlignment: TextInput.AlignVCenter
+                                        text: root.renameText
+                                        color: Theme.foreground
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 11
+                                        selectByMouse: true
+                                        onAccepted: root.commitRename()
+                                        // onTextEdited rather than onTextChanged:
+                                        // a change handler would fight the
+                                        // binding to root.renameText.
+                                        onTextEdited: root.renameText = text
+                                    }
+                                }
+
+                                Text {
+                                    text: "ENTER ✓   ESC ✗"
+                                    color: Theme.darkForeground
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 9
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+                            }
+
+                            // --- Keybinding Legend (bluetui style) ---
+                            //
+                            // Two fixed rows rather than a flow: a flow's
+                            // implicit height depends on its width, which
+                            // is not known when the card measures itself,
+                            // so the second row was clipped.
+                            Item {
+                                id: legend
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 28
+                                visible: !root.renaming
+                                opacity: root.renaming ? 0 : 0.75
+
+                                Behavior on opacity {
+                                    NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
+                                }
+
+                                Row {
+                                    id: legendRow1
+                                    anchors.top: parent.top
+                                    anchors.left: parent.left
+                                    spacing: 0
+
+                                    Repeater {
+                                        model: [
+                                            { key: "s", label: "Scan on/off" },
+                                            { key: "u", label: "Unpair" },
+                                            { key: "↵", label: "Dis/Connect" },
+                                            { key: "t", label: "Un/Trust" }
+                                        ]
+
+                                        delegate: Row {
+                                            required property var modelData
+
+                                            spacing: 4
+
+                                            Text {
+                                                text: modelData.key
+                                                color: Theme.accent
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 10
+                                                font.bold: true
+                                                anchors.verticalCenter: parent.verticalCenter
+                                            }
+
+                                            Text {
+                                                text: modelData.label
+                                                color: Theme.darkForeground
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 10
+                                                anchors.verticalCenter: parent.verticalCenter
+                                            }
+
+                                            Text {
+                                                text: "|"
+                                                color: Theme.selection
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 10
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                rightPadding: 6
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Row {
+                                    id: legendRow2
+                                    anchors.top: legendRow1.bottom
+                                    anchors.left: parent.left
+                                    spacing: 0
+
+                                    Repeater {
+                                        model: [
+                                            { key: "f", label: "Un/Favorite" },
+                                            { key: "e", label: "Rename" },
+                                            { key: "⇥", label: "Nav" }
+                                        ]
+
+                                        delegate: Row {
+                                            required property var modelData
+
+                                            spacing: 4
+
+                                            Text {
+                                                text: modelData.key
+                                                color: Theme.accent
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 10
+                                                font.bold: true
+                                                anchors.verticalCenter: parent.verticalCenter
+                                            }
+
+                                            Text {
+                                                text: modelData.label
+                                                color: Theme.darkForeground
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 10
+                                                anchors.verticalCenter: parent.verticalCenter
                                             }
                                         }
                                     }
