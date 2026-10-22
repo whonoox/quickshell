@@ -12,6 +12,10 @@ Managed with the `nooxshell` command.
 bash <(curl -fsSL https://raw.githubusercontent.com/whonoox/quickshell/master/install.sh)
 ```
 
+The installer needs the whole shell — the manifest, the QML files, the
+shims — which a piped script does not carry. It fetches the repository
+into `~/.cache/nooxshell/repo` on first run and works from there.
+
 From a checkout:
 
 ```bash

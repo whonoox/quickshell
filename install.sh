@@ -6,6 +6,10 @@
 #   ./install.sh --dry-run       show what would change, touch nothing
 #   ./install.sh --yes           accept all defaults, no prompts
 #   ./install.sh --skip-deps     assume dependencies are already installed
+#   ./install.sh --no-start      do not start the shell afterwards
+#
+# One-liner install:
+#   bash <(curl -fsSL https://raw.githubusercontent.com/whonoox/quickshell/master/install.sh)
 #
 # Every file this script touches is copied into a timestamped backup
 # directory first, and the exact list is written to a manifest so
@@ -13,8 +17,9 @@
 
 set -euo pipefail
 
-REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-MANIFEST="$REPO_DIR/manifest.json"
+REPO_URL="${NOOXSHELL_REPO_URL:-https://github.com/whonoox/quickshell.git}"
+REPO_REF="${NOOXSHELL_REPO_REF:-master}"
+CACHE_DIR="${NOOXSHELL_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/nooxshell}"
 
 HOME_DIR="$HOME"
 CONFIG_DIR="$HOME_DIR/.config/quickshell"
@@ -46,12 +51,72 @@ fail() {
 }
 ok() { printf '\033[1;32m::\033[0m %s\n' "$*"; }
 
+# The installer deploys the shell from this directory: the manifest, the
+# QML files, the shims and the CLI all live here. When the script is
+# piped in rather than run from a checkout, that directory is a process
+# substitution (/dev/fd/63) and holds nothing, so the repository is
+# fetched first and the script re-executes from the clone.
+bootstrap() {
+  local script_dir
+  script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || true)"
+
+  if [[ -n $script_dir && -f $script_dir/manifest.json ]]; then
+    REPO_DIR="$script_dir"
+    MANIFEST="$REPO_DIR/manifest.json"
+    return 0
+  fi
+
+  info "No checkout found; fetching $REPO_URL"
+  command -v git >/dev/null 2>&1 ||
+    fail "git is required to install from a URL"
+
+  mkdir -p "$CACHE_DIR"
+
+  if [[ -d $CACHE_DIR/repo/.git ]]; then
+    info "Updating the cached checkout"
+    git -C "$CACHE_DIR/repo" fetch --depth 1 origin "$REPO_REF" ||
+      fail "could not fetch $REPO_URL"
+    git -C "$CACHE_DIR/repo" reset --hard "origin/$REPO_REF" ||
+      fail "could not update the cached checkout"
+  else
+    info "Cloning into $CACHE_DIR/repo"
+    git clone --depth 1 --branch "$REPO_REF" "$REPO_URL" "$CACHE_DIR/repo" ||
+      fail "could not clone $REPO_URL"
+  fi
+
+  [[ -f $CACHE_DIR/repo/manifest.json ]] ||
+    fail "the fetched checkout has no manifest.json"
+
+  # Re-exec from the clone so the rest of the script runs against a real
+  # directory. The arguments are passed through unchanged.
+  exec bash "$CACHE_DIR/repo/install.sh" "$@"
+}
+
+REPO_DIR=""
+MANIFEST=""
+
 run() {
   if (( DRY_RUN )); then
     printf '  would run: %s\n' "$*"
     return 0
   fi
   "$@"
+}
+
+usage() {
+  cat <<'USAGE'
+Usage: install.sh [options]
+
+Options:
+  --dry-run     show what would change, touch nothing
+  --yes, -y     accept all defaults, no prompts
+  --skip-deps   assume dependencies are already installed
+  --no-start    do not start the shell afterwards
+  -h, --help    show this help
+
+One-liner install:
+  bash <(curl -fsSL https://raw.githubusercontent.com/whonoox/quickshell/master/install.sh)
+USAGE
 }
 
 confirm() {
@@ -496,6 +561,7 @@ write_state() {
   (( DRY_RUN )) && return 0
 
   jq -n \
+    --arg name "$(manifest_get '.name')" \
     --arg version "$(manifest_get '.version')" \
     --arg installed_at "$(date -Iseconds)" \
     --arg repo "$REPO_DIR" \
@@ -504,7 +570,7 @@ write_state() {
     --arg hypr_require "$(expand_path "$(manifest_get '.hypr.require.file')")" \
     --arg omarchy_config "$OMARCHY_CONFIG" \
     '{
-       name: "omarchy-quickshell-islands",
+       name: $name,
        version: $version,
        installed_at: $installed_at,
        repo: $repo,
@@ -571,7 +637,7 @@ main() {
         shift
         ;;
       -h | --help)
-        sed -n '2,12p' "$0"
+        usage
         exit 0
         ;;
       *)
@@ -579,6 +645,10 @@ main() {
         ;;
     esac
   done
+
+  # A piped script has no checkout next to it, so fetch one and re-exec
+  # from there. The remaining arguments are passed through unchanged.
+  bootstrap "$@"
 
   [[ -f $MANIFEST ]] || fail "manifest not found: $MANIFEST"
   require_tools

@@ -15,8 +15,9 @@
 
 set -euo pipefail
 
-REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-MANIFEST="$REPO_DIR/manifest.json"
+REPO_URL="${NOOXSHELL_REPO_URL:-https://github.com/whonoox/quickshell.git}"
+REPO_REF="${NOOXSHELL_REPO_REF:-master}"
+CACHE_DIR="${NOOXSHELL_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/nooxshell}"
 
 STATE_DIR="$HOME/.local/state/nooxshell"
 STATE_FILE="$STATE_DIR/state.json"
@@ -39,6 +40,55 @@ fail() {
   exit 1
 }
 ok() { printf '\033[1;32m::\033[0m %s\n' "$*"; }
+
+usage() {
+  cat <<'USAGE'
+Usage: uninstall.sh [options]
+
+Options:
+  --dry-run     show what would be restored, touch nothing
+  -h, --help    show this help
+USAGE
+}
+
+# The uninstaller needs the manifest to know what it deployed. When the
+# script is piped in rather than run from a checkout, that directory is a
+# process substitution and holds nothing, so the repository is fetched
+# first and the script re-executes from the clone.
+bootstrap() {
+  local script_dir
+  script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || true)"
+
+  if [[ -n $script_dir && -f $script_dir/manifest.json ]]; then
+    REPO_DIR="$script_dir"
+    MANIFEST="$REPO_DIR/manifest.json"
+    return 0
+  fi
+
+  info "No checkout found; fetching $REPO_URL"
+  command -v git >/dev/null 2>&1 ||
+    fail "git is required to uninstall from a URL"
+
+  mkdir -p "$CACHE_DIR"
+
+  if [[ -d $CACHE_DIR/repo/.git ]]; then
+    git -C "$CACHE_DIR/repo" fetch --depth 1 origin "$REPO_REF" ||
+      fail "could not fetch $REPO_URL"
+    git -C "$CACHE_DIR/repo" reset --hard "origin/$REPO_REF" ||
+      fail "could not update the cached checkout"
+  else
+    git clone --depth 1 --branch "$REPO_REF" "$REPO_URL" "$CACHE_DIR/repo" ||
+      fail "could not clone $REPO_URL"
+  fi
+
+  [[ -f $CACHE_DIR/repo/manifest.json ]] ||
+    fail "the fetched checkout has no manifest.json"
+
+  exec bash "$CACHE_DIR/repo/uninstall.sh" "$@"
+}
+
+REPO_DIR=""
+MANIFEST=""
 
 run() {
   if (( DRY_RUN )); then
@@ -278,7 +328,7 @@ main() {
         shift
         ;;
       -h | --help)
-        sed -n '2,18p' "$0"
+        usage
         exit 0
         ;;
       *)
@@ -286,6 +336,10 @@ main() {
         ;;
     esac
   done
+
+  # A piped script has no checkout next to it, so fetch one and re-exec
+  # from there.
+  bootstrap "$@"
 
   [[ -f $MANIFEST ]] || fail "manifest not found: $MANIFEST"
 

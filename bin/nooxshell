@@ -370,8 +370,39 @@ cmd_ping() {
   echo "ok"
 }
 
+# The directory holding the installer and uninstaller. The state file
+# records where the shell was installed from, which is the only place
+# those scripts exist: the manifest deploys the shell files, not the
+# scripts that manage them.
+installer_repo() {
+  # An explicit override wins.
+  if [[ -n ${OMARCHY_ISLANDS_REPO:-} && -f $OMARCHY_ISLANDS_REPO/install.sh ]]; then
+    printf '%s' "$OMARCHY_ISLANDS_REPO"
+    return 0
+  fi
+
+  local recorded=""
+  if [[ -f "$HOME/.local/state/nooxshell/state.json" ]]; then
+    recorded="$(jq -r '.repo // empty' "$HOME/.local/state/nooxshell/state.json" 2>/dev/null || true)"
+  fi
+
+  if [[ -n $recorded && -f $recorded/install.sh ]]; then
+    printf '%s' "$recorded"
+    return 0
+  fi
+
+  if [[ -f $QS_PATH/install.sh ]]; then
+    printf '%s' "$QS_PATH"
+    return 0
+  fi
+
+  return 1
+}
+
 cmd_update() {
-  local repo="${OMARCHY_ISLANDS_REPO:-$QS_PATH}"
+  local repo
+  repo="$(installer_repo)" ||
+    fail "no installer found; re-run the one-liner install to restore it"
 
   if [[ -d $repo/.git ]]; then
     # A dirty tree means the user has local edits that a pull could
@@ -392,10 +423,16 @@ cmd_update() {
 }
 
 cmd_uninstall() {
-  local repo="${OMARCHY_ISLANDS_REPO:-$QS_PATH}"
-  local uninstaller="$repo/uninstall.sh"
-  [[ -f $uninstaller ]] || fail "no uninstaller at $uninstaller"
-  bash "$uninstaller"
+  local repo
+  repo="$(installer_repo)" || {
+    # The installer is gone, so the uninstaller cannot be run from it.
+    # The one-liner uninstall fetches a copy.
+    echo "nooxshell: no installer found; fetching the uninstaller" >&2
+    bash <(curl -fsSL "${NOOXSHELL_REPO_URL:-https://github.com/whonoox/quickshell.git}/raw/${NOOXSHELL_REPO_REF:-master}/uninstall.sh")
+    return
+  }
+
+  bash "$repo/uninstall.sh"
 }
 
 main() {

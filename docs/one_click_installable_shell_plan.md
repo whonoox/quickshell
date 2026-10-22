@@ -453,8 +453,34 @@ not a script, and `_omarchy-menu-shim`, which is a sourced fragment.
 bash <(curl -fsSL https://raw.githubusercontent.com/whonoox/quickshell/master/install.sh)
 ```
 
-Pin to a release tag rather than `master` for anything reproducible, and
-verify the checksum of the downloaded script.
+### How the piped install works
+
+The installer deploys the whole shell from its own directory: the
+manifest, the QML files, the shims and the CLI. A piped script has no such
+directory — `BASH_SOURCE` points at a process substitution
+(`/dev/fd/63`) — so the installer cannot find its own sources.
+
+It therefore bootstraps itself:
+
+1. Look for `manifest.json` next to the script. A checkout has one; a
+   pipe does not.
+2. If it is missing, clone the repository into
+   `${XDG_CACHE_HOME:-~/.cache}/nooxshell/repo` and re-exec the installer
+   from the clone, passing the arguments through unchanged.
+3. A second run updates the cached checkout in place rather than cloning
+   again.
+
+The clone is the source of truth for `nooxshell update` and
+`nooxshell uninstall` afterwards; `state.json` records its path.
+
+`NOOXSHELL_REPO_URL`, `NOOXSHELL_REPO_REF` and `NOOXSHELL_CACHE_DIR`
+override the repository, the ref and the cache location.
+
+Pin to a release tag rather than `master` for anything reproducible:
+
+```bash
+NOOXSHELL_REPO_REF=v1.0.0 bash <(curl -fsSL https://raw.githubusercontent.com/whonoox/quickshell/v1.0.0/install.sh)
+```
 
 The installer is idempotent: re-running it replaces the Hyprland block
 instead of appending a second one, and backs up the state before each run.
