@@ -39,6 +39,9 @@ NO_START=0
 BACKUP_DIR=""
 PRISTINE_DIR=""
 
+# Set when the pristine backup already exists, so it is left frozen.
+PRISTINE_FROZEN=0
+
 # Marker used to fence the block this installer owns inside hyprland.lua.
 HYPR_BEGIN_MARKER="-- quickshell-islands:begin"
 HYPR_END_MARKER="-- quickshell-islands:end"
@@ -200,6 +203,27 @@ prune_backups() {
   info "Pruned old backups, keeping the $keep most recent"
 }
 
+# Removes shims that an earlier version installed and this one no longer
+# does. They are not in the manifest's shim list, so the uninstaller
+# would not know about them either.
+remove_retired_shims() {
+  local entry
+  while IFS= read -r entry; do
+    [[ -n $entry ]] || continue
+    local dest
+    dest="$(expand_path "$entry")"
+
+    [[ -e $dest ]] || continue
+
+    if (( DRY_RUN )); then
+      printf '  would remove retired shim: %s\n' "$dest"
+    else
+      rm -f "$dest"
+      info "Removed the retired shim $dest"
+    fi
+  done < <(manifest_list '.retiredShims')
+}
+
 check_dependencies() {
   (( SKIP_DEPS )) && {
     info "Skipping dependency check"
@@ -252,11 +276,12 @@ backup_file() {
 
   local relative="${path#$HOME_DIR/}"
 
-  # The pristine copy is written once and never overwritten. A second
-  # install would otherwise capture the files the first install already
-  # deployed, and the uninstaller would then restore our own copies instead
-  # of the user's originals.
-  if [[ ! -e $PRISTINE_DIR/files/$relative ]]; then
+  # The pristine copy records the state before the *first* install, and it
+  # is frozen once it exists. Checking per file is not enough: a second
+  # install would add the files the first install deployed, and the
+  # uninstaller would then restore the shell's own copies instead of the
+  # user's originals.
+  if (( ! PRISTINE_FROZEN )) && [[ ! -e $PRISTINE_DIR/files/$relative ]]; then
     mkdir -p "$(dirname "$PRISTINE_DIR/files/$relative")"
     cp -a "$path" "$PRISTINE_DIR/files/$relative"
     printf '%s\n' "$relative" >>"$PRISTINE_DIR/backup_manifest.json"
@@ -587,6 +612,23 @@ write_state() {
   ok "Wrote state to $STATE_DIR/state.json"
 }
 
+# The X-Ray effect only works while the global decoration blur is on. The
+# shell's Hyprland module turns it on, but that needs a reload to take
+# effect, so this is checked after the reload rather than here.
+check_decoration_blur() {
+  local state
+  state="$(hyprctl getoption decoration:blur:enabled 2>/dev/null | head -1)"
+
+  if [[ $state == "bool: true"* ]]; then
+    ok "Decoration blur is enabled; the X-Ray edge will render"
+    return 0
+  fi
+
+  warn "Decoration blur is disabled; the islands will render flat"
+  warn "  the shell's Hyprland module enables it on the next reload"
+  warn "  check with: hyprctl getoption decoration:blur:enabled"
+}
+
 verify() {
   local failures=0
 
@@ -666,7 +708,13 @@ main() {
     PRISTINE_DIR="$STATE_DIR/pristine"
     mkdir -p "$BACKUP_DIR/files" "$PRISTINE_DIR/files"
     : >"$BACKUP_DIR/backup_manifest.json"
-    [[ -f $PRISTINE_DIR/backup_manifest.json ]] || : >"$PRISTINE_DIR/backup_manifest.json"
+    if [[ -f $PRISTINE_DIR/backup_manifest.json ]]; then
+      # The pristine copy already exists: it records the state before the
+      # first install and is frozen from here on.
+      PRISTINE_FROZEN=1
+    else
+      : >"$PRISTINE_DIR/backup_manifest.json"
+    fi
     info "Backup directory: $BACKUP_DIR"
     prune_backups
   fi
@@ -674,6 +722,7 @@ main() {
   check_dependencies
   install_files
   install_shims
+  remove_retired_shims
   check_brand_font
   install_hypr
   deconflict_hypr
@@ -705,6 +754,11 @@ main() {
   fi
 
   verify
+
+  # The decoration blur is set by the Hyprland module, which only takes
+  # effect on a reload. The reload is one of the hooks above, so the
+  # check happens after them.
+  check_decoration_blur
 
   ok "Install complete"
   cat <<'SUMMARY'

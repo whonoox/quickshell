@@ -1,9 +1,29 @@
 #!/usr/bin/env bash
+# Keeps the awww wallpaper layer in sync with Omarchy's background state.
+#
+# The wallpaper is drawn by awww, not by Omarchy's background plugin, so
+# something has to follow the current background symlink. This is that
+# something: it watches the symlink and redraws the wallpaper when it
+# changes.
+#
+# The shell's Hyprland module starts this at session start. It is also
+# started by the management CLI, because a session start does not happen
+# on a reload, and without it the wallpaper stays black until the next
+# login.
+
+set -uo pipefail
 
 TARGET="$HOME/.local/state/omarchy/current/background"
 DIR="$HOME/.local/state/omarchy/current"
+STATE_DIR="$HOME/.local/state/nooxshell"
+PID_FILE="$STATE_DIR/awww-bridge.pid"
 
-mkdir -p "$DIR"
+mkdir -p "$DIR" "$STATE_DIR"
+
+# Record the pid so a second bridge is not started, and so the CLI can
+# tell whether one is running without matching command lines.
+echo $$ >"$PID_FILE"
+trap 'rm -f "$PID_FILE"' EXIT
 
 # Ensure daemon is running and responsive
 if ! pgrep -x awww-daemon > /dev/null; then
@@ -24,7 +44,6 @@ fi
         BG="$(readlink -f "$TARGET")"
         if [[ -f "$BG" ]]; then
             awww img "$BG" --transition-type none
-            omarchy-shell -q background setInstant "$BG" 2>/dev/null || true
         fi
     fi
 ) &
@@ -35,7 +54,6 @@ inotifywait -m -q -e create,moved_to,attrib "$DIR" | while read -r directory eve
         BG="$(readlink -f "$TARGET")"
         if [[ -f "$BG" ]]; then
             awww img "$BG" --transition-type none
-            omarchy-shell -q background setInstant "$BG" 2>/dev/null || true
         fi
     fi
 done

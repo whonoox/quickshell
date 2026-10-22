@@ -24,8 +24,6 @@ install -Dm644 shims/_omarchy-menu-shim            ~/.local/bin/_omarchy-menu-sh
 install -Dm755 shims/omarchy-audio-output-volume  ~/.local/bin/omarchy-audio-output-volume
 install -Dm755 shims/omarchy-brightness-display   ~/.local/bin/omarchy-brightness-display
 install -Dm755 shims/omarchy-brightness-display-ddc ~/.local/bin/omarchy-brightness-display-ddc
-install -Dm755 shims/omarchy-theme-bg-set          ~/.local/bin/omarchy-theme-bg-set
-install -Dm755 shims/omarchy-theme-bg-switcher     ~/.local/bin/omarchy-theme-bg-switcher
 install -Dm755 shims/awww-omarchy-bridge           ~/.local/bin/awww-omarchy-bridge
 ```
 
@@ -55,15 +53,21 @@ against the active physical sink, then opens and refreshes the audio HUD.
 `omarchy-brightness-display` / `omarchy-brightness-display-ddc` — apply the
 backlight step via `brightnessctl` or DDC/CI, then open the brightness HUD.
 
-`omarchy-theme-bg-set` — points Omarchy's background symlink at the chosen
-image and syncs `awww` to it without a transition.
-
-`omarchy-theme-bg-switcher` — opens the Quickshell wallpaper picker instead of
-the stock switcher.
-
 `awww-omarchy-bridge` — a small daemon that keeps the `awww` wallpaper layer
 in sync with Omarchy's background state, including changes made by any
-switcher.
+switcher. It records its pid in
+`~/.local/state/nooxshell/awww-bridge.pid` so a second one is not started.
+
+## The theme is left to Omarchy
+
+The theme commands are **not** shadowed. `omarchy-theme-bg-set`,
+`omarchy-theme-bg-switcher` and `omarchy-theme-switcher` are Omarchy's own,
+so the stock switcher behaves exactly as it always did.
+
+The wallpaper is drawn by awww rather than by Omarchy's background plugin,
+so the bridge follows Omarchy's background symlink and redraws the
+wallpaper when it changes. The `omarchy-shell` shim forwards a theme
+change to this shell as well, so the islands follow the theme.
 
 ## Behaviour
 

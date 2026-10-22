@@ -83,6 +83,50 @@ Deliberately **excluded**: `quickshell-wallpaper-grid` (opaque backdrop),
 `wifi-panel-twin-dismiss` and `bluetooth-panel-twin-dismiss` (transparent
 click-catchers). Blurring them costs a pass and changes nothing.
 
+### 2.2a The X-Ray needs the global decoration blur
+
+A layer rule that asks for `xray` does **nothing** while
+`decoration:blur:enabled` is false. Hyprland's own issue tracker records
+this: *"turning it on or off does not affect anything, unless `blur` is
+also turned on"*. The layer rule would be registered and produce no
+visible effect.
+
+Omarchy's default look'n'feel ships:
+
+```lua
+decoration = {
+  rounding = 0,
+  blur = { enabled = false },
+}
+```
+
+So on a machine without a custom `looknfeel.lua`, the shell's layer rule
+alone gives a completely flat shell with no frosted edge. The decoration
+settings are therefore owned by the shell's own Hyprland module rather
+than left to the user's look'n'feel:
+
+```lua
+hl.config({
+  decoration = {
+    rounding = 20,          -- matches Theme.rounding
+    blur = {
+      enabled = true,
+      size = 10,
+      passes = 2,
+      noise = 0.15,
+      contrast = 0.75,
+    },
+  },
+})
+```
+
+The module is required last in `hyprland.lua`, so its values win. On a
+machine that already has these values the result is identical; on a
+fresh one the shell looks right from the first start.
+
+`nooxshell doctor` reports the decoration blur state, and the installer
+checks it after the Hyprland reload.
+
 ### 2.3 Hyprland Lua module resolution
 
 Omarchy's Lua bootstrap (`/usr/share/omarchy/default/hypr/bootstrap.lua`) sets:
@@ -210,13 +254,55 @@ sourced rather than executed, so it keeps mode `0644`.
 | `omarchy-audio-output-volume` | 0755 | Volume keys to the audio HUD |
 | `omarchy-brightness-display` | 0755 | Brightness keys to the brightness HUD |
 | `omarchy-brightness-display-ddc` | 0755 | Same, for DDC/CI external displays |
-| `omarchy-theme-bg-set` | 0755 | Sets the background and syncs awww |
-| `omarchy-theme-bg-switcher` | 0755 | Opens the Quickshell wallpaper picker |
 | `awww-omarchy-bridge` | 0755 | Keeps awww in sync with Omarchy's background state |
 
-`omarchy-theme-bg-switcher` and `awww-omarchy-bridge` previously existed
-only in `~/.local/bin` with no source in the repository. They are now
-versioned here, so the manifest can deploy them.
+`awww-omarchy-bridge` previously existed only in `~/.local/bin` with no
+source in the repository. It is now versioned here, so the manifest can
+deploy it.
+
+### 2.10 The theme and the wallpaper are left to Omarchy
+
+The shell does not shadow Omarchy's theme commands. `omarchy-theme-bg-set`,
+`omarchy-theme-bg-switcher` and `omarchy-theme-switcher` are the packaged
+ones, so Omarchy's own switcher works as it always did.
+
+The wallpaper is drawn by awww rather than by Omarchy's background plugin,
+so something has to follow Omarchy's background symlink. That is the
+bridge's job: it watches the symlink and redraws the wallpaper when it
+changes. It is started by the Hyprland module at session start, and by
+the management CLI whenever the shell starts, because a session start does
+not happen on a reload. Without it the wallpaper stays black until the
+next login.
+
+### 2.11 The theme arrives over IPC
+
+Omarchy tells the running shell about a new theme by calling
+`omarchy-shell shell applyTheme <colors> <shell>`, with both payloads
+base64-encoded. The packaged `omarchy-shell` targets the stock shell only,
+and this shell is a separate Quickshell instance, so it would never hear
+about a theme change.
+
+Watching the theme files is not enough either: `omarchy-theme-set` replaces
+the whole theme directory (`rm -rf`, then `mv`), which destroys the inode
+a file watch is attached to.
+
+So this shell exposes the same interface the stock shell does:
+
+```qml
+IpcHandler {
+    target: "shell"
+
+    function applyTheme(colorsB64: string, shellB64: string): string {
+        var colorsRaw = ""
+        try { colorsRaw = Qt.atob(String(colorsB64 || "")) } catch (e) { colorsRaw = "" }
+        if (colorsRaw) Theme.loadColors(colorsRaw)
+        return "ok"
+    }
+}
+```
+
+and the `omarchy-shell` shim forwards `shell applyTheme` to this instance
+as well, while the stock shell still receives it for the bar.
 
 ---
 
@@ -255,6 +341,7 @@ from Hyprland:
   loop with no process spawn)
 - the hardware keys (volume and brightness, which the shims answer)
 - the X-Ray blur layer rule
+- the decoration settings the X-Ray depends on (see §2.2a)
 - the autostart of the wallpaper bridge and the shell itself
 
 `install.sh` deploys it to `~/.config/hypr/quickshell-islands.lua` and adds
@@ -414,8 +501,7 @@ bash -n install.sh uninstall.sh bin/nooxshell
 bash -n shims/awww-omarchy-bridge shims/omarchy shims/omarchy-audio-output-volume \
         shims/omarchy-brightness-display shims/omarchy-brightness-display-ddc \
         shims/omarchy-menu shims/omarchy-menu-input shims/omarchy-menu-select \
-        shims/omarchy-osd shims/omarchy-shell shims/omarchy-theme-bg-set \
-        shims/omarchy-theme-bg-switcher
+        shims/omarchy-osd shims/omarchy-shell
 luac -p hypr/quickshell-islands.lua
 jq . manifest.json
 
@@ -444,6 +530,10 @@ not a script, and `_omarchy-menu-shim`, which is a sourced fragment.
 - `Super+Ctrl+Space` opens the wallpaper picker and the background changes.
 - `omarchy menu` opens the islands menu, and falls back to the stock menu
   when the shell is stopped.
+- `omarchy theme set <theme>` changes the islands' colours as well as the
+  desktop's, without a restart.
+- `omarchy theme bg-switcher` opens Omarchy's own switcher, and picking a
+  wallpaper changes the background rather than leaving it black.
 
 ---
 

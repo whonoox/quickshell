@@ -185,8 +185,13 @@ Scope {
         applyDone = false
         updateCameraTarget(selectedIndex)
 
-        // Trigger immediate background update without any grow transition
-        applyProc.command = ["bash", "-c", "awww img \"$1\" --transition-type none 2>/dev/null; omarchy-theme-bg-set \"$1\" 2>/dev/null", "_", path]
+        // Apply the background the same way Omarchy's own switcher does:
+        // update the current background symlink. The wallpaper bridge picks
+        // that up and redraws it with awww, which is the only writer of
+        // the wallpaper layer. Calling awww directly as well would race
+        // the bridge and the stock background plugin, and a lost race
+        // leaves a black wallpaper behind.
+        applyProc.command = ["bash", "-c", "omarchy-theme-bg-set \"$1\" 2>/dev/null", "_", path]
         applyProc.running = true
 
         zoomAnim.stop()

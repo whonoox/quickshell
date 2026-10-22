@@ -249,6 +249,22 @@ remove_installed() {
     count=$((count + 1))
   fi
 
+  # Shims an earlier version installed and this one no longer does.
+  local retired
+  while IFS= read -r retired; do
+    [[ -n $retired ]] || continue
+    local retired_path
+    retired_path="$(expand_path "$retired")"
+    if [[ -e $retired_path ]]; then
+      if (( DRY_RUN )); then
+        printf '  would remove: %s\n' "$retired_path"
+      else
+        rm -f "$retired_path"
+      fi
+      count=$((count + 1))
+    fi
+  done < <(manifest_list '.retiredShims')
+
   ok "Removed $count installed files"
 }
 

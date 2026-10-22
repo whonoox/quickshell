@@ -70,6 +70,18 @@ if [[ ${1:-} == "audioBar" || ${1:-} == "brightnessBar" || ${1:-} == "wallpaperP
   exit 0
 fi
 
+# Forward a theme change to this shell as well as the stock one.
+#
+# Omarchy tells the running shell about a new theme over IPC
+# (`omarchy-shell shell applyTheme <colors> <shell>`). The packaged
+# omarchy-shell targets the stock shell only, and this shell is a separate
+# Quickshell instance, so without this the islands would keep the old
+# palette. The stock shell still gets the call: the bar is its own.
+if [[ ${1:-} == "shell" && ${2:-} == "applyTheme" ]]; then
+  timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" \
+    qs ipc -n -p "$QS_PATH" call -- shell applyTheme "$3" "$4" >/dev/null 2>&1 || true
+fi
+
 # Anything that is not ours belongs to the omarchy shell. Re-add -q, which was
 # shifted off above.
 if [[ $1 != "notifications" ]]; then

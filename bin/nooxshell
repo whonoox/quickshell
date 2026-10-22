@@ -136,6 +136,19 @@ cmd_doctor() {
     echo "ipc:      not responding${ping_reply:+ ($ping_reply)}"
   fi
 
+  # The X-Ray effect needs the global decoration blur. A layer rule
+  # asking for xray does nothing while decoration:blur:enabled is false,
+  # so the panels render flat with no frosted edge.
+  local blur_state
+  blur_state="$(hyprctl getoption decoration:blur:enabled 2>/dev/null | head -1)"
+  if [[ $blur_state == "bool: true"* ]]; then
+    echo "xray:     decoration blur enabled"
+  else
+    echo "xray:     decoration blur is DISABLED"
+    echo "          the islands will render flat, with no frosted edge"
+    echo "          fix with: hyprctl reload  (the shell's Hyprland module sets it)"
+  fi
+
   # The theme file is what makes the panels use the live Omarchy palette.
   # An instance whose HOME does not have it falls back to the hardcoded
   # default colors, which is the visible symptom of a stray instance.
@@ -253,6 +266,7 @@ report_foreign_instances() {
 cmd_start() {
   if [[ -n $(instance_pid) ]]; then
     echo "nooxshell: already running (pid $(instance_pid))"
+    start_wallpaper_bridge
     return 0
   fi
   [[ -f $QS_PATH/shell.qml ]] || fail "no shell at $QS_PATH/shell.qml"
@@ -279,6 +293,7 @@ cmd_start() {
   while (( waited < 100 )); do
     if [[ $(ipc_call "${IPC_TARGETS[menu]}" ping) == "ok" ]]; then
       echo "nooxshell: started (pid $(instance_pid))"
+      start_wallpaper_bridge
       return 0
     fi
     sleep 0.1
@@ -286,6 +301,47 @@ cmd_start() {
   done
 
   fail "shell did not answer over IPC; check 'nooxshell log'"
+}
+
+# The wallpaper is drawn by awww, kept in sync with Omarchy's background
+# symlink by the bridge. The bridge is started by the Hyprland module at
+# session start, which does not happen on a reload, so after an install
+# the wallpaper would stay black until the next login.
+start_wallpaper_bridge() {
+  local bridge="$HOME/.local/bin/awww-omarchy-bridge"
+  local pid_file="$HOME/.local/state/nooxshell/awww-bridge.pid"
+
+  [[ -x $bridge ]] || return 0
+
+  # The bridge records its pid, so a running one is found by asking the
+  # process directly. Matching on the command line would also match any
+  # other process that merely mentions the name.
+  if [[ -f $pid_file ]]; then
+    local pid
+    pid="$(cat "$pid_file" 2>/dev/null)"
+    if [[ -n $pid ]] && kill -0 "$pid" 2>/dev/null; then
+      return 0
+    fi
+  fi
+
+  setsid -f "$bridge" >/dev/null 2>&1 || true
+
+  # Give it a moment to come up, then confirm it is running.
+  local waited=0
+  while (( waited < 30 )); do
+    if [[ -f $pid_file ]]; then
+      local pid
+      pid="$(cat "$pid_file" 2>/dev/null)"
+      if [[ -n $pid ]] && kill -0 "$pid" 2>/dev/null; then
+        return 0
+      fi
+    fi
+    sleep 0.1
+    waited=$((waited + 1))
+  done
+
+  warn "could not start the wallpaper bridge; the wallpaper may stay black"
+  return 0
 }
 
 cmd_stop() {

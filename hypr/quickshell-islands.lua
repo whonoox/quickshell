@@ -68,6 +68,35 @@ local function escape_pattern(text)
   return (text:gsub("([%.%+%[%]%(%)%^%$%|%?%*%\\])", "%%%1"))
 end
 
+-- The X-Ray effect needs the global decoration blur.
+--
+-- A layer rule asking for xray does nothing while
+-- decoration:blur:enabled is false, which is Omarchy's default. The layer
+-- rule below would then be applied and produce no visible effect at all.
+--
+-- The shell therefore owns these settings rather than depending on the
+-- user's look'n'feel: without them the islands render flat, which is the
+-- single most visible difference between the shell working and not.
+--
+-- The values match the ones this desktop was tuned with, so on a machine
+-- that already has them the result is identical. The rounding matches
+-- Theme.rounding, so the island corners line up with the window corners.
+function M.decorations()
+  hl.config({
+    decoration = {
+      rounding = 20,
+
+      blur = {
+        enabled = true,
+        size = 10,
+        passes = 2,
+        noise = 0.15,
+        contrast = 0.75,
+      },
+    },
+  })
+end
+
 function M.apply()
   for _, binding in ipairs(M.bindings) do
     hl.unbind(binding.key)
@@ -101,6 +130,7 @@ function M.autostart()
   o.launch_on_start("qs --no-duplicate")
 end
 
+M.decorations()
 M.apply()
 M.autostart()
 
