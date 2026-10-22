@@ -175,6 +175,29 @@ cmd_doctor() {
     echo "font:     Nuuxfont not installed; using the system font"
   fi
 
+  # Check that the Omarchy lock screen target is answering over IPC
+  local lock_status
+  lock_status="$(omarchy-shell lock status 2>/dev/null || true)"
+  if [[ $lock_status == *"sessionLocked"* || $lock_status == *"locked"* ]]; then
+    echo "lock:     ready"
+  else
+    echo "lock:     NOT RESPONDING"
+    echo "          Super+Ctrl+L and menu Lock will not lock the screen"
+    if [[ ${1:-} == "--fix" ]]; then
+      local helper="/usr/share/omarchy/bin/omarchy-shell-config"
+      if [[ -f $helper ]]; then
+        # shellcheck source=/dev/null
+        source "$helper"
+        local fix_prog='
+          .disabledPlugins = ((.disabledPlugins // []) | map(select(. != "omarchy.lock")))
+        '
+        if commit "$fix_prog" >/dev/null 2>&1; then
+          echo "  fixed: re-enabled omarchy.lock in shell.json"
+        fi
+      fi
+    fi
+  fi
+
   local others
   others="$(list_other_instances)"
 

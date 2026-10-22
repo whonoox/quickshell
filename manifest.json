@@ -123,8 +123,7 @@
       "omarchy.audio",
       "omarchy.background",
       "omarchy.menu",
-      "omarchy.notifications",
-      "omarchy.lock"
+      "omarchy.notifications"
     ]
   },
 

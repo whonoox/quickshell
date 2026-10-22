@@ -520,8 +520,15 @@ configure_omarchy() {
     # shellcheck source=/dev/null
     source "$helper"
     # Keep the plugins Omarchy already disabled and add ours on top.
+    # Also ensure omarchy.lock is NOT kept in disabledPlugins unless a custom lock is present.
     local program="$NORMALIZE"'
-      | .disabledPlugins = (((.disabledPlugins // []) | array_or_empty) + $plugins | unique)
+      | . as $root
+      | .disabledPlugins = (
+          ((.disabledPlugins // []) | array_or_empty)
+          + $plugins
+          | unique
+          | if (any(($root.plugins // [])[]; .id | endswith(".lock"))) then . else map(select(. != "omarchy.lock")) end
+        )
     '
     local plugin_json
     plugin_json="$(printf '%s\n' "$plugins" | jq -R . | jq -s .)"
