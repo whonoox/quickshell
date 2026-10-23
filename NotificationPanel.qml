@@ -515,14 +515,7 @@ Scope {
             Item {
                 id: tray
 
-                // The bottomRight contour runs its path along the item's right
-                // and bottom edges and strokes outward by borderWidth, so the
-                // painted card sits borderWidth OUTSIDE these bounds. Backing
-                // the margins off by that much is what makes the card meet the
-                // corner instead of floating a few pixels shy of it.
-                readonly property int paintOutset: Theme.borderWidth
-
-                width: 400 + 2 * Theme.borderWidth
+                width: 400 + Theme.borderWidth
                 height: list.height + (Theme.rounding + Theme.spacing) + (Theme.borderWidth + Theme.spacing)
 
                 Behavior on height {
@@ -531,7 +524,6 @@ Scope {
                 }
 
                 anchors.right: parent.right
-                anchors.rightMargin: -paintOutset
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: -(height + 60)
 
@@ -550,7 +542,7 @@ Scope {
                             traySlideAnim.stop()
                             tray.anchors.bottomMargin = -(tray.height + 60)
                             traySlideAnim.from = -(tray.height + 60)
-                            traySlideAnim.to = -tray.paintOutset
+                            traySlideAnim.to = 0
                             traySlideAnim.start()
                         } else {
                             traySlideAnim.stop()
@@ -563,7 +555,7 @@ Scope {
 
                 Component.onCompleted: {
                     if (root.isPresented) {
-                        tray.anchors.bottomMargin = -tray.paintOutset
+                        tray.anchors.bottomMargin = 0
                     }
                 }
 
@@ -573,6 +565,7 @@ Scope {
                     color: Theme.bgc
                     radius: Theme.rounding
                     cornerRadius: Theme.rounding
+                    borderWidth: Theme.borderWidth
                 }
 
                 ListView {
