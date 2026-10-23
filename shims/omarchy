@@ -16,9 +16,29 @@ set -euo pipefail
 # working wherever it is installed rather than only under ~/.local/bin.
 here="$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")"
 
+if [[ ${1-} == menu && ${2-} == images ]]; then
+  shift 2
+  exec "$here/omarchy-menu-images" "$@"
+fi
+
+if [[ ${1-} == menu && ${2-} == select ]]; then
+  shift 2
+  exec "$here/omarchy-menu-select" "$@"
+fi
+
+if [[ ${1-} == menu && ${2-} == input ]]; then
+  shift 2
+  exec "$here/omarchy-menu-input" "$@"
+fi
+
 if [[ ${1-} == menu ]]; then
   shift
   exec "$here/omarchy-menu" "$@"
+fi
+
+if [[ ${1-} == theme && ${2-} == bg && ${3-} == next ]]; then
+  shift 3
+  exec "$here/omarchy-theme-bg-next" "$@"
 fi
 
 exec /usr/bin/omarchy "$@"

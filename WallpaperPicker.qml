@@ -248,14 +248,46 @@ Scope {
         id: scanProc
         command: [
             "bash", "-c",
+            "thumb_dir=\"${XDG_CACHE_HOME:-$HOME/.cache}/nooxshell/thumbnails\"; " +
+            "mkdir -p \"$thumb_dir\"; " +
             "current_bg=$(readlink -f \"$HOME/.local/state/omarchy/current/background\" 2>/dev/null); " +
-            "echo \"CURRENT:$current_bg\"; " +
+            "if [ -n \"$current_bg\" ]; then " +
+            "  cur_ext=\"${current_bg##*.}\"; " +
+            "  cur_ext=\"$(echo \"$cur_ext\" | tr '[:upper:]' '[:lower:]')\"; " +
+            "  if [ \"$cur_ext\" = \"jxl\" ]; then " +
+            "    sig=$(stat -Lc '%s:%Y' \"$current_bg\" 2>/dev/null); " +
+            "    hash=$(printf '%s:%s' \"$current_bg\" \"$sig\" | md5sum | cut -d ' ' -f 1); " +
+            "    cur_thumb=\"$thumb_dir/$hash.jpg\"; " +
+            "    if [ ! -f \"$cur_thumb\" ]; then " +
+            "      vipsthumbnail \"$current_bg\" --size 880x496 --smartcrop=centre -o \"$cur_thumb\" 2>/dev/null || magick \"$current_bg\" -resize 880x496^ -gravity center -extent 880x496 \"$cur_thumb\" 2>/dev/null; " +
+            "    fi; " +
+            "    printf 'CURRENT:%s\\t%s\\n' \"$current_bg\" \"$cur_thumb\"; " +
+            "  else " +
+            "    printf 'CURRENT:%s\\n' \"$current_bg\"; " +
+            "  fi; " +
+            "else " +
+            "  echo \"CURRENT:\"; " +
+            "fi; " +
             "theme_name=$(cat \"$HOME/.local/state/omarchy/current/theme.name\" 2>/dev/null); " +
             "bg_dir=\"$HOME/.config/omarchy/backgrounds/$theme_name\"; " +
-            "if [ ! -d \"$bg_dir\" ] || [ -z \"$(find -L \"$bg_dir\" -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.webp' \\) 2>/dev/null)\" ]; then " +
+            "if [ ! -d \"$bg_dir\" ] || [ -z \"$(find -L \"$bg_dir\" -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.webp' -o -iname '*.jxl' \\) 2>/dev/null)\" ]; then " +
             "  bg_dir=\"$HOME/.local/state/omarchy/current/theme/backgrounds\"; " +
             "fi; " +
-            "find -L \"$bg_dir\" -maxdepth 1 -type f \\( -iname \"*.jpg\" -o -iname \"*.jpeg\" -o -iname \"*.png\" -o -iname \"*.gif\" -o -iname \"*.webp\" \\) -printf \"%p\\n\" 2>/dev/null | sort -V"
+            "find -L \"$bg_dir\" -maxdepth 1 -type f \\( -iname \"*.jpg\" -o -iname \"*.jpeg\" -o -iname \"*.png\" -o -iname \"*.gif\" -o -iname \"*.webp\" -o -iname \"*.jxl\" \\) -printf \"%p\\n\" 2>/dev/null | sort -V | while read -r img; do " +
+            "  ext=\"${img##*.}\"; " +
+            "  ext=\"$(echo \"$ext\" | tr '[:upper:]' '[:lower:]')\"; " +
+            "  if [ \"$ext\" = \"jxl\" ]; then " +
+            "    sig=$(stat -Lc '%s:%Y' \"$img\" 2>/dev/null); " +
+            "    hash=$(printf '%s:%s' \"$img\" \"$sig\" | md5sum | cut -d ' ' -f 1); " +
+            "    thumb=\"$thumb_dir/$hash.jpg\"; " +
+            "    if [ ! -f \"$thumb\" ]; then " +
+            "      vipsthumbnail \"$img\" --size 880x496 --smartcrop=centre -o \"$thumb\" 2>/dev/null || magick \"$img\" -resize 880x496^ -gravity center -extent 880x496 \"$thumb\" 2>/dev/null; " +
+            "    fi; " +
+            "    printf '%s\\t%s\\n' \"$img\" \"$thumb\"; " +
+            "  else " +
+            "    printf '%s\\t%s\\n' \"$img\" \"$img\"; " +
+            "  fi; " +
+            "done"
         ]
         stdout: StdioCollector {
             waitForEnd: true
@@ -264,6 +296,7 @@ Scope {
                 if (!raw) return
                 var lines = raw.split("\n")
                 var cur = ""
+                var curThumb = ""
                 var curName = ""
                 var list = []
                 var seenNames = {}
@@ -272,18 +305,27 @@ Scope {
                     var l = lines[i].trim()
                     if (!l) continue
                     if (l.indexOf("CURRENT:") === 0) {
-                        cur = l.substring(8).trim()
-                        if (cur) curName = cur.substring(cur.lastIndexOf("/") + 1)
+                        var curRaw = l.substring(8).trim()
+                        if (curRaw) {
+                            var curParts = curRaw.split("\t")
+                            cur = curParts[0].trim()
+                            curThumb = (curParts.length > 1 && curParts[1].trim()) ? curParts[1].trim() : cur
+                            if (cur) curName = cur.substring(cur.lastIndexOf("/") + 1)
+                        }
                         continue
                     }
-                    var name = l.substring(l.lastIndexOf("/") + 1)
+                    var parts = l.split("\t")
+                    var path = parts[0].trim()
+                    var thumb = (parts.length > 1 && parts[1].trim()) ? parts[1].trim() : path
+                    var name = path.substring(path.lastIndexOf("/") + 1)
                     if (seenNames[name]) continue
                     seenNames[name] = true
 
                     var ext = name.substring(name.lastIndexOf(".") + 1).toLowerCase()
                     var isAnim = (ext === "gif" || ext === "webp")
                     list.push({
-                        path: l,
+                        path: path,
+                        thumbnail: thumb,
                         name: name,
                         isAnimated: isAnim
                     })
@@ -294,6 +336,7 @@ Scope {
                     var curExt = curName.substring(curName.lastIndexOf(".") + 1).toLowerCase()
                     list.unshift({
                         path: cur,
+                        thumbnail: curThumb || cur,
                         name: curName,
                         isAnimated: (curExt === "gif" || curExt === "webp")
                     })
@@ -505,7 +548,7 @@ Scope {
                                 id: staticImg
                                 anchors.fill: parent
                                 fillMode: Image.PreserveAspectCrop
-                                source: modelData.path
+                                source: (modelData && modelData.thumbnail) ? (modelData.thumbnail.indexOf("file://") === 0 ? modelData.thumbnail : "file://" + modelData.thumbnail) : (modelData ? (modelData.path.indexOf("file://") === 0 ? modelData.path : "file://" + modelData.path) : "")
                                 asynchronous: true
                                 sourceSize: Qt.size(880, 496)
                                 visible: !cardItem.isAnimated || !cardItem.isSelected

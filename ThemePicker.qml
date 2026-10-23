@@ -251,13 +251,15 @@ Scope {
         id: scanProc
         command: [
             "bash", "-c",
+            "thumb_dir=\"${XDG_CACHE_HOME:-$HOME/.cache}/nooxshell/thumbnails\"; " +
+            "mkdir -p \"$thumb_dir\"; " +
             "find_preview() { " +
             "  local theme_path=\"$1\" preview name; " +
-            "  for name in preview.png preview.jpg preview.jpeg preview.webp preview.gif preview.bmp; do " +
+            "  for name in preview.png preview.jpg preview.jpeg preview.webp preview.gif preview.bmp preview.jxl; do " +
             "    preview=\"$(find -L \"$theme_path\" -maxdepth 1 -type f -iname \"$name\" -print -quit 2>/dev/null)\"; " +
             "    [ -n \"$preview\" ] && { printf '%s\\n' \"$preview\"; return; }; " +
             "  done; " +
-            "  find -L \"$theme_path/backgrounds\" -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.bmp' -o -iname '*.webp' \\) -print 2>/dev/null | sort | head -n 1; " +
+            "  find -L \"$theme_path/backgrounds\" -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.bmp' -o -iname '*.webp' -o -iname '*.jxl' \\) -print 2>/dev/null | sort | head -n 1; " +
             "}; " +
             "current=\"$(cat \"$HOME/.local/state/omarchy/current/theme.name\" 2>/dev/null)\"; " +
             "echo \"CURRENT:$current\"; " +
@@ -268,7 +270,18 @@ Scope {
             "    name=\"${theme_path##*/}\"; " +
             "    preview=\"$(find_preview \"$theme_path\")\"; " +
             "    [ -n \"$preview\" ] || continue; " +
-            "    printf '%s|%s\\n' \"$name\" \"$preview\"; " +
+            "    thumb=\"$preview\"; " +
+            "    ext=\"${preview##*.}\"; " +
+            "    ext=\"$(echo \"$ext\" | tr '[:upper:]' '[:lower:]')\"; " +
+            "    if [ \"$ext\" = \"jxl\" ]; then " +
+            "      sig=$(stat -Lc '%s:%Y' \"$preview\" 2>/dev/null); " +
+            "      hash=$(printf '%s:%s' \"$preview\" \"$sig\" | md5sum | cut -d ' ' -f 1); " +
+            "      thumb=\"$thumb_dir/$hash.jpg\"; " +
+            "      if [ ! -f \"$thumb\" ]; then " +
+            "        vipsthumbnail \"$preview\" --size 880x496 --smartcrop=centre -o \"$thumb\" 2>/dev/null || magick \"$preview\" -resize 880x496^ -gravity center -extent 880x496 \"$thumb\" 2>/dev/null; " +
+            "      fi; " +
+            "    fi; " +
+            "    printf '%s|%s|%s\\n' \"$name\" \"$preview\" \"$thumb\"; " +
             "  done; " +
             "done"
         ]
@@ -292,10 +305,13 @@ Scope {
                     var sep = l.indexOf("|")
                     if (sep === -1) continue
                     var name = l.substring(0, sep)
-                    var path = l.substring(sep + 1)
+                    var rest = l.substring(sep + 1)
+                    var sep2 = rest.indexOf("|")
+                    var path = (sep2 === -1) ? rest : rest.substring(0, sep2)
+                    var thumb = (sep2 === -1) ? rest : rest.substring(sep2 + 1)
                     if (!name || !path || seen[name]) continue
                     seen[name] = true
-                    list.push({ name: name, path: path })
+                    list.push({ name: name, path: path, thumbnail: thumb })
                 }
 
                 root.currentThemeName = cur
@@ -502,7 +518,7 @@ Scope {
                                     id: staticImg
                                     anchors.fill: parent
                                     fillMode: Image.PreserveAspectCrop
-                                    source: modelData.path
+                                    source: (modelData && modelData.thumbnail) ? (modelData.thumbnail.indexOf("file://") === 0 ? modelData.thumbnail : "file://" + modelData.thumbnail) : (modelData ? (modelData.path.indexOf("file://") === 0 ? modelData.path : "file://" + modelData.path) : "")
                                     asynchronous: true
                                     sourceSize: Qt.size(880, 496)
                                 }

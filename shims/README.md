@@ -24,6 +24,8 @@ install -Dm644 shims/_omarchy-menu-shim            ~/.local/bin/_omarchy-menu-sh
 install -Dm755 shims/omarchy-audio-output-volume  ~/.local/bin/omarchy-audio-output-volume
 install -Dm755 shims/omarchy-brightness-display   ~/.local/bin/omarchy-brightness-display
 install -Dm755 shims/omarchy-brightness-display-ddc ~/.local/bin/omarchy-brightness-display-ddc
+install -Dm755 shims/omarchy-menu-images           ~/.local/bin/omarchy-menu-images
+install -Dm755 shims/omarchy-theme-bg-next         ~/.local/bin/omarchy-theme-bg-next
 install -Dm755 shims/awww-omarchy-bridge           ~/.local/bin/awww-omarchy-bridge
 ```
 
@@ -46,6 +48,10 @@ and daemons emit, parsing the payload to summon `AudioBar` or `BrightnessBar`
 instead of the stock on-screen display.
 
 `omarchy-osd` — the same interception for the dedicated OSD entry point.
+
+`omarchy-theme-bg-next` — cycles to the next theme background, with JPEG-XL (`.jxl`) image format support enabled.
+
+`omarchy-menu-images` — image selector and thumbnail generator, with JPEG-XL (`.jxl`) discovery and caching enabled.
 
 `omarchy-audio-output-volume` — applies the volume change with `pactl`
 against the active physical sink, then opens and refreshes the audio HUD.
