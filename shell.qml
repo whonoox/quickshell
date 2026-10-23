@@ -50,4 +50,5 @@ Scope {
     WallpaperPicker{}
     ThemePicker{}
     ToggleBar{}
+    CursorXRay{}
 }

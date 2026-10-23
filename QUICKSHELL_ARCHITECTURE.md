@@ -156,6 +156,7 @@ To integrate cleanly with the host system without fighting existing Omarchy defa
       - `SUPER + CTRL + T`: `quickshell:timeToggle`
       - `SUPER + CTRL + P`: `quickshell:batteryToggle`
       - `SUPER + CTRL + SPACE`: `quickshell:wallpaperToggle`
+      - `SUPER + ALT + C`: `quickshell:cursorXRayToggle` (Cursor X-Ray mode)
    - Using `global` shortcuts eliminates intermediate shell spawns, routing keystrokes straight to Quickshell's event loop.
 4. **`looknfeel.lua`**:
    - Holds the user's own compositor preferences (gaps, rounding, decoration).
@@ -357,6 +358,7 @@ The following diagram illustrates the screen positions of each component in this
 | [`NotificationPanel.qml`](file:///NotificationPanel.qml) | `bottomRight` | Incoming desktop notifications or `SUPER + SHIFT + ALT + comma` |
 | [`WallpaperPicker.qml`](file:///WallpaperPicker.qml) | Center Modal | `SUPER + CTRL + SPACE` |
 | [`ThemePicker.qml`](file:///ThemePicker.qml) | Center Modal | `SUPER + SHIFT + CTRL + SPACE` |
+| [`CursorXRay.qml`](file:///CursorXRay.qml) | Dynamic Follower | `SUPER + ALT + C` or IPC (`cursorXRay toggle`) |
 | [`RoundedOverlay.qml`](file:///RoundedOverlay.qml) | All Corners | Persistent inward bezel rounding across all connected monitors |
 
 ### 6.6 Bluetooth Bar Keys

@@ -38,6 +38,7 @@ M.bindings = {
   { key = "SUPER + SHIFT + CTRL + SPACE", desc = "Theme switcher", dispatch = "quickshell:themeToggle" },
   { key = "SUPER + ALT + N", desc = "Notification DND toggle", dispatch = "quickshell:notifToggle" },
   { key = "SUPER + ALT + M", desc = "Microphone mute toggle", dispatch = "quickshell:micToggle" },
+  { key = "SUPER + ALT + C", desc = "Cursor X-Ray toggle", dispatch = "quickshell:cursorXRayToggle" },
 }
 
 -- Hardware keys. Omarchy binds these to the same command names by default;
@@ -70,6 +71,7 @@ M.island_namespaces = {
   "battery-panel-main",
   "notification-panel-main",
   "toggle-panel-main",
+  "cursor-xray-main",
   "quickshell-omarchy-menu",
   "scoop-v2-inspector",
   "quickshell",

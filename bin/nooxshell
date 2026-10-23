@@ -25,6 +25,8 @@ declare -A IPC_TARGETS=(
   [wallpaper]="wallpaperPicker"
   [theme]="themePicker"
   [notifications]="notifications"
+  [cursor]="cursorXRay"
+  [xray]="cursorXRay"
 )
 
 # The menu is routed by route, not by a plain toggle: its handler takes the
@@ -65,7 +67,7 @@ Commands:
   help                 Show this help
 
 Modules: menu, wifi, bluetooth, time, audio, battery, brightness,
-         wallpaper, theme, notifications
+         wallpaper, theme, notifications, cursor, xray
 
 Environment:
   OMARCHY_ISLANDS_QS_PATH       Config path (default ~/.config/quickshell)

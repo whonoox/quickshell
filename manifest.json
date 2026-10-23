@@ -57,6 +57,7 @@
     { "src": "BluetoothModel.js", "dest": "~/.config/quickshell/BluetoothModel.js" },
     { "src": "BrightnessBar.qml", "dest": "~/.config/quickshell/BrightnessBar.qml" },
     { "src": "ConfirmDialog.qml", "dest": "~/.config/quickshell/ConfirmDialog.qml" },
+    { "src": "CursorXRay.qml", "dest": "~/.config/quickshell/CursorXRay.qml" },
     { "src": "MenuModel.js", "dest": "~/.config/quickshell/MenuModel.js" },
     { "src": "NotificationLogic.js", "dest": "~/.config/quickshell/NotificationLogic.js" },
     { "src": "NotificationPanel.qml", "dest": "~/.config/quickshell/NotificationPanel.qml" },
@@ -85,6 +86,8 @@
     { "src": "decorations/corner-center.svg", "dest": "~/.config/quickshell/decorations/corner-center.svg" },
     { "src": "decorations/corner-left.svg", "dest": "~/.config/quickshell/decorations/corner-left.svg" },
     { "src": "decorations/corner-right.svg", "dest": "~/.config/quickshell/decorations/corner-right.svg" },
+    { "src": "decorations/cursor.svg", "dest": "~/.config/quickshell/decorations/cursor.svg" },
+    { "src": "decorations/cursor-fill.svg", "dest": "~/.config/quickshell/decorations/cursor-fill.svg" },
     { "src": "decorations/gauge.svg", "dest": "~/.config/quickshell/decorations/gauge.svg" },
     { "src": "decorations/lightning-fill-red.svg", "dest": "~/.config/quickshell/decorations/lightning-fill-red.svg" },
     { "src": "decorations/lightning-fill.svg", "dest": "~/.config/quickshell/decorations/lightning-fill.svg" },
@@ -93,7 +96,9 @@
     { "src": "decorations/microphone-slash.svg", "dest": "~/.config/quickshell/decorations/microphone-slash.svg" },
     { "src": "decorations/microphone.svg", "dest": "~/.config/quickshell/decorations/microphone.svg" },
     { "src": "decorations/qr-code.svg", "dest": "~/.config/quickshell/decorations/qr-code.svg" },
-    { "src": "decorations/signal.svg", "dest": "~/.config/quickshell/decorations/signal.svg" }
+    { "src": "decorations/signal.svg", "dest": "~/.config/quickshell/decorations/signal.svg" },
+    { "src": "bin/cursor-tracker", "dest": "~/.config/quickshell/bin/cursor-tracker" },
+    { "src": "bin/cursor-tracker.py", "dest": "~/.config/quickshell/bin/cursor-tracker.py" }
   ],
 
   "shims": [
