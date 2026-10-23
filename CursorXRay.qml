@@ -162,13 +162,7 @@ Scope {
         }
     }
 
-    // ---- Global Shortcuts & IPC Handlers ----
-    GlobalShortcut {
-        name: "cursorXRayToggle"
-        description: "Toggle Cursor X-Ray mode"
-        appid: "quickshell"
-        onPressed: root.toggle()
-    }
+    // ---- IPC Handlers ----
 
     IpcHandler {
         target: "cursorXRay"
