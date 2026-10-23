@@ -1,8 +1,12 @@
 #!/bin/bash
-# Intercept volume and brightness OSD and route to Quickshell HUDs directly, suppressing stock Omarchy OSD.
+# Intercept volume, brightness and microphone OSD and route to Quickshell HUDs directly, suppressing stock Omarchy OSD.
 
 for arg in "$@"; do
-  if [[ $arg =~ (volume-[a-z]+|volume|muted) ]]; then
+  if [[ $arg =~ microphone ]]; then
+    QS_PATH="${NOTIFICATION_QS_PATH:-$HOME/.config/quickshell}"
+    timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- toggleBar revealMic >/dev/null 2>&1 || true
+    exit 0
+  elif [[ $arg =~ (volume-[a-z]+|volume|muted) ]]; then
     QS_PATH="${NOTIFICATION_QS_PATH:-$HOME/.config/quickshell}"
     timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- audioBar open >/dev/null 2>&1 || true
     timeout --kill-after=1s "${OMARCHY_SHELL_IPC_TIMEOUT:-2s}" qs ipc -n -p "$QS_PATH" call -- audioBar refresh >/dev/null 2>&1 || true

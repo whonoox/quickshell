@@ -110,6 +110,16 @@ Scope {
             return ToggleState.micMuted ? "muted" : "live"
         }
 
+        function revealMic(): string {
+            root.reveal("mic")
+            return "ok"
+        }
+
+        function revealNotif(): string {
+            root.reveal("notif")
+            return "ok"
+        }
+
         function notifStatus(): string {
             return ToggleState.dnd ? "dnd_on" : "dnd_off"
         }
