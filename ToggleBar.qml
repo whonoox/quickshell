@@ -39,6 +39,11 @@ Scope {
         root.reveal("mic")
     }
 
+    function toggleCursor() {
+        ToggleState.toggleCursorXRay()
+        root.reveal("cursor")
+    }
+
     Connections {
         target: ToggleState
         function onMicMutedChanged() {
@@ -49,6 +54,11 @@ Scope {
         function onDndChanged() {
             if (root._initialized) {
                 root.reveal("notif")
+            }
+        }
+        function onCursorXRayChanged() {
+            if (root._initialized) {
+                root.reveal("cursor")
             }
         }
     }
@@ -74,6 +84,13 @@ Scope {
         description: "Toggle microphone mute"
         appid: "quickshell"
         onPressed: root.toggleMic()
+    }
+
+    GlobalShortcut {
+        name: "cursorXRayToggle"
+        description: "Toggle Cursor X-Ray mode"
+        appid: "quickshell"
+        onPressed: root.toggleCursor()
     }
 
     // ------------------------------------------------------------------
@@ -110,6 +127,11 @@ Scope {
             return ToggleState.micMuted ? "muted" : "live"
         }
 
+        function toggleCursor(): string {
+            root.toggleCursor()
+            return ToggleState.cursorXRay ? "on" : "off"
+        }
+
         function revealMic(): string {
             root.reveal("mic")
             return "ok"
@@ -117,6 +139,11 @@ Scope {
 
         function revealNotif(): string {
             root.reveal("notif")
+            return "ok"
+        }
+
+        function revealCursor(): string {
+            root.reveal("cursor")
             return "ok"
         }
 
@@ -128,10 +155,15 @@ Scope {
             return ToggleState.micMuted ? "muted" : "live"
         }
 
+        function cursorStatus(): string {
+            return ToggleState.cursorXRay ? "on" : "off"
+        }
+
         function status(): string {
             return JSON.stringify({
                 notifDnd: ToggleState.dnd,
                 micMuted: ToggleState.micMuted,
+                cursorXRay: ToggleState.cursorXRay,
                 visible: !root.hideBar,
                 lastTriggered: root.lastTriggered
             })
@@ -349,6 +381,54 @@ Scope {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: root.toggleMic()
+                            }
+                        }
+
+                        // 3. Cursor X-Ray Toggle (No button background, no border)
+                        Item {
+                            id: cursorButton
+                            width: 24
+                            height: 24
+
+                            readonly property bool isXRay: ToggleState.cursorXRay
+                            readonly property bool isTriggered: root.lastTriggered === "cursor"
+                            readonly property bool isOtherTriggered: root.lastTriggered !== "none" && !isTriggered
+                            readonly property bool isHovered: cursorMouse.containsMouse
+
+                            scale: isHovered ? 1.1 : (isTriggered ? 1.0 : (isOtherTriggered ? 0.75 : 0.9))
+                            opacity: isHovered ? 1.0 : (isTriggered ? 1.0 : (isOtherTriggered ? 0.4 : 0.85))
+
+                            Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                            Image {
+                                id: cursorRawIcon
+                                anchors.centerIn: parent
+                                width: 16
+                                height: 16
+                                sourceSize.width: 32
+                                sourceSize.height: 32
+                                source: "decorations/cursor.svg"
+                                fillMode: Image.PreserveAspectFit
+                                visible: false
+                            }
+
+                            MultiEffect {
+                                anchors.fill: cursorRawIcon
+                                source: cursorRawIcon
+                                colorization: 1.0
+                                colorizationColor: cursorButton.isXRay
+                                    ? Theme.brand
+                                    : (cursorButton.isHovered ? Theme.brightForeground : Theme.darkForeground)
+                                Behavior on colorizationColor { ColorAnimation { duration: 150 } }
+                            }
+
+                            MouseArea {
+                                id: cursorMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.toggleCursor()
                             }
                         }
                     }

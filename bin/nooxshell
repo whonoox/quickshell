@@ -421,6 +421,9 @@ cmd_stop() {
     return 0
   }
 
+  # Ensure hardware cursor is visible if X-Ray was active
+  hyprctl eval 'hl.config({ cursor = { invisible = false } })' >/dev/null 2>&1 || true
+
   qs kill -p "$QS_PATH" >/dev/null 2>&1 || kill "$pid" 2>/dev/null || true
 
   # Wait for the instance to disappear from the registry. Starting a new one

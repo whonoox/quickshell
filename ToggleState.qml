@@ -120,6 +120,19 @@ QtObject {
         }
     }
 
+    // ------------------------------------------------------------------
+    // Cursor X-Ray State
+    // ------------------------------------------------------------------
+    property bool cursorXRay: false
+
+    function toggleCursorXRay() {
+        setCursorXRay(!root.cursorXRay)
+    }
+
+    function setCursorXRay(val) {
+        root.cursorXRay = !!val
+    }
+
     Component.onCompleted: {
         notifSettingsRead.reload()
         root.refreshMic()

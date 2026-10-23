@@ -8,14 +8,17 @@ import QtQuick.Shapes
 Scope {
     id: root
 
-    // ---- State & Geometry ----
-    property bool active: false
+    // Synchronized with global ToggleState singleton
+    property bool active: ToggleState.cursorXRay
     property real cursorX: 0
     property real cursorY: 0
 
     // Standard cursor size (width & height in screen pixels)
-    // Wayland/Hyprland default is 24px, 28px provides high clarity and visibility
-    property real cursorSize: 28
+    // Scaled down to 14px (half of previous 28px) per user request
+    property real cursorSize: 14
+
+    // Border width in screen pixels (1.0 = razor-thin 1px hairline border, 0.0 = borderless)
+    property real borderWidth: 1.0
 
     // Phosphor cursor vector coordinate metrics:
     // Apex of arrow tip in Phosphor 256x256 viewBox is at (36.72, 36.72)
@@ -29,40 +32,42 @@ Scope {
     property real cursorScaleFactor: 0.85
     property real cursorOpacity: 0.0
 
-    // Phosphor regular cursor outline path (256x256 viewBox)
-    readonly property string phosphorOutlinePath: "M168,132.69,214.08,115l.33-.13A16,16,0,0,0,213,85.07L52.92,32.8A15.95,15.95,0,0,0,32.8,52.92L85.07,213a15.82,15.82,0,0,0,14.41,11l.78,0a15.84,15.84,0,0,0,14.61-9.59l.13-.33L132.69,168,184,219.31a16,16,0,0,0,22.63,0l12.68-12.68a16,16,0,0,0,0-22.63ZM195.31,208,144,156.69a16,16,0,0,0-26,4.93c0,.11-.09.22-.13.32l-17.65,46L48,48l159.85,52.2-45.95,17.64-.32.13a16,16,0,0,0-4.93,26h0L208,195.31Z"
-
     // Phosphor filled cursor body polygon (outer boundary)
     readonly property string phosphorFillPath: "M220.49,207.8,207.8,220.49a12,12,0,0,1-17,0l-56.57-56.57L115,214.08l-.13.33A15.84,15.84,0,0,1,100.26,224l-.78,0a15.82,15.82,0,0,1-14.41-11L32.8,52.92A15.95,15.95,0,0,1,52.92,32.8L213,85.07a16,16,0,0,1,1.41,29.8l-.33.13-50.16,19.27,56.57,56.56A12,12,0,0,1,220.49,207.8Z"
 
+    onActiveChanged: {
+        if (root.active) {
+            root.open()
+        } else {
+            root.close()
+        }
+    }
+
+    Component.onDestruction: {
+        // Guarantee hardware cursor is restored when quickshell terminates
+        Quickshell.execDetached(["hyprctl", "eval", "hl.config({ cursor = { invisible = false } })"])
+    }
+
     // ---- Open / Close / Toggle Flow ----
     function open() {
-        if (root.active) return
         initPosProc.running = true
-        root.active = true
         showAnim.stop()
         hideAnim.stop()
         showAnim.start()
-        notifyProc.command = ["bash", "-c", "omarchy-notification-send 'X-Ray Cursor: Active' -t 1200 2>/dev/null || true"]
-        notifyProc.running = true
+        // Hide the hardware cursor so only the X-Ray cursor is visible
+        Quickshell.execDetached(["hyprctl", "eval", "hl.config({ cursor = { invisible = true } })"])
     }
 
     function close() {
-        if (!root.active) return
-        root.active = false
         showAnim.stop()
         hideAnim.stop()
         hideAnim.start()
-        notifyProc.command = ["bash", "-c", "omarchy-notification-send 'X-Ray Cursor: Inactive' -t 1200 2>/dev/null || true"]
-        notifyProc.running = true
+        // Restore the hardware cursor
+        Quickshell.execDetached(["hyprctl", "eval", "hl.config({ cursor = { invisible = false } })"])
     }
 
     function toggle() {
-        if (root.active) {
-            root.close()
-        } else {
-            root.open()
-        }
+        ToggleState.toggleCursorXRay()
     }
 
     // ---- Snappy Micro-Animations ----
@@ -106,7 +111,7 @@ Scope {
         }
     }
 
-    // ---- Initial Position & Notification Helpers ----
+    // ---- Initial Position Helper ----
     Process {
         id: initPosProc
         command: ["hyprctl", "cursorpos"]
@@ -125,10 +130,6 @@ Scope {
                 }
             }
         }
-    }
-
-    Process {
-        id: notifyProc
     }
 
     // ---- Live Cursor Tracking Process (120Hz Polling) ----
@@ -172,11 +173,12 @@ Scope {
     IpcHandler {
         target: "cursorXRay"
         function toggle(): string { root.toggle(); return root.active ? "on" : "off" }
-        function open(): string { root.open(); return "ok" }
-        function close(): string { root.close(); return "ok" }
+        function open(): string { ToggleState.setCursorXRay(true); return "ok" }
+        function close(): string { ToggleState.setCursorXRay(false); return "ok" }
         function status(): string { return root.active ? "on" : "off" }
         function getPos(): string { return root.cursorX + " " + root.cursorY }
-        function setSize(val: real): string { if (val >= 16 && val <= 64) { root.cursorSize = val; return "ok" }; return "invalid" }
+        function setSize(val: real): string { if (val >= 8 && val <= 48) { root.cursorSize = val; return "ok" }; return "invalid" }
+        function setBorderWidth(val: real): string { if (val >= 0 && val <= 8) { root.borderWidth = val; return "ok" }; return "invalid" }
         function ping(): string { return "ok" }
     }
 
@@ -235,8 +237,8 @@ Scope {
 
                 // 1. Subtle drop-shadow for contrast over bright backgrounds
                 Shape {
-                    x: 1.2
-                    y: 1.2
+                    x: 1
+                    y: 1
                     width: 256
                     height: 256
                     preferredRendererType: Shape.CurveRenderer
@@ -249,7 +251,10 @@ Scope {
 
                     ShapePath {
                         fillColor: Qt.rgba(0, 0, 0, 0.40)
-                        strokeWidth: 0
+                        strokeWidth: root.borderWidth > 0 ? (root.borderWidth / root.cursorScale) : 0
+                        strokeColor: root.borderWidth > 0 ? Qt.rgba(0, 0, 0, 0.40) : "transparent"
+                        joinStyle: ShapePath.RoundJoin
+                        capStyle: ShapePath.RoundCap
                         PathSvg {
                             path: root.phosphorFillPath
                         }
@@ -268,21 +273,15 @@ Scope {
                         yScale: root.cursorScale
                     }
 
-                    // Interior X-Ray Aperture (alpha > 0.005 triggers Hyprland xray blur)
+                    // Interior X-Ray Aperture (alpha > 0.005 triggers Hyprland xray blur) + Thin Hairline Border
                     ShapePath {
-                        fillColor: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.08)
-                        strokeWidth: 0
+                        fillColor: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12)
+                        strokeWidth: root.borderWidth > 0 ? (root.borderWidth / root.cursorScale) : 0
+                        strokeColor: root.borderWidth > 0 ? Theme.accent : "transparent"
+                        joinStyle: ShapePath.RoundJoin
+                        capStyle: ShapePath.RoundCap
                         PathSvg {
                             path: root.phosphorFillPath
-                        }
-                    }
-
-                    // Phosphor Cursor Signature Outline in Theme Accent
-                    ShapePath {
-                        fillColor: Theme.accent
-                        strokeWidth: 0
-                        PathSvg {
-                            path: root.phosphorOutlinePath
                         }
                     }
                 }
