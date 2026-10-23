@@ -68,7 +68,7 @@ Scope {
             color: "transparent"
 
             WlrLayershell.namespace: "scoop-v2-inspector"
-            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.layer: WlrLayer.Top
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
             // Dimmed semi-transparent backdrop

@@ -539,7 +539,7 @@ Scope {
             color: "transparent"
 
             WlrLayershell.namespace: "workspaces-panel-main"
-            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.layer: WlrLayer.Top
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
             mask: Region {

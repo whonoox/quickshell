@@ -88,7 +88,7 @@ The system is constructed on top of several native Linux graphics and Wayland sp
 
 ### 2.2 Wayland Layer Shell Protocol (`wlr-layer-shell-unstable-v1`)
 - All surfaces are instantiated as `PanelWindow` components bound to `WlrLayershell`.
-- Uses `WlrLayer.Overlay` for floating HUDs, popouts, and menu surfaces to guarantee rendering above standard application windows without disrupting window tiling.
+- Uses `WlrLayer.Top` for floating HUDs, popouts, and menu surfaces to guarantee rendering above standard application windows without disrupting window tiling, while reserving `WlrLayer.Overlay` exclusively for the `CursorXRay` pointer overlay so it always renders above all desktop panels.
 - Uses `ExclusionMode.Ignore` so floating islands do not force window manager resizes or steal layout space from tiled clients.
 - Uses `Region { item: ... }` masking to restrict input capture exclusively to the visible vector boundary, ensuring 100% mouse click-through across the rest of the display.
 

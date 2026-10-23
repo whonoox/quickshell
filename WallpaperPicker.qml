@@ -398,7 +398,7 @@ Scope {
         color: "transparent"
 
         WlrLayershell.namespace: "quickshell-wallpaper-grid"
-        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         exclusionMode: ExclusionMode.Ignore
 

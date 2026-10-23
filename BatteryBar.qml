@@ -111,7 +111,7 @@ Scope{
             anchors.right: true
 
             WlrLayershell.namespace: "battery-panel-main"
-            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.layer: WlrLayer.Top
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             exclusionMode: ExclusionMode.Ignore
 

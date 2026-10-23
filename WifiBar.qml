@@ -755,7 +755,7 @@ Scope {
                 exclusionMode: ExclusionMode.Ignore
 
                 WlrLayershell.namespace: "wifi-panel-twin-dismiss"
-                WlrLayershell.layer: WlrLayer.Overlay
+                WlrLayershell.layer: WlrLayer.Top
                 WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
                 MouseArea {
@@ -790,7 +790,7 @@ Scope {
             color: "transparent"
 
             WlrLayershell.namespace: "wifi-panel-main"
-            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.layer: WlrLayer.Top
             // Exclusive prime for 75ms forces Hyprland to transfer focus immediately, then settles on OnDemand
             WlrLayershell.keyboardFocus: root.isExpanded
                 ? (root.focusPrimed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive)

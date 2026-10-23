@@ -138,7 +138,7 @@ Scope {
             anchors.left: true
 
             WlrLayershell.namespace: "brightness-panel-main"
-            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.layer: WlrLayer.Top
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             exclusionMode: ExclusionMode.Ignore
 

@@ -168,7 +168,7 @@ Scope {
             color: "transparent"
 
             WlrLayershell.namespace: "time-panel-main"
-            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.layer: WlrLayer.Top
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
             // Strict mask: only the visible island captures input; 100% click-through elsewhere

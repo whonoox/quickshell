@@ -192,7 +192,7 @@ Scope {
             anchors.left: true
 
             WlrLayershell.namespace: "audio-panel-main"
-            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.layer: WlrLayer.Top
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             exclusionMode: ExclusionMode.Ignore
 

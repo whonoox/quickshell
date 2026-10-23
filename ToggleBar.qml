@@ -190,7 +190,7 @@ Scope {
             color: "transparent"
 
             WlrLayershell.namespace: "toggle-panel-main"
-            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.layer: WlrLayer.Top
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
             mask: Region {
