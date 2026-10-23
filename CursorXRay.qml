@@ -18,7 +18,7 @@ Scope {
     property real cursorSize: 14
 
     // Border width in screen pixels (1.0 = razor-thin 1px hairline border, 0.0 = borderless)
-    property real borderWidth: 1.0
+    property real borderWidth: 0.0
 
     // Phosphor cursor vector coordinate metrics:
     // Apex of arrow tip in Phosphor 256x256 viewBox is at (36.72, 36.72)
