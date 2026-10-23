@@ -49,4 +49,5 @@ Scope {
     ScoopTestPanel{}
     WallpaperPicker{}
     ThemePicker{}
+    ToggleBar{}
 }

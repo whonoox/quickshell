@@ -24,8 +24,7 @@ Scope {
     readonly property string home: Quickshell.env("HOME")
     readonly property string settingsPath: home + "/.local/state/omarchy/notifications.json"
 
-    property bool doNotDisturb: false
-    property bool _hydrating: false
+    readonly property bool doNotDisturb: ToggleState.dnd
 
     // Live Notification objects by originalId. Deliberately a JS map and not a
     // ListModel role: a QObject stored in a model role becomes a dangling
@@ -362,49 +361,8 @@ Scope {
     // ------------------------------------------------------------------
 
     function setDoNotDisturb(value) {
-        root.doNotDisturb = !!value
+        ToggleState.setDnd(value)
     }
-
-    // Persisted so the choice survives a shell restart, not just an in-process
-    // reload. 200ms debounce, and never written while hydrating or the write
-    // would immediately re-trigger itself.
-    Timer {
-        id: settingsSaveTimer
-        interval: 200
-        onTriggered: {
-            if (root._hydrating) return
-            settingsWrite.text = JSON.stringify({ version: 3, dnd: root.doNotDisturb }, null, 2) + "\n"
-        }
-    }
-
-    FileView {
-        id: settingsWrite
-        path: root.settingsPath
-        printErrors: false
-    }
-
-    FileView {
-        id: settingsRead
-        path: root.settingsPath
-        printErrors: false
-        onLoaded: {
-            var raw = text()
-            if (!raw) return
-            root._hydrating = true
-            try {
-                var parsed = JSON.parse(raw)
-                root.doNotDisturb = !!(parsed && parsed.dnd)
-            } catch (e) { }
-            root._hydrating = false
-        }
-    }
-
-    onDoNotDisturbChanged: {
-        if (root._hydrating) return
-        settingsSaveTimer.restart()
-    }
-
-    Component.onCompleted: settingsRead.reload()
 
     // ------------------------------------------------------------------
     // Daemon

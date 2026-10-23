@@ -473,6 +473,12 @@ deconflict_hypr() {
       -e '/^o\.bind("XF86MonBrightnessUp", "Brightness up", "omarchy-brightness-display +10%", { locked = true, repeating = true })$/d' \
       -e '/^hl\.unbind("XF86MonBrightnessDown")$/d' \
       -e '/^o\.bind("XF86MonBrightnessDown", "Brightness down", "omarchy-brightness-display 10%-", { locked = true, repeating = true })$/d' \
+      -e '/^hl\.unbind("SUPER + ALT + N")$/d' \
+      -e '/^o\.bind("SUPER + ALT + N", "Notification DND toggle", hl\.dsp\.global("quickshell:notifToggle"))$/d' \
+      -e '/^hl\.unbind("SUPER + ALT + M")$/d' \
+      -e '/^o\.bind("SUPER + ALT + M", "Microphone mute toggle", hl\.dsp\.global("quickshell:micToggle"))$/d' \
+      -e '/^hl\.unbind("XF86AudioMicMute")$/d' \
+      -e '/^o\.bind("XF86AudioMicMute", "Microphone mute toggle", "omarchy-audio-input-mute", { locked = true, repeating = true })$/d' \
       "$bindings"
   fi
 

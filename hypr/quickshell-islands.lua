@@ -36,6 +36,8 @@ M.bindings = {
   { key = "SUPER + CTRL + D", desc = "Brightness HUD and Panel", dispatch = "quickshell:brightnessToggle" },
   { key = "SUPER + CTRL + SPACE", desc = "Wallpaper switcher", dispatch = "quickshell:wallpaperToggle" },
   { key = "SUPER + SHIFT + CTRL + SPACE", desc = "Theme switcher", dispatch = "quickshell:themeToggle" },
+  { key = "SUPER + ALT + N", desc = "Notification DND toggle", dispatch = "quickshell:notifToggle" },
+  { key = "SUPER + ALT + M", desc = "Microphone mute toggle", dispatch = "quickshell:micToggle" },
 }
 
 -- Hardware keys. Omarchy binds these to the same command names by default;
@@ -46,6 +48,7 @@ M.hardware_bindings = {
   { key = "XF86AudioLowerVolume", desc = "Volume down", cmd = bin .. "omarchy-audio-output-volume -10" },
   { key = "XF86MonBrightnessUp", desc = "Brightness up", cmd = bin .. "omarchy-brightness-display +10%" },
   { key = "XF86MonBrightnessDown", desc = "Brightness down", cmd = bin .. "omarchy-brightness-display 10%-" },
+  { key = "XF86AudioMicMute", desc = "Microphone mute toggle", cmd = "omarchy-audio-input-mute" },
 }
 
 -- Panel surfaces that get the compositor-level X-Ray blur: a hairline border
@@ -66,6 +69,7 @@ M.island_namespaces = {
   "brightness-panel-main",
   "battery-panel-main",
   "notification-panel-main",
+  "toggle-panel-main",
   "quickshell-omarchy-menu",
   "scoop-v2-inspector",
   "quickshell",
