@@ -242,7 +242,7 @@ Scope {
                                 anchors.fill: notifRawIcon
                                 source: notifRawIcon
                                 colorization: 1.0
-                                colorizationColor: notifButton.isDnd
+                                colorizationColor: !notifButton.isDnd
                                     ? Theme.brand
                                     : (notifButton.isHovered ? Theme.brightForeground : Theme.darkForeground)
                                 Behavior on colorizationColor { ColorAnimation { duration: 150 } }
@@ -290,7 +290,7 @@ Scope {
                                 anchors.fill: micRawIcon
                                 source: micRawIcon
                                 colorization: 1.0
-                                colorizationColor: micButton.isMuted
+                                colorizationColor: !micButton.isMuted
                                     ? Theme.brand
                                     : (micButton.isHovered ? Theme.brightForeground : Theme.darkForeground)
                                 Behavior on colorizationColor { ColorAnimation { duration: 150 } }
