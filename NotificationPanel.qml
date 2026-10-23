@@ -530,11 +530,41 @@ Scope {
                     NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
                 }
 
-                x: parent ? parent.width - width + paintOutset : 0
-                y: parent ? (root.isPresented ? (parent.height - height + paintOutset) : (parent.height + 60)) : 0
+                anchors.right: parent.right
+                anchors.rightMargin: -paintOutset
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: -(height + 60)
 
-                Behavior on y {
-                    NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+                NumberAnimation {
+                    id: traySlideAnim
+                    target: tray
+                    property: "anchors.bottomMargin"
+                    duration: 220
+                    easing.type: Easing.OutCubic
+                }
+
+                Connections {
+                    target: root
+                    function onIsPresentedChanged() {
+                        if (root.isPresented) {
+                            traySlideAnim.stop()
+                            tray.anchors.bottomMargin = -(tray.height + 60)
+                            traySlideAnim.from = -(tray.height + 60)
+                            traySlideAnim.to = -tray.paintOutset
+                            traySlideAnim.start()
+                        } else {
+                            traySlideAnim.stop()
+                            traySlideAnim.from = tray.anchors.bottomMargin
+                            traySlideAnim.to = -(tray.height + 60)
+                            traySlideAnim.start()
+                        }
+                    }
+                }
+
+                Component.onCompleted: {
+                    if (root.isPresented) {
+                        tray.anchors.bottomMargin = -tray.paintOutset
+                    }
                 }
 
                 ScoopV2 {

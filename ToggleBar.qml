@@ -137,7 +137,7 @@ Scope {
             required property var modelData
             screen: modelData
 
-            visible: !root.hideBar || (cardContainer.y < (panelWindow.height + 10))
+            visible: false
 
             anchors.top: true
             anchors.bottom: true
@@ -152,23 +152,60 @@ Scope {
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
             mask: Region {
-                item: !root.hideBar ? cardContainer : null
+                item: cardContainer
             }
 
             // Bottom-Left Anchored Card Container
             Item {
                 id: cardContainer
                 anchors.left: parent.left
-                y: root.hideBar ? (panelWindow.height + 20) : (panelWindow.height - height)
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: -(height + 20)
 
                 width: contentRow.implicitWidth + Theme.spacing * 4 + Theme.rounding + Theme.borderWidth
                 height: 44 + Theme.rounding + Theme.borderWidth
 
-                Behavior on y {
-                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
-                }
                 Behavior on width {
                     NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                }
+
+                NumberAnimation {
+                    id: slideAnim
+                    target: cardContainer
+                    property: "anchors.bottomMargin"
+                    duration: 250
+                    easing.type: Easing.OutCubic
+                    onFinished: {
+                        if (root.hideBar) {
+                            panelWindow.visible = false
+                        }
+                    }
+                }
+
+                Connections {
+                    target: root
+                    function onHideBarChanged() {
+                        if (!root.hideBar) {
+                            panelWindow.visible = true
+                            slideAnim.stop()
+                            cardContainer.anchors.bottomMargin = -(cardContainer.height + 20)
+                            slideAnim.from = -(cardContainer.height + 20)
+                            slideAnim.to = 0
+                            slideAnim.start()
+                        } else {
+                            slideAnim.stop()
+                            slideAnim.from = cardContainer.anchors.bottomMargin
+                            slideAnim.to = -(cardContainer.height + 20)
+                            slideAnim.start()
+                        }
+                    }
+                }
+
+                Component.onCompleted: {
+                    if (!root.hideBar) {
+                        panelWindow.visible = true
+                        cardContainer.anchors.bottomMargin = 0
+                    }
                 }
 
                 HoverHandler {
