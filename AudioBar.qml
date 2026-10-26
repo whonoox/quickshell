@@ -254,6 +254,7 @@ Scope {
 
                 FlexboxLayout {
                     id: volumeFlex
+                    z: 1
                     anchors.fill: parent
                     anchors.topMargin: Theme.rounding + Theme.spacing * 2
                     anchors.bottomMargin: Theme.rounding + Theme.spacing * 2
@@ -343,17 +344,34 @@ Scope {
                                 : (root.muted ? Theme.red : Theme.brand)
                             Behavior on color { ColorAnimation { duration: 120 } }
                         }
+
+                        MouseArea {
+                            id: bottomBarMouse
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            hoverEnabled: true
+                            acceptedButtons: Qt.LeftButton
+                            onClicked: {
+                                root.toggleMute()
+                                autoHide.restart()
+                            }
+                            onEntered: autoHide.stop()
+                            onExited: autoHide.restart()
+                            onWheel: function (wheel) {
+                                root.nudge(wheel.angleDelta.y > 0 ? 10 : -10)
+                                autoHide.restart()
+                                wheel.accepted = true
+                            }
+                        }
                     }
                 }
 
-                // Wheel steps the level, click toggles mute, and either one keeps
-                // the pill up long enough to read the result.
+                // Wheel steps the level and hover pauses autoHide on the rest of the pill
                 MouseArea {
                     id: inputArea
                     anchors.fill: parent
                     hoverEnabled: true
                     acceptedButtons: Qt.LeftButton
-                    onClicked: root.toggleMute()
                     onEntered: autoHide.stop()
                     onExited: autoHide.restart()
                     onWheel: function (wheel) {

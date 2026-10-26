@@ -126,6 +126,9 @@ function M.decorations()
 end
 
 function M.apply()
+  -- Drop Omarchy default audio binding so SUPER + CTRL + A is free
+  hl.unbind("SUPER + CTRL + A")
+
   for _, binding in ipairs(M.bindings) do
     hl.unbind(binding.key)
     o.bind(binding.key, binding.desc, hl.dsp.global(binding.dispatch))
