@@ -44,6 +44,16 @@ Scope {
         root.reveal("cursor")
     }
 
+    function toggleAwake() {
+        ToggleState.toggleStayAwake()
+        root.reveal("awake")
+    }
+
+    function toggleFnLock() {
+        ToggleState.toggleFnLock()
+        root.reveal("fnlock")
+    }
+
     Connections {
         target: ToggleState
         function onMicMutedChanged() {
@@ -59,6 +69,16 @@ Scope {
         function onCursorXRayChanged() {
             if (root._initialized) {
                 root.reveal("cursor")
+            }
+        }
+        function onStayAwakeChanged() {
+            if (root._initialized) {
+                root.reveal("awake")
+            }
+        }
+        function onFnLockChanged() {
+            if (root._initialized) {
+                root.reveal("fnlock")
             }
         }
     }
@@ -91,6 +111,13 @@ Scope {
         description: "Toggle Cursor X-Ray mode"
         appid: "quickshell"
         onPressed: root.toggleCursor()
+    }
+
+    GlobalShortcut {
+        name: "stayAwakeToggle"
+        description: "Toggle stay awake idle inhibition"
+        appid: "quickshell"
+        onPressed: root.toggleAwake()
     }
 
     // ------------------------------------------------------------------
@@ -132,6 +159,16 @@ Scope {
             return ToggleState.cursorXRay ? "on" : "off"
         }
 
+        function toggleAwake(): string {
+            root.toggleAwake()
+            return ToggleState.stayAwake ? "awake_on" : "awake_off"
+        }
+
+        function toggleFnLock(): string {
+            root.toggleFnLock()
+            return ToggleState.fnLock ? "fnlock_on" : "fnlock_off"
+        }
+
         function revealMic(): string {
             root.reveal("mic")
             return "ok"
@@ -147,6 +184,16 @@ Scope {
             return "ok"
         }
 
+        function revealAwake(): string {
+            root.reveal("awake")
+            return "ok"
+        }
+
+        function revealFnLock(): string {
+            root.reveal("fnlock")
+            return "ok"
+        }
+
         function notifStatus(): string {
             return ToggleState.dnd ? "dnd_on" : "dnd_off"
         }
@@ -159,11 +206,22 @@ Scope {
             return ToggleState.cursorXRay ? "on" : "off"
         }
 
+        function awakeStatus(): string {
+            return ToggleState.stayAwake ? "awake_on" : "awake_off"
+        }
+
+        function fnLockStatus(): string {
+            return ToggleState.fnLock ? "fnlock_on" : "fnlock_off"
+        }
+
         function status(): string {
             return JSON.stringify({
                 notifDnd: ToggleState.dnd,
                 micMuted: ToggleState.micMuted,
                 cursorXRay: ToggleState.cursorXRay,
+                stayAwake: ToggleState.stayAwake,
+                fnLock: ToggleState.fnLock,
+                fnLockAvailable: ToggleState.fnLockAvailable,
                 visible: !root.hideBar,
                 lastTriggered: root.lastTriggered
             })
@@ -429,6 +487,103 @@ Scope {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: root.toggleCursor()
+                            }
+                        }
+
+                        // 4. Stay Awake (Idle Inhibition) Toggle (No button background, no border)
+                        Item {
+                            id: awakeButton
+                            width: 24
+                            height: 24
+
+                            readonly property bool isAwake: ToggleState.stayAwake
+                            readonly property bool isTriggered: root.lastTriggered === "awake"
+                            readonly property bool isOtherTriggered: root.lastTriggered !== "none" && !isTriggered
+                            readonly property bool isHovered: awakeMouse.containsMouse
+
+                            scale: isHovered ? 1.1 : (isTriggered ? 1.0 : (isOtherTriggered ? 0.75 : 0.9))
+                            opacity: isHovered ? 1.0 : (isTriggered ? 1.0 : (isOtherTriggered ? 0.4 : 0.85))
+
+                            Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                            Image {
+                                id: awakeRawIcon
+                                anchors.centerIn: parent
+                                width: 16
+                                height: 16
+                                sourceSize.width: 32
+                                sourceSize.height: 32
+                                source: "decorations/coffee.svg"
+                                fillMode: Image.PreserveAspectFit
+                                visible: false
+                            }
+
+                            MultiEffect {
+                                anchors.fill: awakeRawIcon
+                                source: awakeRawIcon
+                                colorization: 1.0
+                                colorizationColor: awakeButton.isAwake
+                                    ? Theme.brand
+                                    : (awakeButton.isHovered ? Theme.brightForeground : Theme.darkForeground)
+                                Behavior on colorizationColor { ColorAnimation { duration: 150 } }
+                            }
+
+                            MouseArea {
+                                id: awakeMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.toggleAwake()
+                            }
+                        }
+
+                        // 5. Fn Lock Toggle (No button background, no border)
+                        Item {
+                            id: fnLockButton
+                            width: 24
+                            height: 24
+                            visible: ToggleState.fnLockAvailable
+
+                            readonly property bool isFnLock: ToggleState.fnLock
+                            readonly property bool isTriggered: root.lastTriggered === "fnlock"
+                            readonly property bool isOtherTriggered: root.lastTriggered !== "none" && !isTriggered
+                            readonly property bool isHovered: fnLockMouse.containsMouse
+
+                            scale: isHovered ? 1.1 : (isTriggered ? 1.0 : (isOtherTriggered ? 0.75 : 0.9))
+                            opacity: isHovered ? 1.0 : (isTriggered ? 1.0 : (isOtherTriggered ? 0.4 : 0.85))
+
+                            Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                            Image {
+                                id: fnLockRawIcon
+                                anchors.centerIn: parent
+                                width: 16
+                                height: 16
+                                sourceSize.width: 32
+                                sourceSize.height: 32
+                                source: "decorations/function.svg"
+                                fillMode: Image.PreserveAspectFit
+                                visible: false
+                            }
+
+                            MultiEffect {
+                                anchors.fill: fnLockRawIcon
+                                source: fnLockRawIcon
+                                colorization: 1.0
+                                colorizationColor: fnLockButton.isFnLock
+                                    ? Theme.brand
+                                    : (fnLockButton.isHovered ? Theme.brightForeground : Theme.darkForeground)
+                                Behavior on colorizationColor { ColorAnimation { duration: 150 } }
+                            }
+
+                            MouseArea {
+                                id: fnLockMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.toggleFnLock()
                             }
                         }
                     }

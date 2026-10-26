@@ -27,6 +27,14 @@ declare -A IPC_TARGETS=(
   [notifications]="notifications"
   [cursor]="cursorXRay"
   [xray]="cursorXRay"
+  [togglebar]="toggleBar"
+  [notif]="toggleBar"
+  [mic]="toggleBar"
+  [awake]="toggleBar"
+  [idle]="toggleBar"
+  [stayawake]="toggleBar"
+  [fnlock]="toggleBar"
+  [fn]="toggleBar"
 )
 
 # The menu is routed by route, not by a plain toggle: its handler takes the
@@ -38,6 +46,13 @@ declare -A IPC_DEFAULT_ARGS=(
 # Modules whose handler is not named "toggle".
 declare -A IPC_FUNCTIONS=(
   [notifications]="toggleDnd"
+  [notif]="toggleNotif"
+  [mic]="toggleMic"
+  [awake]="toggleAwake"
+  [idle]="toggleAwake"
+  [stayawake]="toggleAwake"
+  [fnlock]="toggleFnLock"
+  [fn]="toggleFnLock"
 )
 
 fail() {
@@ -67,7 +82,8 @@ Commands:
   help                 Show this help
 
 Modules: menu, wifi, bluetooth, time, audio, battery, brightness,
-         wallpaper, theme, notifications, cursor, xray
+         wallpaper, theme, notifications, cursor, xray, notif, mic,
+         awake, fnlock
 
 Environment:
   OMARCHY_ISLANDS_QS_PATH       Config path (default ~/.config/quickshell)

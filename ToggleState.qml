@@ -133,8 +133,126 @@ QtObject {
         root.cursorXRay = !!val
     }
 
+    // ------------------------------------------------------------------
+    // Stay Awake (Idle Inhibition) State
+    // ------------------------------------------------------------------
+    readonly property string stayAwakeDir: home + "/.local/state/omarchy/indicators"
+    readonly property string stayAwakePath: stayAwakeDir + "/stay-awake"
+    property bool stayAwake: false
+
+    function refreshStayAwake() {
+        if (!probeStayAwakeProcess.running) {
+            probeStayAwakeProcess.running = true
+        }
+    }
+
+    function toggleStayAwake() {
+        Quickshell.execDetached([
+            "bash", "-c",
+            "if which omarchy-toggle-idle >/dev/null 2>&1; then omarchy-toggle-idle toggle; else mkdir -p \"$HOME/.local/state/omarchy/indicators\"; if [[ -f \"$HOME/.local/state/omarchy/indicators/stay-awake\" ]]; then rm -f \"$HOME/.local/state/omarchy/indicators/stay-awake\"; else touch \"$HOME/.local/state/omarchy/indicators/stay-awake\"; fi; fi"
+        ])
+        root.stayAwake = !root.stayAwake
+        stayAwakeSettleTimer.restart()
+    }
+
+    function setStayAwake(val) {
+        var cmd = val ? "stay-awake" : "allow-idle"
+        Quickshell.execDetached([
+            "bash", "-c",
+            "if which omarchy-toggle-idle >/dev/null 2>&1; then omarchy-toggle-idle " + cmd + "; else mkdir -p \"$HOME/.local/state/omarchy/indicators\"; if [ \"" + (val ? "1" : "0") + "\" = \"1\" ]; then touch \"$HOME/.local/state/omarchy/indicators/stay-awake\"; else rm -f \"$HOME/.local/state/omarchy/indicators/stay-awake\"; fi; fi"
+        ])
+        root.stayAwake = !!val
+        stayAwakeSettleTimer.restart()
+    }
+
+    property Timer stayAwakeSettleTimer: Timer {
+        interval: 200
+        onTriggered: root.refreshStayAwake()
+    }
+
+    property Process probeStayAwakeProcess: Process {
+        command: [
+            "bash", "-c",
+            "if [[ -f \"$HOME/.local/state/omarchy/indicators/stay-awake\" ]]; then echo yes; else echo no; fi"
+        ]
+        stdout: SplitParser {
+            onRead: function(line) {
+                root.stayAwake = (String(line || "").trim() === "yes")
+            }
+        }
+    }
+
+    property FileView stayAwakeDirWatcher: FileView {
+        path: root.stayAwakeDir
+        watchChanges: true
+        printErrors: false
+        onFileChanged: root.refreshStayAwake()
+    }
+
+    // ------------------------------------------------------------------
+    // Fn Lock State
+    // ------------------------------------------------------------------
+    readonly property string fnLockLedPath: "/sys/class/leds/platform::fnlock/brightness"
+    property bool fnLock: false
+    property bool fnLockAvailable: true
+
+    function refreshFnLock() {
+        if (!probeFnLockProcess.running) {
+            probeFnLockProcess.running = true
+        }
+    }
+
+    function toggleFnLock() {
+        Quickshell.execDetached([
+            "bash", "-c",
+            "val=$(cat /sys/class/leds/platform::fnlock/brightness 2>/dev/null || echo 0); if [ \"$val\" = \"1\" ]; then brightnessctl -q -d platform::fnlock set 0; else brightnessctl -q -d platform::fnlock set 1; fi"
+        ])
+        root.fnLock = !root.fnLock
+        fnLockSettleTimer.restart()
+    }
+
+    function setFnLock(val) {
+        var target = val ? "1" : "0"
+        Quickshell.execDetached([
+            "bash", "-c",
+            "brightnessctl -q -d platform::fnlock set " + target
+        ])
+        root.fnLock = !!val
+        fnLockSettleTimer.restart()
+    }
+
+    property Timer fnLockSettleTimer: Timer {
+        interval: 200
+        onTriggered: root.refreshFnLock()
+    }
+
+    property Process probeFnLockProcess: Process {
+        command: ["cat", "/sys/class/leds/platform::fnlock/brightness"]
+        stdout: SplitParser {
+            onRead: function(line) {
+                var l = String(line || "").trim()
+                root.fnLockAvailable = true
+                root.fnLock = (l === "1")
+            }
+        }
+        onExited: function(exitCode) {
+            if (exitCode !== 0) {
+                root.fnLockAvailable = false
+            }
+        }
+    }
+
+    property Timer fnLockPollTimer: Timer {
+        interval: 1000
+        running: root.fnLockAvailable
+        repeat: true
+        onTriggered: root.refreshFnLock()
+    }
+
     Component.onCompleted: {
         notifSettingsRead.reload()
         root.refreshMic()
+        root.refreshStayAwake()
+        root.refreshFnLock()
     }
 }

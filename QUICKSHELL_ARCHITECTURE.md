@@ -156,7 +156,11 @@ To integrate cleanly with the host system without fighting existing Omarchy defa
       - `SUPER + CTRL + T`: `quickshell:timeToggle`
       - `SUPER + CTRL + P`: `quickshell:batteryToggle`
       - `SUPER + CTRL + SPACE`: `quickshell:wallpaperToggle`
+      - `SUPER + SHIFT + CTRL + SPACE`: `quickshell:themeToggle`
+      - `SUPER + ALT + N`: `quickshell:notifToggle` (Notification DND)
+      - `SUPER + ALT + M`: `quickshell:micToggle` (Microphone mute)
       - `SUPER + ALT + C`: `quickshell:cursorXRayToggle` (Cursor X-Ray mode)
+      - `SUPER + ALT + I`: `quickshell:stayAwakeToggle` (Stay awake / idle inhibition)
    - Using `global` shortcuts eliminates intermediate shell spawns, routing keystrokes straight to Quickshell's event loop.
 4. **`looknfeel.lua`**:
    - Holds the user's own compositor preferences (gaps, rounding, decoration).
