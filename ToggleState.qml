@@ -249,10 +249,127 @@ QtObject {
         onTriggered: root.refreshFnLock()
     }
 
+    // ------------------------------------------------------------------
+    // Airplane Mode State
+    // ------------------------------------------------------------------
+    property bool airplaneMode: false
+    property double lastExternalRfkillChange: 0
+
+    function refreshAirplane() {
+        if (!probeAirplaneProcess.running) {
+            probeAirplaneProcess.running = true
+        }
+    }
+
+    function toggleAirplane() {
+        // Guard: if hardware radio killswitch was pressed recently (<600ms), don't double-toggle
+        if (Date.now() - root.lastExternalRfkillChange < 600) {
+            return
+        }
+        var target = !root.airplaneMode
+        Quickshell.execDetached([
+            "bash", "-c",
+            target ? "rfkill block all" : "rfkill unblock all"
+        ])
+        root.airplaneMode = target
+        airplaneSettleTimer.restart()
+    }
+
+    function setAirplane(val) {
+        Quickshell.execDetached([
+            "bash", "-c",
+            val ? "rfkill block all" : "rfkill unblock all"
+        ])
+        root.airplaneMode = !!val
+        airplaneSettleTimer.restart()
+    }
+
+    property Timer airplaneSettleTimer: Timer {
+        interval: 250
+        onTriggered: root.refreshAirplane()
+    }
+
+    property Process probeAirplaneProcess: Process {
+        command: [
+            "bash", "-c",
+            "if rfkill list | grep -q 'Soft blocked: yes'; then echo blocked; else echo unblocked; fi"
+        ]
+        stdout: SplitParser {
+            onRead: function(line) {
+                var l = String(line || "").trim()
+                var blocked = (l === "blocked")
+                if (root.airplaneMode !== blocked) {
+                    root.lastExternalRfkillChange = Date.now()
+                    root.airplaneMode = blocked
+                }
+            }
+        }
+    }
+
+    property Process rfkillSubscriber: Process {
+        command: ["rfkill", "event"]
+        running: true
+        stdout: SplitParser {
+            onRead: function(line) {
+                root.refreshAirplane()
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Night Light State
+    // ------------------------------------------------------------------
+    property bool nightLight: false
+
+    function refreshNightLight() {
+        if (!probeNightLightProcess.running) {
+            probeNightLightProcess.running = true
+        }
+    }
+
+    function toggleNightLight() {
+        Quickshell.execDetached([
+            "bash", "-c",
+            "omarchy-toggle-nightlight"
+        ])
+        root.nightLight = !root.nightLight
+        nightLightSettleTimer.restart()
+    }
+
+    function setNightLight(val) {
+        var targetTemp = val ? 4000 : 6500
+        Quickshell.execDetached([
+            "bash", "-c",
+            "pgrep -x hyprsunset >/dev/null || { setsid uwsm-app -- hyprsunset >/dev/null 2>&1 & sleep 1; }; hyprctl hyprsunset temperature " + targetTemp
+        ])
+        root.nightLight = !!val
+        nightLightSettleTimer.restart()
+    }
+
+    property Timer nightLightSettleTimer: Timer {
+        interval: 350
+        onTriggered: root.refreshNightLight()
+    }
+
+    property Process probeNightLightProcess: Process {
+        command: [
+            "bash", "-c",
+            "temp=$(hyprctl hyprsunset temperature 2>/dev/null | grep -oE '[0-9]+' | head -n1); if [ -n \"$temp\" ] && [ \"$temp\" -lt 6000 ]; then echo on; else echo off; fi"
+        ]
+        stdout: SplitParser {
+            onRead: function(line) {
+                var l = String(line || "").trim()
+                root.nightLight = (l === "on")
+            }
+        }
+    }
+
     Component.onCompleted: {
         notifSettingsRead.reload()
         root.refreshMic()
         root.refreshStayAwake()
         root.refreshFnLock()
+        root.refreshAirplane()
+        root.refreshNightLight()
     }
 }

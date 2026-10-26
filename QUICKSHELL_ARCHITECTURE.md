@@ -161,6 +161,8 @@ To integrate cleanly with the host system without fighting existing Omarchy defa
       - `SUPER + ALT + M`: `quickshell:micToggle` (Microphone mute)
       - `SUPER + ALT + C`: `quickshell:cursorXRayToggle` (Cursor X-Ray mode)
       - `SUPER + ALT + I`: `quickshell:stayAwakeToggle` (Stay awake / idle inhibition)
+      - `SUPER + ALT + L`: `quickshell:nightLightToggle` (Night light blue light filter)
+      - `XF86RFKill`: `quickshell:airplaneToggle` (Airplane mode all radios)
    - Using `global` shortcuts eliminates intermediate shell spawns, routing keystrokes straight to Quickshell's event loop.
 4. **`looknfeel.lua`**:
    - Holds the user's own compositor preferences (gaps, rounding, decoration).

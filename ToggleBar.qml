@@ -54,6 +54,16 @@ Scope {
         root.reveal("fnlock")
     }
 
+    function toggleAirplane() {
+        ToggleState.toggleAirplane()
+        root.reveal("airplane")
+    }
+
+    function toggleNightLight() {
+        ToggleState.toggleNightLight()
+        root.reveal("nightlight")
+    }
+
     Connections {
         target: ToggleState
         function onMicMutedChanged() {
@@ -79,6 +89,16 @@ Scope {
         function onFnLockChanged() {
             if (root._initialized) {
                 root.reveal("fnlock")
+            }
+        }
+        function onAirplaneModeChanged() {
+            if (root._initialized) {
+                root.reveal("airplane")
+            }
+        }
+        function onNightLightChanged() {
+            if (root._initialized) {
+                root.reveal("nightlight")
             }
         }
     }
@@ -118,6 +138,20 @@ Scope {
         description: "Toggle stay awake idle inhibition"
         appid: "quickshell"
         onPressed: root.toggleAwake()
+    }
+
+    GlobalShortcut {
+        name: "airplaneToggle"
+        description: "Toggle airplane mode"
+        appid: "quickshell"
+        onPressed: root.toggleAirplane()
+    }
+
+    GlobalShortcut {
+        name: "nightLightToggle"
+        description: "Toggle night light blue light filter"
+        appid: "quickshell"
+        onPressed: root.toggleNightLight()
     }
 
     // ------------------------------------------------------------------
@@ -169,6 +203,16 @@ Scope {
             return ToggleState.fnLock ? "fnlock_on" : "fnlock_off"
         }
 
+        function toggleAirplane(): string {
+            root.toggleAirplane()
+            return ToggleState.airplaneMode ? "airplane_on" : "airplane_off"
+        }
+
+        function toggleNightLight(): string {
+            root.toggleNightLight()
+            return ToggleState.nightLight ? "nightlight_on" : "nightlight_off"
+        }
+
         function revealMic(): string {
             root.reveal("mic")
             return "ok"
@@ -194,6 +238,16 @@ Scope {
             return "ok"
         }
 
+        function revealAirplane(): string {
+            root.reveal("airplane")
+            return "ok"
+        }
+
+        function revealNightLight(): string {
+            root.reveal("nightlight")
+            return "ok"
+        }
+
         function notifStatus(): string {
             return ToggleState.dnd ? "dnd_on" : "dnd_off"
         }
@@ -214,6 +268,14 @@ Scope {
             return ToggleState.fnLock ? "fnlock_on" : "fnlock_off"
         }
 
+        function airplaneStatus(): string {
+            return ToggleState.airplaneMode ? "airplane_on" : "airplane_off"
+        }
+
+        function nightLightStatus(): string {
+            return ToggleState.nightLight ? "nightlight_on" : "nightlight_off"
+        }
+
         function status(): string {
             return JSON.stringify({
                 notifDnd: ToggleState.dnd,
@@ -222,6 +284,8 @@ Scope {
                 stayAwake: ToggleState.stayAwake,
                 fnLock: ToggleState.fnLock,
                 fnLockAvailable: ToggleState.fnLockAvailable,
+                airplaneMode: ToggleState.airplaneMode,
+                nightLight: ToggleState.nightLight,
                 visible: !root.hideBar,
                 lastTriggered: root.lastTriggered
             })
@@ -584,6 +648,102 @@ Scope {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: root.toggleFnLock()
+                            }
+                        }
+
+                        // 6. Airplane Mode Toggle (No button background, no border)
+                        Item {
+                            id: airplaneButton
+                            width: 24
+                            height: 24
+
+                            readonly property bool isAirplane: ToggleState.airplaneMode
+                            readonly property bool isTriggered: root.lastTriggered === "airplane"
+                            readonly property bool isOtherTriggered: root.lastTriggered !== "none" && !isTriggered
+                            readonly property bool isHovered: airplaneMouse.containsMouse
+
+                            scale: isHovered ? 1.1 : (isTriggered ? 1.0 : (isOtherTriggered ? 0.75 : 0.9))
+                            opacity: isHovered ? 1.0 : (isTriggered ? 1.0 : (isOtherTriggered ? 0.4 : 0.85))
+
+                            Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                            Image {
+                                id: airplaneRawIcon
+                                anchors.centerIn: parent
+                                width: 16
+                                height: 16
+                                sourceSize.width: 32
+                                sourceSize.height: 32
+                                source: "decorations/airplane.svg"
+                                fillMode: Image.PreserveAspectFit
+                                visible: false
+                            }
+
+                            MultiEffect {
+                                anchors.fill: airplaneRawIcon
+                                source: airplaneRawIcon
+                                colorization: 1.0
+                                colorizationColor: airplaneButton.isAirplane
+                                    ? Theme.brand
+                                    : (airplaneButton.isHovered ? Theme.brightForeground : Theme.darkForeground)
+                                Behavior on colorizationColor { ColorAnimation { duration: 150 } }
+                            }
+
+                            MouseArea {
+                                id: airplaneMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.toggleAirplane()
+                            }
+                        }
+
+                        // 7. Night Light Toggle (No button background, no border)
+                        Item {
+                            id: nightLightButton
+                            width: 24
+                            height: 24
+
+                            readonly property bool isNightLight: ToggleState.nightLight
+                            readonly property bool isTriggered: root.lastTriggered === "nightlight"
+                            readonly property bool isOtherTriggered: root.lastTriggered !== "none" && !isTriggered
+                            readonly property bool isHovered: nightLightMouse.containsMouse
+
+                            scale: isHovered ? 1.1 : (isTriggered ? 1.0 : (isOtherTriggered ? 0.75 : 0.9))
+                            opacity: isHovered ? 1.0 : (isTriggered ? 1.0 : (isOtherTriggered ? 0.4 : 0.85))
+
+                            Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                            Image {
+                                id: nightLightRawIcon
+                                anchors.centerIn: parent
+                                width: 16
+                                height: 16
+                                sourceSize.width: 32
+                                sourceSize.height: 32
+                                source: "decorations/moon.svg"
+                                fillMode: Image.PreserveAspectFit
+                                visible: false
+                            }
+
+                            MultiEffect {
+                                anchors.fill: nightLightRawIcon
+                                source: nightLightRawIcon
+                                colorization: 1.0
+                                colorizationColor: nightLightButton.isNightLight
+                                    ? Theme.brand
+                                    : (nightLightButton.isHovered ? Theme.brightForeground : Theme.darkForeground)
+                                Behavior on colorizationColor { ColorAnimation { duration: 150 } }
+                            }
+
+                            MouseArea {
+                                id: nightLightMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.toggleNightLight()
                             }
                         }
                     }

@@ -35,6 +35,10 @@ declare -A IPC_TARGETS=(
   [stayawake]="toggleBar"
   [fnlock]="toggleBar"
   [fn]="toggleBar"
+  [airplane]="toggleBar"
+  [flight]="toggleBar"
+  [nightlight]="toggleBar"
+  [night]="toggleBar"
 )
 
 # The menu is routed by route, not by a plain toggle: its handler takes the
@@ -53,6 +57,10 @@ declare -A IPC_FUNCTIONS=(
   [stayawake]="toggleAwake"
   [fnlock]="toggleFnLock"
   [fn]="toggleFnLock"
+  [airplane]="toggleAirplane"
+  [flight]="toggleAirplane"
+  [nightlight]="toggleNightLight"
+  [night]="toggleNightLight"
 )
 
 fail() {
@@ -83,7 +91,7 @@ Commands:
 
 Modules: menu, wifi, bluetooth, time, audio, battery, brightness,
          wallpaper, theme, notifications, cursor, xray, notif, mic,
-         awake, fnlock
+         awake, fnlock, airplane, nightlight
 
 Environment:
   OMARCHY_ISLANDS_QS_PATH       Config path (default ~/.config/quickshell)
