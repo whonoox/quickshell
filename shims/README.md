@@ -61,8 +61,8 @@ backlight step via `brightnessctl` or DDC/CI, then open the brightness HUD.
 
 `awww-omarchy-bridge` — a small daemon that keeps the `awww` wallpaper layer
 in sync with Omarchy's background state, including changes made by any
-switcher. It records its pid in
-`~/.local/state/nooxshell/awww-bridge.pid` so a second one is not started.
+switcher. It uses a non-blocking kernel lock (`flock`) in `$XDG_RUNTIME_DIR`
+so a second one is not started, avoiding stale PID collisions across reboots.
 
 ## The theme is left to Omarchy
 

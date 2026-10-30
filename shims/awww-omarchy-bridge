@@ -13,58 +13,78 @@
 
 set -uo pipefail
 
-existing=""
-
 TARGET="$HOME/.local/state/omarchy/current/background"
 DIR="$HOME/.local/state/omarchy/current"
 STATE_DIR="$HOME/.local/state/nooxshell"
 PID_FILE="$STATE_DIR/awww-bridge.pid"
+RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+LOCK_FILE="$RUNTIME_DIR/nooxshell-awww-bridge.lock"
 
-mkdir -p "$DIR" "$STATE_DIR"
+mkdir -p "$DIR" "$STATE_DIR" "$RUNTIME_DIR"
 
-# Only one bridge may run. Two would both watch the symlink and both
-# redraw the wallpaper, which races and can leave a black one behind.
-if [[ -f $PID_FILE ]]; then
-  existing="$(cat "$PID_FILE" 2>/dev/null)"
-  if [[ -n $existing ]] && kill -0 "$existing" 2>/dev/null; then
-    exit 0
-  fi
+# Acquire an exclusive kernel file lock in runtime dir (tmpfs).
+# Unlike a persistent PID file on disk, an flock is tied to the open file
+# descriptor and is automatically released by the kernel if the process dies
+# or crashes, preventing stale locks and false PID collisions across reboots.
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+  exit 0
 fi
 
-# Record the pid so a second bridge is not started, and so the CLI can
-# tell whether one is running without matching command lines.
+echo $$ >&200
 echo $$ >"$PID_FILE"
-trap 'rm -f "$PID_FILE"' EXIT
+trap 'rm -f "$PID_FILE" "$LOCK_FILE"' EXIT
 
-# Ensure daemon is running and responsive
-if ! pgrep -x awww-daemon > /dev/null; then
-    # Clean up any stale sockets from dead sessions
-    rm -f /run/user/$(id -u)/*awww*.sock
-    nohup awww-daemon >/dev/null 2>&1 &
+ensure_daemon() {
+  if ! pgrep -x awww-daemon >/dev/null 2>&1 || ! awww query >/dev/null 2>&1; then
+    pkill -x awww-daemon >/dev/null 2>&1 || true
+    rm -f "$RUNTIME_DIR"/*awww*.sock
+    nohup awww-daemon >/dev/null 2>&1 200>&- &
     disown
-    for _ in {1..30}; do
-        awww query >/dev/null 2>&1 && break
-        sleep 0.1
+    for _ in {1..50}; do
+      awww query >/dev/null 2>&1 && return 0
+      sleep 0.1
     done
-fi
+    return 1
+  fi
+  return 0
+}
 
-# Give desktop shell 1.5s to finish booting before setting static layer
-(
-    sleep 1.5
-    if [[ -e "$TARGET" ]]; then
-        BG="$(readlink -f "$TARGET")"
-        if [[ -f "$BG" ]]; then
-            awww img "$BG" --transition-type none
-        fi
+apply_wallpaper() {
+  [[ -e "$TARGET" ]] || return 1
+  local bg
+  bg="$(readlink -f "$TARGET")"
+  [[ -f "$bg" ]] || return 1
+
+  ensure_daemon || return 1
+
+  # Apply wallpaper with retries in case display server or output is still initializing
+  for _ in {1..10}; do
+    if awww img "$bg" --transition-type none >/dev/null 2>&1; then
+      return 0
     fi
-) &
+    sleep 0.2
+  done
+  return 1
+}
+
+# Initial apply immediately on startup
+apply_wallpaper || true
+
+# Secondary check after 2 seconds to ensure any late-registering monitor/output displays the wallpaper
+(
+  sleep 2
+  if awww query 2>/dev/null | grep -q "color: 000000"; then
+    apply_wallpaper || true
+  fi
+) 200>&- &
 
 # Watch for wallpaper changes made by Omarchy switchers
-inotifywait -m -q -e create,moved_to,attrib "$DIR" | while read -r directory events filename; do
+while true; do
+  inotifywait -m -q -e create,moved_to,attrib --format '%e %f' "$DIR" 2>/dev/null 200>&- | while read -r events filename; do
     if [[ "$filename" == "background" ]]; then
-        BG="$(readlink -f "$TARGET")"
-        if [[ -f "$BG" ]]; then
-            awww img "$BG" --transition-type none
-        fi
+      apply_wallpaper || true
     fi
+  done
+  sleep 1
 done

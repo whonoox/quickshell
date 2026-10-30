@@ -267,6 +267,20 @@ cmd_doctor() {
     echo "notifs:   no daemon registered"
   fi
 
+  # Check wallpaper bridge and daemon
+  if is_bridge_running && awww query >/dev/null 2>&1; then
+    echo "wallpaper: ready (awww-bridge active, awww-daemon responsive)"
+  else
+    echo "wallpaper: NOT RUNNING"
+    echo "          desktop will stay black until the bridge is started"
+    if [[ ${1:-} == "--fix" ]]; then
+      start_wallpaper_bridge
+      echo "  fixed: started wallpaper bridge"
+    else
+      echo "          fix with: nooxshell doctor --fix"
+    fi
+  fi
+
   local others
   others="$(list_other_instances)"
 
@@ -396,25 +410,40 @@ cmd_start() {
   fail "shell did not answer over IPC; check 'nooxshell log'"
 }
 
+is_bridge_running() {
+  local lock_file="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/nooxshell-awww-bridge.lock"
+  if [[ -f $lock_file ]]; then
+    # If we can acquire non-blocking flock, the lock is free (process dead/not running)
+    if ( exec 200>"$lock_file"; flock -n 200 ) 2>/dev/null; then
+      return 1
+    else
+      return 0
+    fi
+  fi
+
+  # Fallback: check if recorded PID is actually awww-omarchy-bridge
+  local pid_file="$HOME/.local/state/nooxshell/awww-bridge.pid"
+  if [[ -f $pid_file ]]; then
+    local pid
+    pid="$(cat "$pid_file" 2>/dev/null)"
+    if [[ -n $pid && -d "/proc/$pid" ]] && grep -q "awww-omarchy-bridge" "/proc/$pid/cmdline" 2>/dev/null; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
 # The wallpaper is drawn by awww, kept in sync with Omarchy's background
 # symlink by the bridge. The bridge is started by the Hyprland module at
 # session start, which does not happen on a reload, so after an install
 # the wallpaper would stay black until the next login.
 start_wallpaper_bridge() {
   local bridge="$HOME/.local/bin/awww-omarchy-bridge"
-  local pid_file="$HOME/.local/state/nooxshell/awww-bridge.pid"
 
   [[ -x $bridge ]] || return 0
 
-  # The bridge records its pid, so a running one is found by asking the
-  # process directly. Matching on the command line would also match any
-  # other process that merely mentions the name.
-  if [[ -f $pid_file ]]; then
-    local pid
-    pid="$(cat "$pid_file" 2>/dev/null)"
-    if [[ -n $pid ]] && kill -0 "$pid" 2>/dev/null; then
-      return 0
-    fi
+  if is_bridge_running; then
+    return 0
   fi
 
   setsid -f "$bridge" >/dev/null 2>&1 || true
@@ -422,12 +451,8 @@ start_wallpaper_bridge() {
   # Give it a moment to come up, then confirm it is running.
   local waited=0
   while (( waited < 30 )); do
-    if [[ -f $pid_file ]]; then
-      local pid
-      pid="$(cat "$pid_file" 2>/dev/null)"
-      if [[ -n $pid ]] && kill -0 "$pid" 2>/dev/null; then
-        return 0
-      fi
+    if is_bridge_running; then
+      return 0
     fi
     sleep 0.1
     waited=$((waited + 1))
