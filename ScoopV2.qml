@@ -13,6 +13,7 @@ Item {
     property color color: Theme.bgc
     property real radius: Theme.rounding
     property real cornerRadius: Theme.rounding
+    property real capRadius: Theme.scoopCapRadius
 
     // Border attributes (X-Ray native compositor border: near-zero alpha for 0-blur see-through)
     property real borderWidth: 4
@@ -76,6 +77,7 @@ Item {
         position: root.position
         radius: root.radius
         cornerRadius: root.cornerRadius
+        capRadius: root.capRadius
         fillColor: root.color
         borderColor: root.borderColor
         borderWidth: root.d

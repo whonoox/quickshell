@@ -197,7 +197,8 @@ Scope {
             exclusionMode: ExclusionMode.Ignore
 
             implicitWidth: 48
-            implicitHeight: 160 + Theme.spacing * 4 + 8
+            // Room for the scoop's edge caps above and below the pill
+            implicitHeight: 160 + Theme.spacing * 4 + 8 + 2 * Theme.scoopCapOverhang
             color: "transparent"
 
             mask: Region {
@@ -207,7 +208,8 @@ Scope {
             Item {
                 id: pillContainer
                 width: parent.width
-                height: parent.height
+                height: parent.height - 2 * Theme.scoopCapOverhang
+                y: Theme.scoopCapOverhang
                 x: -(width + 10)
 
                 NumberAnimation {

@@ -57,6 +57,14 @@ QtObject {
     readonly property int rounding: 20
     readonly property real spacing: 6
     readonly property int borderWidth: 4
+    // Radius of the off-screen turn that ends each scoop flare (see
+    // ScoopContour). On screen it leaves the border running on along the
+    // screen edge for sqrt((c + d)^2 - c^2) px past the flare, which at
+    // 1.5 * borderWidth is 2 * borderWidth. scoopCapOverhang is how far that
+    // reaches past the scoop's own bounds, plus a pixel for antialiasing;
+    // panels whose window is no bigger than the scoop pad by it.
+    readonly property real scoopCapRadius: borderWidth * 1.5
+    readonly property int scoopCapOverhang: Math.ceil(Math.sqrt(Math.pow(scoopCapRadius + borderWidth, 2) - scoopCapRadius * scoopCapRadius) - borderWidth) + 1
     // Typography
     //
     // The brand font is not bundled with the shell: it is a personal
