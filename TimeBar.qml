@@ -185,9 +185,12 @@ Scope {
                 anchors.horizontalCenter: parent.horizontalCenter
                 y: root.hideAll ? -(height + 20) : 0
 
-                width: (root.isExpanded 
-                    ? Math.max(timeText.implicitWidth, dayText.implicitWidth, dateText.implicitWidth) + Theme.rounding * 4
-                    : (timeText.implicitWidth + Theme.rounding * 3)) + 8
+                // The content is padded by Theme.unit and keeps its size; the
+                // flares on either side take rounding + 4 each, so the card
+                // widens and narrows with the rounding instead.
+                width: (root.isExpanded
+                    ? Math.max(timeText.implicitWidth, dayText.implicitWidth, dateText.implicitWidth) + Theme.unit * 2
+                    : (timeText.implicitWidth + Theme.unit)) + 2 * (Theme.rounding + 4)
 
                 height: (root.isExpanded
                     ? (summaryHeader.height + detailsColumn.implicitHeight + Theme.spacing * 2)
@@ -244,7 +247,7 @@ Scope {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
-                        height: timeText.implicitHeight + Theme.rounding
+                        height: timeText.implicitHeight + Theme.unit
 
                         Text {
                             id: timeText

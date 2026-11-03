@@ -304,6 +304,16 @@ install_files() {
 
     [[ -f $REPO_DIR/$src ]] || fail "manifest source missing: $src"
 
+    # User settings ship with a default but are never overwritten: a
+    # reinstall or update must keep the user's edits.
+    if [[ $(jq -r '.preserve // false' <<<"$entry") == "true" && -e $dest ]]; then
+      if (( DRY_RUN )); then
+        printf '  would keep: %s\n' "$dest"
+      fi
+      count=$((count + 1))
+      continue
+    fi
+
     if (( DRY_RUN )); then
       printf '  would install: %s\n' "$dest"
       count=$((count + 1))

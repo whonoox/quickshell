@@ -87,6 +87,30 @@ local function escape_pattern(text)
   return (text:gsub("([%.%+%[%]%(%)%^%$%|%?%*%\\])", "%%%1"))
 end
 
+-- The shell's user settings live in config.toml next to the QML. The shell
+-- watches the file and pushes changes to Hyprland live; reading it here as
+-- well keeps a `hyprctl reload` from reverting them. Only flat
+-- `key = number` lines are needed, so this is not a full TOML parser.
+M.config_path = (home or "") .. "/.config/quickshell/config.toml"
+
+local function read_config()
+  local config = {}
+  local file = io.open(M.config_path, "r")
+  if not file then
+    return config
+  end
+  for line in file:lines() do
+    local key, value = line:match("^%s*([%w_]+)%s*=%s*(%d+)")
+    if key then
+      config[key] = tonumber(value)
+    end
+  end
+  file:close()
+  return config
+end
+
+M.config = read_config()
+
 -- The X-Ray effect needs the global decoration blur.
 --
 -- A layer rule asking for xray does nothing while
@@ -98,8 +122,9 @@ end
 -- single most visible difference between the shell working and not.
 --
 -- The values match the ones this desktop was tuned with, so on a machine
--- that already has them the result is identical. The rounding matches
--- Theme.rounding, so the island corners line up with the window corners.
+-- that already has them the result is identical. The rounding comes from
+-- the same config.toml as Theme.rounding, so the island corners line up
+-- with the window corners.
 function M.decorations()
   hl.config({
     general = {
@@ -112,7 +137,9 @@ function M.decorations()
       border_size = 0,
     },
     decoration = {
-      rounding = 20,
+      -- Capped at 20 like Theme.rounding: the islands are laid out for
+      -- radii up to it.
+      rounding = math.min(M.config.rounding or 20, 20),
 
       blur = {
         enabled = true,

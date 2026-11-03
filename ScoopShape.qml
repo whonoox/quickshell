@@ -13,9 +13,12 @@ Item{
 
     required property int cornerPosition
     property color bgColor: Theme.bgc
+    // The screen corners follow the rounding; decorative uses (the
+    // Bluetooth header glyph) pin a fixed size instead.
+    property real size: Theme.rounding
 
-    implicitWidth: Theme.rounding
-    implicitHeight: Theme.rounding
+    implicitWidth: size
+    implicitHeight: size
 
     transform: Scale {
         origin.x: implicitWidth / 2 
@@ -31,8 +34,8 @@ Item{
             strokeWidth: 0
             fillColor: root.bgColor
             startX: 0; startY: 0
-            PathArc { x: Theme.rounding; y: Theme.rounding; radiusX: Theme.rounding; radiusY: Theme.rounding}
-            PathLine { x: Theme.rounding; y: 0 }
+            PathArc { x: root.size; y: root.size; radiusX: root.size; radiusY: root.size }
+            PathLine { x: root.size; y: 0 }
         }
     }
 }

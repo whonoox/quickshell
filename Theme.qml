@@ -9,6 +9,8 @@ QtObject {
     readonly property string home: Quickshell.env("HOME")
     readonly property string colorsPath: home + "/.local/state/omarchy/current/theme/colors.toml"
     readonly property string themeNamePath: home + "/.local/state/omarchy/current/theme.name"
+    // User settings shared with the Hyprland module (see config.toml).
+    readonly property string configPath: Quickshell.shellPath("config.toml")
 
     // Theme Mode ("dark" | "light")
     property string mode: "dark"
@@ -54,7 +56,18 @@ QtObject {
     // Hyprland module sets. The scoops are drawn with the same border as
     // the gap between two windows, so the islands and the windows sit in
     // one rhythm. Keep the two in step.
-    readonly property int rounding: 20
+    //
+    // rounding comes from config.toml and is pushed to Hyprland's
+    // decoration:rounding, so window corners follow the islands. It is
+    // capped at unit: the panels are laid out so their scoops fit at any
+    // radius up to it, and a wider curve would outgrow the content.
+    property int rounding: 20
+    // Layout unit for island content: padding, header heights and label
+    // sizes. The islands were laid out against a fixed 20px radius, so
+    // this keeps their content the same size whatever rounding is. Only
+    // the room a panel leaves for its scoop curves (rounding + borderWidth
+    // margins) follows rounding.
+    readonly property int unit: 20
     readonly property real spacing: 6
     readonly property int borderWidth: 4
     // Radius of the off-screen turn that ends each scoop flare (see
@@ -121,6 +134,28 @@ QtObject {
         if (d.blue) root.blue = d.blue
         if (d.magenta) root.magenta = d.magenta
         if (d.brown) root.brown = d.brown
+    }
+
+    function loadConfig(text) {
+        if (!text) return
+        var d = parseToml(text)
+        var r = parseInt(d.rounding, 10)
+        if (!isFinite(r) || r < 0) return
+        r = Math.min(r, root.unit)
+        root.rounding = r
+        // Pushed on every load, not only on a change: the file may have been
+        // edited while the shell was down, and Hyprland only rereads it on
+        // a reload.
+        Quickshell.execDetached(["hyprctl", "eval", "hl.config({ decoration = { rounding = " + r + " } })"])
+    }
+
+    property FileView configFile: FileView {
+        id: configFile
+        path: root.configPath
+        watchChanges: true
+        printErrors: false
+        onLoaded: root.loadConfig(text())
+        onFileChanged: reload()
     }
 
     property FileView themeNameFile: FileView {

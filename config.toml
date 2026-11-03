@@ -1,0 +1,11 @@
+# nooxshell settings
+#
+# Edits apply live: the shell redraws its islands as soon as the file is
+# saved, and pushes the new values to Hyprland at the same time. Hyprland
+# also reads this file on every `hyprctl reload`, so the two never drift.
+
+# Corner radius in pixels. Drives the island scoops and their inner
+# corners, the screen bezel corners, and Hyprland's window rounding, so
+# the islands and the windows keep the same curve. Range 0-20; larger
+# values are treated as 20, the most the islands are laid out for.
+rounding = 16

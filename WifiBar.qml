@@ -1084,8 +1084,8 @@ Scope {
                     anchors.right: parent.right
                     y: root.hideAll ? -(height + 30) : 0
 
-                    width: (root.isExpanded ? 390 : Math.max(3 * Theme.rounding, wifiName.implicitWidth + Theme.rounding * 3)) + 4
-                    height: (root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) : (Theme.rounding * 3)) + 4
+                    width: root.isExpanded ? 390 + 4 : wifiName.implicitWidth + Theme.unit * 2 + Theme.rounding + 4
+                    height: root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) + 4 : summaryHeader.height + Theme.rounding + 4
 
                     Behavior on width {
                         NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
@@ -1129,7 +1129,7 @@ Scope {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.top: parent.top
-                            height: Theme.rounding * 2
+                            height: Theme.unit * 2
 
                             // Click header to toggle expansion
                             MouseArea {
@@ -1183,7 +1183,7 @@ Scope {
                                     return Theme.darkForeground
                                 }
                                 font.family: Theme.brandFont
-                                font.pixelSize: Theme.rounding
+                                font.pixelSize: 20
                                 font.weight: Font.Bold
                                 font.capitalization: Font.AllUppercase
                             }
@@ -1196,7 +1196,7 @@ Scope {
                                 implicitHeight: implicitWidth
                                 color: root.barColor(4)
                                 radius: Theme.spacing
-                                bottomLeftRadius: Theme.rounding + Theme.spacing
+                                bottomLeftRadius: Theme.unit + Theme.spacing
                                 border.width: Theme.spacing / 2
                                 border.color: Theme.bgc
                                 Behavior on color { ColorAnimation { duration: 150 } }
@@ -1209,7 +1209,7 @@ Scope {
                                 implicitHeight: implicitWidth
                                 color: root.barColor(3)
                                 radius: Theme.spacing
-                                bottomLeftRadius: Theme.rounding + Theme.spacing
+                                bottomLeftRadius: Theme.unit + Theme.spacing
                                 border.width: Theme.spacing / 2
                                 border.color: Theme.bgc
                                 Behavior on color { ColorAnimation { duration: 150 } }
@@ -1222,7 +1222,7 @@ Scope {
                                 implicitHeight: implicitWidth
                                 color: root.barColor(2)
                                 radius: Theme.spacing
-                                bottomLeftRadius: Theme.rounding + Theme.spacing
+                                bottomLeftRadius: Theme.unit + Theme.spacing
                                 border.width: Theme.spacing / 2
                                 border.color: Theme.bgc
                                 Behavior on color { ColorAnimation { duration: 150 } }
@@ -1235,7 +1235,7 @@ Scope {
                                 implicitHeight: implicitWidth
                                 color: root.barColor(1)
                                 radius: Theme.spacing
-                                bottomLeftRadius: Theme.rounding + Theme.spacing
+                                bottomLeftRadius: Theme.unit + Theme.spacing
                                 border.width: Theme.spacing / 2
                                 border.color: Theme.bgc
                                 Behavior on color { ColorAnimation { duration: 150 } }

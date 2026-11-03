@@ -117,6 +117,7 @@ To integrate cleanly with the host system without fighting existing Omarchy defa
 │   ├── quickshell/                           <- Active configuration workspace (This repo)
 │   │   ├── shell.qml                         <- Root Scope entry point
 │   │   ├── Theme.qml                         <- Live TOML theme synchronizer
+│   │   ├── config.toml                       <- User settings (rounding), shared with Hyprland
 │   │   ├── shims/                            <- Source copies of interception wrappers
 │   │   └── decorations/                      <- Vector SVG glyphs and assets
 │   └── omarchy/
@@ -165,7 +166,8 @@ To integrate cleanly with the host system without fighting existing Omarchy defa
       - `XF86RFKill`: `quickshell:airplaneToggle` (Airplane mode all radios)
    - Using `global` shortcuts eliminates intermediate shell spawns, routing keystrokes straight to Quickshell's event loop.
 4. **`looknfeel.lua`**:
-   - Holds the user's own compositor preferences (gaps, rounding, decoration).
+   - Holds the user's own compositor preferences (decoration, opacity).
+   - Gaps, blur and `decoration:rounding` are owned by `quickshell-islands.lua`, which loads after it. The rounding is read from `~/.config/quickshell/config.toml`, so set it there, not here.
    - The X-Ray layer rule for the island panels now lives in `quickshell-islands.lua`:
       ```lua
       hl.layer_rule({
@@ -186,6 +188,7 @@ Because Omarchy ships with built-in scripts and hotkeys that target `/usr/share/
 
 ### 3.3 Dynamic State & Theme Files (`~/.local/state/omarchy/`)
 - **`colors.toml` & `theme.name`**: `Theme.qml` attaches `Quickshell.Io.FileView` watchers with a 50ms debounce timer to these paths. Changing themes via the Omarchy CLI immediately updates all colors across every active bar without restarting Quickshell.
+- **`~/.config/quickshell/config.toml`**: `Theme.qml` watches this file too. `rounding` (0-20; larger values are capped, since the panels are laid out for radii up to `Theme.unit`) drives `Theme.rounding`, which every scoop, island corner and the screen bezel derive from, and on each load the shell pushes the same value to Hyprland with `hyprctl eval`, so window corners change live. Content sizing (padding, header heights, label sizes) uses the fixed `Theme.unit` instead, so only the curves and the room each panel leaves for them change with the rounding. `quickshell-islands.lua` reads it as well, so a `hyprctl reload` keeps the value. The installer ships a default but never overwrites an existing copy.
 - **`current/background`**: `WallpaperPicker.qml` reads this symlink via `readlink -f` to highlight the current desktop wallpaper.
 
 ---

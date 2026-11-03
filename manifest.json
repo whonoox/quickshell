@@ -51,6 +51,7 @@
     { "src": "shell.qml", "dest": "~/.config/quickshell/shell.qml" },
     { "src": "AppSearch.js", "dest": "~/.config/quickshell/AppSearch.js" },
     { "src": "AudioBar.qml", "dest": "~/.config/quickshell/AudioBar.qml" },
+    { "src": "config.toml", "dest": "~/.config/quickshell/config.toml", "preserve": true },
     { "src": "BarVariants.qml", "dest": "~/.config/quickshell/BarVariants.qml" },
     { "src": "BatteryBar.qml", "dest": "~/.config/quickshell/BatteryBar.qml" },
     { "src": "BluetoothBar.qml", "dest": "~/.config/quickshell/BluetoothBar.qml" },

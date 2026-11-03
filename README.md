@@ -69,11 +69,24 @@ If every panel appears twice, once in the live theme colors and once in the
 default palette, a stray instance is running. `nooxshell doctor`
 identifies it and `nooxshell doctor --fix` stops it.
 
+## Configuration
+
+`~/.config/quickshell/config.toml` holds the user settings. Edits apply
+live as soon as the file is saved.
+
+```toml
+rounding = 20   # corner radius in px for the islands, their scoops and the windows (0-20)
+```
+
+Hyprland's window rounding follows the same value, so set it here rather
+than in `looknfeel.lua`. Reinstalling keeps your copy.
+
 ## Layout
 
 ```
 install.sh / uninstall.sh     one-click installer and rollback
 manifest.json                 declarative deployment manifest
+config.toml                   user settings (rounding)
 bin/nooxshell           management CLI
 hypr/                         Hyprland bindings, layer rules, autostart
 shims/                        command interceptors for ~/.local/bin

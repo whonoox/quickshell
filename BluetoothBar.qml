@@ -754,8 +754,8 @@ Scope {
                     anchors.right: parent.right
                     y: root.hideAll ? -(height + 30) : 0
 
-                    width: (root.isExpanded ? 390 : Math.max(3 * Theme.rounding, btLabel.implicitWidth + (batteryPill.visible ? (batteryPill.width + Theme.spacing) : 0) + Theme.rounding * 3)) + 4
-                    height: (root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) : (Theme.rounding * 3)) + 4
+                    width: root.isExpanded ? 390 + 4 : btLabel.implicitWidth + (batteryPill.visible ? (batteryPill.width + Theme.spacing) : 0) + Theme.unit * 2 + Theme.rounding + 4
+                    height: root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) + 4 : summaryHeader.height + Theme.rounding + 4
 
                     Behavior on width {
                         NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
@@ -799,7 +799,7 @@ Scope {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.top: parent.top
-                            height: Theme.rounding * 2
+                            height: Theme.unit * 2
 
                             // Click header to toggle expansion
                             MouseArea {
@@ -833,7 +833,7 @@ Scope {
                                 }
                                 color: root.hasConnection ? Theme.brand : (root.adapter && root.adapter.enabled ? Theme.lightForeground : Theme.darkForeground)
                                 font.family: Theme.brandFont
-                                font.pixelSize: Theme.rounding
+                                font.pixelSize: 20
                                 font.weight: Font.Bold
                                 font.capitalization: Font.AllUppercase
                             }
@@ -878,6 +878,7 @@ Scope {
                                 anchors.top: parent.top
                                 anchors.right: parent.right
                                 cornerPosition: scoopPosition.bottomLeft
+                                size: Theme.unit
                             }
 
                             ScoopShape {
@@ -888,6 +889,7 @@ Scope {
                                 anchors.topMargin: Theme.spacing
                                 scale: 0.7
                                 cornerPosition: scoopPosition.bottomLeft
+                                size: Theme.unit
                             }
 
                             ScoopShape {
@@ -898,6 +900,7 @@ Scope {
                                 anchors.topMargin: Theme.spacing * 2
                                 scale: 0.5
                                 cornerPosition: scoopPosition.bottomLeft
+                                size: Theme.unit
                             }
                         }
 

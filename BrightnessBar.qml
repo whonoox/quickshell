@@ -143,8 +143,10 @@ Scope {
             exclusionMode: ExclusionMode.Ignore
 
             implicitWidth: 48
-            // Room for the scoop's edge caps above and below the pill
-            implicitHeight: 160 + Theme.spacing * 4 + 8 + 2 * Theme.scoopCapOverhang
+            // The slider keeps its 128px; the flares above and below it
+            // take rounding + 2 * spacing each, plus room for the scoop's
+            // edge caps.
+            implicitHeight: 128 + 2 * (Theme.rounding + Theme.spacing * 2) + 2 * Theme.scoopCapOverhang
             color: "transparent"
 
             mask: Region {
@@ -245,7 +247,7 @@ Scope {
                         text: String(Math.round(Math.min(1, root.brightness) * 100))
                         color: Theme.brand
                         font.family: Theme.brandFont
-                        font.pixelSize: Theme.rounding
+                        font.pixelSize: 20
                         font.weight: Font.Bold
                         font.capitalization: Font.AllUppercase
                     }
