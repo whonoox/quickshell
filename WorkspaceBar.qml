@@ -319,6 +319,7 @@ Scope {
         repeat: false
         onTriggered: {
             Hyprland.refreshWorkspaces()
+            Hyprland.refreshToplevels()
             root.updateWorkspaces()
         }
     }
@@ -330,6 +331,7 @@ Scope {
         repeat: false
         onTriggered: {
             Hyprland.refreshWorkspaces()
+            Hyprland.refreshToplevels()
             root.updateWorkspaces()
         }
     }
@@ -351,8 +353,11 @@ Scope {
             appClass = rt.lastIpcObject.class || rt.lastIpcObject.initialClass
         } else if (rt.address && root.windowClassByAddress[rt.address]) {
             appClass = root.windowClassByAddress[rt.address]
-        } else if (rt.appId) {
-            appClass = rt.appId
+        } else if (rt.wayland && rt.wayland.appId) {
+            // HyprlandToplevel has no appId of its own; the Wayland toplevel
+            // does, and unlike lastIpcObject and the openwindow cache it is
+            // filled in for windows that predate this shell (or a reload).
+            appClass = rt.wayland.appId
         }
 
         var initialTitle = rt.lastIpcObject ? (rt.lastIpcObject.initialTitle || "") : ""
@@ -446,6 +451,7 @@ Scope {
         }
 
         Hyprland.refreshWorkspaces()
+        Hyprland.refreshToplevels()
         root.updateWorkspaces()
 
         // 1. Workspace switch: always reveal for 1.5s
@@ -519,6 +525,7 @@ Scope {
     Component.onCompleted: {
         iconIndexScan.running = true
         Hyprland.refreshWorkspaces()
+        Hyprland.refreshToplevels()
         root.updateWorkspaces()
     }
 
