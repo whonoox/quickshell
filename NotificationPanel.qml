@@ -559,6 +559,15 @@ Scope {
                     }
                 }
 
+                // Hovering anywhere on the tray holds every toast on screen,
+                // not just the row under the pointer, so nothing expires and
+                // reflows the list while it is being read. A HoverHandler is
+                // passive, so it sees the pointer over the rows and their
+                // action buttons without taking events from them.
+                HoverHandler {
+                    id: trayHover
+                }
+
                 ScoopV2 {
                     anchors.fill: parent
                     position: "bottomRight"
@@ -614,7 +623,7 @@ Scope {
 
                         readonly property real lifetime: root.durationFor(row.urgency, row.expireTimeout)
                         property real remaining: 1.0
-                        readonly property bool ticking: row.lifetime > 0 && !rowMouse.containsMouse && !root.isDismissing
+                        readonly property bool ticking: row.lifetime > 0 && !trayHover.hovered && !root.isDismissing
                         readonly property color accent: row.urgency === NotificationUrgency.Critical
                             ? Theme.red
                             : (row.urgency === NotificationUrgency.Low ? Qt.darker(Theme.foreground, 1.4) : Theme.brand)
@@ -623,8 +632,9 @@ Scope {
                         height: rowColumn.height + Theme.spacing * 3
 
                         // A 50ms decrementing fraction rather than a wall-clock
-                        // deadline, so hovering pauses it and a content update
-                        // can hand back a full lifetime without re-arming.
+                        // deadline, so hovering holds it and leaving the tray or
+                        // a content update can hand back a full lifetime without
+                        // re-arming.
                         Timer {
                             interval: 50
                             repeat: true
@@ -641,6 +651,16 @@ Scope {
 
                         onSummaryChanged: remaining = 1.0
                         onBodyChanged: remaining = 1.0
+
+                        // Leaving the tray restarts the countdown from a full
+                        // lifetime rather than resuming it, so a toast is never
+                        // cut short just after the pointer moves away.
+                        Connections {
+                            target: trayHover
+                            function onHoveredChanged() {
+                                if (!trayHover.hovered) row.remaining = 1.0
+                            }
+                        }
 
                         // Hairline between entries so the list reads as one
                         // surface rather than a pile of cards.
@@ -790,8 +810,8 @@ Scope {
                             }
                         }
 
-                        // Left click acts, right click dismisses. Hover pauses
-                        // the countdown, which is the third and last affordance.
+                        // Left click acts, right click dismisses. Hovering the
+                        // tray holds the countdown (see trayHover).
                         MouseArea {
                             id: rowMouse
                             anchors.fill: parent
