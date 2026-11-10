@@ -129,8 +129,11 @@ Scope {
         description: "Show Time HUD on first press, expand Date on second press"
         appid: "quickshell"
         onPressed: {
+            // Only a duplicate event from one keypress is dropped. The old
+            // 250ms guard also swallowed the second press of a quick double
+            // tap, so show-then-expand only worked when pressed slowly.
             var now = Date.now()
-            if (now - root.lastToggleTime < 250) return
+            if (now - root.lastToggleTime < 40) return
             root.lastToggleTime = now
 
             if (root.hideAll) {
