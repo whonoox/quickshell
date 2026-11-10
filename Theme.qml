@@ -123,6 +123,13 @@ QtObject {
     // padded by unit, plus the border. It excludes the scoop flares, which
     // the corner islands add below it along the screen edge.
     readonly property int topIslandHeight: Math.ceil(titleCaps.height) + unit + borderWidth
+    // The battery, volume and brightness panels share one height: four
+    // bars of sideSegmentHeight, each with a gap, and one readout line,
+    // plus the flares above and below (rounding + 2 * spacing each) and
+    // room for the scoop's edge caps.
+    readonly property int sideSegmentHeight: 18
+    readonly property int sidePanelHeight: 4 * (sideSegmentHeight + spacing / 2) + Math.ceil(titleCaps.height)
+        + 2 * (rounding + spacing * 2) + 2 * scoopCapOverhang
     property TextMetrics titleCaps: TextMetrics {
         font.family: root.brandFont
         font.pixelSize: root.titleSize

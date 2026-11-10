@@ -6,8 +6,8 @@ import QtQuick.Layouts
 import Quickshell.Io
 
 // Output volume island, pinned to the left edge and built to the same language
-// as BatteryBar: a vertical pill that slides off-screen to hide, with a run of
-// equal segments that fill to the current level.
+// as BatteryBar: a vertical pill that slides off-screen to hide, with four
+// bars that fill to the current level in half-bar steps.
 //
 // State is read through pactl rather than Quickshell's Pipewire service. The
 // Pipewire node for the default sink never leaves `ready=false` with zero
@@ -26,11 +26,19 @@ Scope {
     property bool muted: false
     property bool available: false
 
-    readonly property int segments: 6
-    readonly property int litBars: (muted || volume <= 0)
+    // Four bars, lit in eighths: the next bar shows at half strength
+    // before it fills, so two steps share each bar.
+    readonly property int steps: (muted || volume <= 0)
         ? 0
-        : Math.min(6, Math.max(1, Math.ceil(volume * 6)))
+        : Math.min(8, Math.max(1, Math.ceil(volume * 8)))
     readonly property bool boosted: volume > 1.0
+
+    // Bar 1 is the bottom one.
+    function barColor(bar) {
+        if (root.steps >= 2 * bar) return (bar === 4 && root.boosted ? Theme.yellow : Theme.brand)
+        if (root.steps === 2 * bar - 1) return Qt.tint(Theme.brandBgc, Qt.alpha(Theme.brand, 0.5))
+        return Theme.brandBgc
+    }
 
     property bool hideBar: true
 
@@ -206,10 +214,8 @@ Scope {
             exclusionMode: ExclusionMode.Ignore
 
             implicitWidth: 48
-            // The slider keeps its 128px; the flares above and below it
-            // take rounding + 2 * spacing each, plus room for the scoop's
-            // edge caps.
-            implicitHeight: 128 + 2 * (Theme.rounding + Theme.spacing * 2) + 2 * Theme.scoopCapOverhang
+            // Same height as the other side panels; see Theme.sidePanelHeight.
+            implicitHeight: Theme.sidePanelHeight
             color: "transparent"
 
             mask: Region {
@@ -277,7 +283,7 @@ Scope {
                     alignItems: FlexboxLayout.AlignCenter
                     gap: Theme.spacing / 2
 
-                    // Bar 6 (Top: 84% - 100%)
+                    // Bar 4 (top)
                     Rectangle {
                         topLeftRadius: Theme.rounding
                         topRightRadius: Theme.rounding
@@ -285,25 +291,16 @@ Scope {
                         bottomRightRadius: 4
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: root.litBars >= 6 ? (root.boosted ? Theme.yellow : Theme.brand) : Theme.brandBgc
+                        color: root.barColor(4)
                         Behavior on color { ColorAnimation { duration: 120 } }
                     }
 
-                    // Bar 5 (67% - 83%)
+                    // Bar 3
                     Rectangle {
                         radius: 4
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: root.litBars >= 5 ? Theme.brand : Theme.brandBgc
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-
-                    // Bar 4 (51% - 66%)
-                    Rectangle {
-                        radius: 4
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        color: root.litBars >= 4 ? Theme.brand : Theme.brandBgc
+                        color: root.barColor(3)
                         Behavior on color { ColorAnimation { duration: 120 } }
                     }
 
@@ -316,25 +313,16 @@ Scope {
                         font.capitalization: Font.AllUppercase
                     }
 
-                    // Bar 3 (34% - 50%)
+                    // Bar 2
                     Rectangle {
                         radius: 4
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: root.litBars >= 3 ? Theme.brand : Theme.brandBgc
+                        color: root.barColor(2)
                         Behavior on color { ColorAnimation { duration: 120 } }
                     }
 
-                    // Bar 2 (17% - 33%)
-                    Rectangle {
-                        radius: 4
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        color: root.litBars >= 2 ? Theme.brand : Theme.brandBgc
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-
-                    // Bar 1 (Bottom: 1% - 16%)
+                    // Bar 1 (bottom)
                     Rectangle {
                         id: bottomBar
                         topLeftRadius: 4
@@ -343,7 +331,7 @@ Scope {
                         bottomRightRadius: Theme.rounding
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: root.litBars >= 1 ? Theme.brand : Theme.brandBgc
+                        color: root.barColor(1)
                         Behavior on color { ColorAnimation { duration: 120 } }
 
                         Text {
@@ -352,7 +340,7 @@ Scope {
                             font.family: Theme.fontFamily
                             font.pixelSize: 11
                             font.weight: Font.Bold
-                            color: root.litBars >= 1
+                            color: root.steps >= 1
                                 ? Theme.bgc
                                 : (root.muted ? Theme.red : Theme.brand)
                             Behavior on color { ColorAnimation { duration: 120 } }

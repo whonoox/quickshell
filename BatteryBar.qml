@@ -116,10 +116,8 @@ Scope{
             exclusionMode: ExclusionMode.Ignore
 
             implicitWidth: 48
-            // The slider keeps its 128px; the flares above and below it
-            // take rounding + 2 * spacing each, plus room for the scoop's
-            // edge caps.
-            implicitHeight: 128 + 2 * (Theme.rounding + Theme.spacing * 2) + 2 * Theme.scoopCapOverhang
+            // Same height as the other side panels; see Theme.sidePanelHeight.
+            implicitHeight: Theme.sidePanelHeight
             color: "transparent"
 
             mask: Region {
