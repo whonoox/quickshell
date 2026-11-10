@@ -102,10 +102,18 @@ Scope {
                     return
                 }
 
-                root.available = true
                 // pactl allows volumes above 100%; keep them, the meter clamps.
-                root.volume = Math.max(0, parseFloat(head) / 100)
-                root.muted = String(lines[1] || "").indexOf("muted") !== -1
+                var nextVolume = Math.max(0, parseFloat(head) / 100)
+                var nextMuted = String(lines[1] || "").indexOf("muted") !== -1
+                var changed = root.available && (nextVolume !== root.volume || nextMuted !== root.muted)
+
+                root.available = true
+                root.volume = nextVolume
+                root.muted = nextMuted
+
+                // Only a real level or mute change raises the bar; see the
+                // pactl subscriber below.
+                if (changed && root._initialized) root.reveal()
             }
         }
     }
@@ -118,11 +126,12 @@ Scope {
         running: true
         stdout: SplitParser {
             onRead: function(line) {
-                if (line.indexOf("'change' on sink") !== -1) {
+                // Sinks also report 'change' whenever playback starts or stops
+                // (state, latency), and "on sink-input" events fire per stream,
+                // so neither means the volume moved. Re-probe on a sink change
+                // and let the probe decide whether to reveal.
+                if (line.indexOf("'change' on sink #") !== -1) {
                     root.refresh()
-                    if (root._initialized) {
-                        root.reveal()
-                    }
                 }
             }
         }
