@@ -1647,12 +1647,19 @@ Scope {
 
                     // Wheel and touchpad scroll the view; the cursor stays
                     // put until the keyboard or a moving pointer takes it.
-                    WheelHandler {
-                        target: null
-                        onWheel: function(event) {
-                            if (event.pixelDelta.y !== 0) root.scrollBy(-event.pixelDelta.y, false)
-                            else root.scrollBy(-event.angleDelta.y / 120 * root.wheelStep, true)
-                            event.accepted = true
+                    // A MouseArea above the rows, as in the audio island: a
+                    // WheelHandler on the container below them did not get
+                    // touchpad scrolls. It takes no buttons and no hover, so
+                    // clicks and hover still reach the rows.
+                    MouseArea {
+                        anchors.fill: parent
+                        z: 5
+                        acceptedButtons: Qt.NoButton
+                        hoverEnabled: false
+                        onWheel: function(wheel) {
+                            if (wheel.pixelDelta.y !== 0) root.scrollBy(-wheel.pixelDelta.y, false)
+                            else root.scrollBy(-wheel.angleDelta.y / 120 * root.wheelStep, true)
+                            wheel.accepted = true
                         }
                     }
 
