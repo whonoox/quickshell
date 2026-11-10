@@ -97,6 +97,19 @@ Scope {
     }
     property int visibleRowsHeight: 0
 
+    // The apps menu, browsed or searched, is laid out two to a line; every
+    // other menu is a single list.
+    readonly property bool gridMode: !root.dmenuActive && root.activeMenu === "apps"
+    readonly property int gridColumns: 2
+    readonly property var activeView: root.gridMode ? resultGrid : resultList
+    // One mouse-wheel notch scrolls this far; a touchpad scrolls by its
+    // own pixel deltas.
+    readonly property int wheelStep: 2 * (root.baseRowHeight + root.rowSpacing)
+    // Where the pointer last was, in window coordinates. Hovering takes the
+    // cursor only when the pointer moves away from it; (-1, -1) means not
+    // seen since the menu opened, so the first report only records it.
+    property point lastPointer: Qt.point(-1, -1)
+
     readonly property var activeScreen: {
         var screens = Quickshell.screens
         if (!screens || screens.length === 0) return null
@@ -604,21 +617,87 @@ Scope {
 
     function revealCursor() {
         if (displayModel.count === 0 || typeof resultList === "undefined") return
-        resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+        var view = root.activeView
+        scrollAnim.stop()
+        view.positionViewAtIndex(root.selectedIndex, ListView.Contain)
 
-        var rowItem = resultList.itemAtIndex(root.selectedIndex)
+        var rowItem = view.itemAtIndex(root.selectedIndex)
         if (!rowItem) return
 
+        // Keep part of the next line in sight, except at the ends.
+        var columns = root.gridMode ? root.gridColumns : 1
         var reach = root.rowPeek + root.rowSpacing
-        if (root.selectedIndex < displayModel.count - 1) {
-            var maxY = Math.max(resultList.originY, resultList.originY + resultList.contentHeight - resultList.height)
-            var overhang = rowItem.y + rowItem.height + reach - (resultList.contentY + resultList.height)
-            if (overhang > 0) resultList.contentY = Math.min(resultList.contentY + overhang, maxY)
+        if (root.selectedIndex < displayModel.count - columns) {
+            var maxY = Math.max(view.originY, view.originY + view.contentHeight - view.height)
+            var overhang = rowItem.y + rowItem.height + reach - (view.contentY + view.height)
+            if (overhang > 0) view.contentY = Math.min(view.contentY + overhang, maxY)
         }
-        if (root.selectedIndex > 0) {
-            var underhang = resultList.contentY - (rowItem.y - reach)
-            if (underhang > 0) resultList.contentY = Math.max(resultList.contentY - underhang, resultList.originY)
+        if (root.selectedIndex >= columns) {
+            var underhang = view.contentY - (rowItem.y - reach)
+            if (underhang > 0) view.contentY = Math.max(view.contentY - underhang, view.originY)
         }
+    }
+
+    // Wheel and touchpad scrolling. A mouse notch glides; a touchpad,
+    // which already reports small steps, moves the view directly.
+    function scrollBy(dy, animate) {
+        var view = root.activeView
+        if (!view || view.contentHeight <= view.height) return
+        var minY = view.originY
+        var maxY = view.originY + view.contentHeight - view.height
+        var base = scrollAnim.running ? scrollAnim.to : view.contentY
+        var to = Math.max(minY, Math.min(maxY, base + dy))
+        scrollAnim.stop()
+        if (animate) {
+            scrollAnim.target = view
+            scrollAnim.from = view.contentY
+            scrollAnim.to = to
+            scrollAnim.start()
+        } else {
+            view.contentY = to
+        }
+    }
+
+    function pointerMoved(point) {
+        var moved = root.lastPointer.x >= 0
+            && Math.abs(point.x - root.lastPointer.x) + Math.abs(point.y - root.lastPointer.y) > 2
+        root.lastPointer = point
+        return moved
+    }
+
+    function rowFullyVisible(index) {
+        var view = root.activeView
+        var rowItem = view.itemAtIndex(index)
+        return !!rowItem && rowItem.y >= view.contentY - 1
+            && rowItem.y + rowItem.height <= view.contentY + view.height + 1
+    }
+
+    // After the view was scrolled away from the cursor, the keyboard picks
+    // up from what is on screen: the first visible row going down, the last
+    // going up, in the cursor's column. Returns false if the cursor is in
+    // sight and should simply move.
+    function resumeOnScreen(delta) {
+        if (root.rowFullyVisible(root.selectedIndex)) return false
+        var view = root.activeView
+        var column = root.gridMode ? root.selectedIndex % root.gridColumns : 0
+        var x = root.gridMode ? (column + 0.5) * resultGrid.cellWidth : view.width / 2
+        var step = root.baseRowHeight / 2
+        var found = -1
+        if (delta > 0) {
+            for (var y = view.contentY + 1; y < view.contentY + view.height && found < 0; y += step) {
+                var i = view.indexAt(x, y)
+                if (i >= 0 && root.rowFullyVisible(i)) found = i
+            }
+        } else {
+            for (var y2 = view.contentY + view.height - 1; y2 > view.contentY && found < 0; y2 -= step) {
+                var j = view.indexAt(x, y2)
+                if (j >= 0 && root.rowFullyVisible(j)) found = j
+            }
+        }
+        if (found < 0) return false
+        root.selectedIndex = found
+        root.revealCursor()
+        return true
     }
 
     function select(delta) {
@@ -626,10 +705,57 @@ Scope {
         if (!root.cursorActive) {
             root.cursorActive = true
             root.selectedIndex = delta < 0 ? displayModel.count - 1 : 0
-        } else {
+        } else if (!root.resumeOnScreen(delta)) {
             root.selectedIndex = (root.selectedIndex + delta + displayModel.count) % displayModel.count
         }
         root.revealCursor()
+    }
+
+    // Up and down in the grid: a line at a time, wrapping between the
+    // first and last line in the same column; paging stops at the ends.
+    function moveGridRows(rows) {
+        var count = displayModel.count
+        if (count === 0) return
+        var columns = root.gridColumns
+        if (!root.cursorActive) {
+            root.cursorActive = true
+            root.selectedIndex = rows < 0 ? count - 1 : 0
+            root.revealCursor()
+            return
+        }
+        if (root.resumeOnScreen(rows)) return
+
+        var current = root.selectedIndex
+        var column = current % columns
+        var lastLine = Math.floor((count - 1) / columns)
+        var next = current + rows * columns
+        if (Math.abs(rows) === 1) {
+            if (next >= count) next = Math.floor(current / columns) === lastLine ? column : count - 1
+            else if (next < 0) next = Math.min(lastLine * columns + column, count - 1)
+        } else {
+            next = Math.max(0, Math.min(count - 1, next))
+        }
+        root.selectedIndex = next
+        root.revealCursor()
+    }
+
+    // Left and right in the grid. Left from the first column still goes
+    // back a menu, as it does in the list.
+    function moveGridColumn(delta) {
+        var count = displayModel.count
+        if (count === 0) return false
+        if (!root.cursorActive) {
+            root.cursorActive = true
+            root.selectedIndex = 0
+            root.revealCursor()
+            return true
+        }
+        var column = root.selectedIndex % root.gridColumns
+        var next = root.selectedIndex + delta
+        if (column + delta < 0 || column + delta >= root.gridColumns || next >= count) return false
+        root.selectedIndex = next
+        root.revealCursor()
+        return true
     }
 
     function setFilter(nextFilter) {
@@ -787,6 +913,7 @@ Scope {
 
     function openExistingMenu(initialMenu) {
         root.requestSerial += 1
+        root.lastPointer = Qt.point(-1, -1)
         root.mode = "menu"
         root.requestActive = false
         root.selectionFile = ""
@@ -815,6 +942,7 @@ Scope {
 
     function openDmenu(payload) {
         root.requestSerial += 1
+        root.lastPointer = Qt.point(-1, -1)
         root.mode = payload.mode === "input" ? "input" : "select"
         root.dmenuPrompt = String(payload.prompt || (root.mode === "input" ? "Input" : "Select"))
         root.dmenuOptions = Array.isArray(payload.options) ? payload.options : []
@@ -1307,20 +1435,29 @@ Scope {
                     } else if (root.editsFilter(event)) {
                         root.setFilter(root.editedFilter(event))
                         event.accepted = true
+                    } else if (root.gridMode && event.key === Qt.Key_Left && root.moveGridColumn(-1)) {
+                        event.accepted = true
+                    } else if (root.gridMode && event.key === Qt.Key_Right) {
+                        root.moveGridColumn(1)
+                        event.accepted = true
                     } else if ((event.key === Qt.Key_Backspace || event.key === Qt.Key_Left) && !root.filterText) {
                         root.goBack()
                         event.accepted = true
                     } else if (event.key === Qt.Key_Up) {
-                        root.select(-1)
+                        if (root.gridMode) root.moveGridRows(-1)
+                        else root.select(-1)
                         event.accepted = true
                     } else if (event.key === Qt.Key_Down) {
-                        root.select(1)
+                        if (root.gridMode) root.moveGridRows(1)
+                        else root.select(1)
                         event.accepted = true
                     } else if (event.key === Qt.Key_PageUp) {
-                        root.select(-6)
+                        if (root.gridMode) root.moveGridRows(-6)
+                        else root.select(-6)
                         event.accepted = true
                     } else if (event.key === Qt.Key_PageDown) {
-                        root.select(6)
+                        if (root.gridMode) root.moveGridRows(6)
+                        else root.select(6)
                         event.accepted = true
                     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Right) {
                         if (root.dmenuActive) {
@@ -1462,7 +1599,9 @@ Scope {
                     ListView {
                         id: resultList
                         anchors.fill: parent
-                        model: displayModel
+                        model: root.gridMode ? null : displayModel
+                        visible: !root.gridMode
+                        delegate: rowDelegate
                         clip: true
                         spacing: root.rowSpacing
                         boundsBehavior: Flickable.StopAtBounds
@@ -1487,28 +1626,47 @@ Scope {
                                 color: Theme.selection
                             }
                         }
+                    }
 
-                        WheelHandler {
-                            target: null
-                            property real wheelAccumulator: 0
-                            onWheel: function(event) {
-                                if ((wheelAccumulator > 0 && event.angleDelta.y < 0) || (wheelAccumulator < 0 && event.angleDelta.y > 0))
-                                    wheelAccumulator = 0
-                                wheelAccumulator += event.angleDelta.y
-                                var threshold = 120
-                                while (wheelAccumulator <= -threshold) {
-                                    root.select(1)
-                                    wheelAccumulator += threshold
-                                }
-                                while (wheelAccumulator >= threshold) {
-                                    root.select(-1)
-                                    wheelAccumulator -= threshold
-                                }
-                                event.accepted = true
-                            }
+                    // The apps menu: the same rows, two to a line.
+                    GridView {
+                        id: resultGrid
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        width: parent.width + root.rowSpacing
+                        model: root.gridMode ? displayModel : null
+                        visible: root.gridMode
+                        delegate: rowDelegate
+                        clip: true
+                        cellWidth: width / root.gridColumns
+                        cellHeight: root.baseRowHeight + root.rowSpacing
+                        boundsBehavior: Flickable.StopAtBounds
+                        interactive: false
+                    }
+
+                    // Wheel and touchpad scroll the view; the cursor stays
+                    // put until the keyboard or a moving pointer takes it.
+                    WheelHandler {
+                        target: null
+                        onWheel: function(event) {
+                            if (event.pixelDelta.y !== 0) root.scrollBy(-event.pixelDelta.y, false)
+                            else root.scrollBy(-event.angleDelta.y / 120 * root.wheelStep, true)
+                            event.accepted = true
                         }
+                    }
 
-                        delegate: Rectangle {
+                    NumberAnimation {
+                        id: scrollAnim
+                        property: "contentY"
+                        duration: 160
+                        easing.type: Easing.OutCubic
+                    }
+
+                    Component {
+                        id: rowDelegate
+
+                        Rectangle {
                             id: rowItem
                             required property int index
                             required property string itemId
@@ -1524,8 +1682,11 @@ Scope {
                             readonly property bool isApp: rowItem.kind === "app"
                             readonly property bool hasIcon: rowItem.icon.length > 0 || rowItem.isApp
 
-                            width: ListView.view.width
-                            height: root.rowHeightForDetail(rowItem.detail)
+                            // In the grid the columns are split by one
+                            // rowSpacing gap; the grid is that much wider than
+                            // the card so the outer edges line up with the list's.
+                            width: root.gridMode ? resultGrid.cellWidth - root.rowSpacing : resultList.width
+                            height: root.gridMode ? root.baseRowHeight : root.rowHeightForDetail(rowItem.detail)
                             radius: 6
                             color: rowItem.hasCursor ? Theme.selection : "transparent"
 
@@ -1575,7 +1736,7 @@ Scope {
 
                                     Text {
                                         Layout.fillWidth: true
-                                        visible: (root.filterText || rowItem.kind === "dmenu") && rowItem.detail.length > 0
+                                        visible: !root.gridMode && (root.filterText || rowItem.kind === "dmenu") && rowItem.detail.length > 0
                                         text: rowItem.detail
                                         color: Theme.lightForeground
                                         font.family: Theme.fontFamily
@@ -1597,7 +1758,11 @@ Scope {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onEntered: {
+                                // Only a pointer that really moves takes the
+                                // cursor: rows scrolling under a still pointer
+                                // (wheel, touchpad or arrow keys) must not.
+                                onPositionChanged: function(mouse) {
+                                    if (!root.pointerMoved(mapToItem(null, mouse.x, mouse.y))) return
                                     root.cursorActive = true
                                     root.selectedIndex = rowItem.index
                                 }
@@ -1618,8 +1783,8 @@ Scope {
                         anchors.top: parent.top
                         height: Math.min(20, parent.height / 2)
                         visible: opacity > 0
-                        opacity: resultList.contentHeight > resultList.height
-                            ? Math.max(0, Math.min(1, (resultList.contentY - resultList.originY) / height)) : 0
+                        opacity: root.activeView.contentHeight > root.activeView.height
+                            ? Math.max(0, Math.min(1, (root.activeView.contentY - root.activeView.originY) / height)) : 0
                         gradient: Gradient {
                             GradientStop { position: 0; color: Theme.bgc }
                             GradientStop { position: 1; color: Qt.rgba(Theme.bgc.r, Theme.bgc.g, Theme.bgc.b, 0) }
@@ -1632,8 +1797,8 @@ Scope {
                         anchors.bottom: parent.bottom
                         height: Math.min(20, parent.height / 2)
                         visible: opacity > 0
-                        opacity: resultList.contentHeight > resultList.height
-                            ? Math.max(0, Math.min(1, (resultList.originY + resultList.contentHeight - resultList.height - resultList.contentY) / height)) : 0
+                        opacity: root.activeView.contentHeight > root.activeView.height
+                            ? Math.max(0, Math.min(1, (root.activeView.originY + root.activeView.contentHeight - root.activeView.height - root.activeView.contentY) / height)) : 0
                         gradient: Gradient {
                             GradientStop { position: 0; color: Qt.rgba(Theme.bgc.r, Theme.bgc.g, Theme.bgc.b, 0) }
                             GradientStop { position: 1; color: Theme.bgc }

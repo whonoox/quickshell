@@ -18,7 +18,12 @@ function normalizeItem(id, raw) {
     parent = id.indexOf(".") >= 0 ? id.split(".").slice(0, -1).join(".") : "root"
   if (id === "root") parent = ""
 
-  var kind = value.action ? "action" : (value.target ? "link" : "menu")
+  // An entry with a provider is a menu the provider fills, even when it
+  // also names an action. Omarchy 4.5 gives "apps" the action
+  // `omarchy-shell omarchy.dock apps`, its own grid launcher; honouring it
+  // here would send Super + Alt + Space and the menu's Apps row there
+  // instead of to this menu's searchable app list.
+  var kind = value.action && !value.provider ? "action" : (value.target ? "link" : "menu")
 
   return {
     id: id,
