@@ -1085,7 +1085,7 @@ Scope {
                     y: root.hideAll ? -(height + 30) : 0
 
                     width: root.isExpanded ? 390 + 4 : wifiName.implicitWidth + Theme.unit * 2 + Theme.rounding + 4
-                    height: root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) + 4 : summaryHeader.height + Theme.rounding + 4
+                    height: root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) + 4 : Theme.topIslandHeight + Theme.rounding
 
                     Behavior on width {
                         NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
@@ -1129,7 +1129,7 @@ Scope {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.top: parent.top
-                            height: Theme.unit * 2
+                            height: Theme.topIslandHeight - 4
 
                             // Click header to toggle expansion
                             MouseArea {
@@ -1151,26 +1151,16 @@ Scope {
                             Text {
                                 id: wifiName
                                 anchors.left: parent.left
-                                anchors.top: parent.top
-                                anchors.topMargin: Theme.spacing
                                 anchors.leftMargin: Theme.spacing
+                                anchors.baseline: wifiGlyph.verticalCenter
+                                anchors.baselineOffset: Theme.titleCapHeight / 2
+                                // Just the network name. The colour and the
+                                // animated signal bars already say it is
+                                // connecting or disconnecting; the detail is
+                                // in the expanded panel.
                                 text: {
-                                    if (root.isConnecting) {
-                                        var isNew = false
-                                        if (root.sortedNetworks && root.connectingSsid) {
-                                            for (var i = 0; i < root.sortedNetworks.length; i++) {
-                                                if (root.sortedNetworks[i] && root.sortedNetworks[i].ssid === root.connectingSsid) {
-                                                    isNew = !root.sortedNetworks[i].known
-                                                    break
-                                                }
-                                            }
-                                        }
-                                        var prefix = isNew ? "JOINING: " : "CONNECTING: "
-                                        return root.connectingSsid ? (prefix + root.connectingSsid) : (isNew ? "JOINING..." : "CONNECTING...")
-                                    }
-                                    if (root.isDisconnecting) {
-                                        return root.disconnectingSsid ? ("DISCONNECTING: " + root.disconnectingSsid) : "DISCONNECTING..."
-                                    }
+                                    if (root.isConnecting && root.connectingSsid) return root.connectingSsid
+                                    if (root.isDisconnecting && root.disconnectingSsid) return root.disconnectingSsid
                                     if (root.hasConnection && connectedNetwork && connectedNetwork.name) {
                                         return connectedNetwork.name
                                     }
@@ -1183,13 +1173,14 @@ Scope {
                                     return Theme.darkForeground
                                 }
                                 font.family: Theme.brandFont
-                                font.pixelSize: 20
-                                font.weight: Font.Bold
+                                font.pixelSize: Theme.titleSize
+                                font.weight: Theme.titleWeight
                                 font.capitalization: Font.AllUppercase
                             }
 
                             // Custom Wi-Fi Signal Bars (Nested Rounded Rectangles)
                             Rectangle {
+                                id: wifiGlyph
                                 anchors.right: parent.right
                                 anchors.top: parent.top
                                 implicitWidth: Theme.spacing * 4.5

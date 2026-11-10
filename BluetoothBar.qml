@@ -755,7 +755,7 @@ Scope {
                     y: root.hideAll ? -(height + 30) : 0
 
                     width: root.isExpanded ? 390 + 4 : btLabel.implicitWidth + (batteryPill.visible ? (batteryPill.width + Theme.spacing) : 0) + Theme.unit * 2 + Theme.rounding + 4
-                    height: root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) + 4 : summaryHeader.height + Theme.rounding + 4
+                    height: root.isExpanded ? Math.min(520, summaryHeader.height + detailsColumn.implicitHeight + Theme.rounding + Theme.spacing * 2) + 4 : Theme.topIslandHeight + Theme.rounding
 
                     Behavior on width {
                         NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
@@ -799,7 +799,7 @@ Scope {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.top: parent.top
-                            height: Theme.unit * 2
+                            height: Theme.topIslandHeight - 4
 
                             // Click header to toggle expansion
                             MouseArea {
@@ -821,20 +821,20 @@ Scope {
                             Text {
                                 id: btLabel
                                 anchors.left: parent.left
-                                anchors.top: parent.top
-                                anchors.topMargin: 10
                                 anchors.leftMargin: Theme.spacing
+                                anchors.baseline: btGlyph.verticalCenter
+                                anchors.baselineOffset: Theme.titleCapHeight / 2
                                 text: {
                                     if (!root.adapter || !root.adapter.enabled) return "Bluetooth Off"
                                     if (root.hasConnection) {
-                                        return root.primaryConnectedDevice.name || root.primaryConnectedDevice.deviceName || "Connected"
+                                        return root.primaryConnectedDevice.name || root.primaryConnectedDevice.deviceName || "Bluetooth"
                                     }
                                     return "Bluetooth"
                                 }
                                 color: root.hasConnection ? Theme.brand : (root.adapter && root.adapter.enabled ? Theme.lightForeground : Theme.darkForeground)
                                 font.family: Theme.brandFont
-                                font.pixelSize: 20
-                                font.weight: Font.Bold
+                                font.pixelSize: Theme.titleSize
+                                font.weight: Theme.titleWeight
                                 font.capitalization: Font.AllUppercase
                             }
 
@@ -844,8 +844,7 @@ Scope {
                                 visible: root.hasConnection && root.primaryConnectedDevice.batteryAvailable && root.primaryConnectedDevice.battery > 0
                                 anchors.left: btLabel.right
                                 anchors.leftMargin: Theme.spacing
-                                anchors.verticalCenter: btLabel.verticalCenter
-                                anchors.verticalCenterOffset: -3
+                                anchors.verticalCenter: btGlyph.verticalCenter
                                 height: 18
                                 width: batteryText.implicitWidth + 12
                                 radius: 9
@@ -874,6 +873,7 @@ Scope {
 
                             // Bluetooth Nested Concentric Scoops (Matching aesthetic design)
                             ScoopShape {
+                                id: btGlyph
                                 bgColor: root.hasConnection ? Theme.brand : Theme.brandBgc
                                 anchors.top: parent.top
                                 anchors.right: parent.right

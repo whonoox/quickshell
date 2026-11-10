@@ -91,6 +91,30 @@ QtObject {
     property string systemFont: "monospace"
     property string fontFamily: systemFont
 
+    // Island titles: the time, the Wi-Fi and Bluetooth names and the slider
+    // readouts, all set in brandFont. The monospace fallback is far wider
+    // and heavier than the brand face at the same pixel size, so it is set
+    // smaller and lighter to read at the same weight.
+    readonly property int titleSize: hasBrandFont ? 16 : 13
+    // The day name in the expanded time island.
+    readonly property int headlineSize: hasBrandFont ? 22 : 17
+    readonly property int titleWeight: hasBrandFont ? Font.Bold : Font.DemiBold
+    // Height of a capital at titleSize. The two faces sit at different
+    // heights inside their line boxes, so a title is aligned by its
+    // baseline, half a cap height below the centre it should sit on.
+    readonly property real titleCapHeight: titleCaps.tightBoundingRect.height
+    // Body height shared by the islands on the top edge (time, workspaces,
+    // Wi-Fi, Bluetooth), so their bottom edges line up: one title line
+    // padded by unit, plus the border. It excludes the scoop flares, which
+    // the corner islands add below it along the screen edge.
+    readonly property int topIslandHeight: Math.ceil(titleCaps.height) + unit + borderWidth
+    property TextMetrics titleCaps: TextMetrics {
+        font.family: root.brandFont
+        font.pixelSize: root.titleSize
+        font.weight: root.titleWeight
+        text: "H"
+    }
+
     function parseToml(raw) {
         var map = {}
         var lines = String(raw || "").split("\n")

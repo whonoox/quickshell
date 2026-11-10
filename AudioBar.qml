@@ -302,8 +302,8 @@ Scope {
                         text: String(Math.round(Math.min(1, root.volume) * 100)) + (root.boosted ? "+" : "")
                         color: root.muted ? Theme.red : Theme.brand
                         font.family: Theme.brandFont
-                        font.pixelSize: root.boosted ? 16 : 20
-                        font.weight: Font.Bold
+                        font.pixelSize: root.boosted ? Theme.titleSize - 3 : Theme.titleSize
+                        font.weight: Theme.titleWeight
                         font.capitalization: Font.AllUppercase
                     }
 

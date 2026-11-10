@@ -214,8 +214,8 @@ Scope{
                         text: Math.round(root.battery.percentage * 100)
                         color: root.criticalBattery ? "red" : Theme.brand
                         font.family: Theme.brandFont
-                        font.pixelSize: 20
-                        font.weight: Font.Bold
+                        font.pixelSize: Theme.titleSize
+                        font.weight: Theme.titleWeight
                         font.capitalization: Font.AllUppercase
                     }
                     Rectangle {

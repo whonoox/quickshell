@@ -247,16 +247,22 @@ Scope {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
-                        height: timeText.implicitHeight + Theme.unit
+                        height: Theme.topIslandHeight - 4
 
                         Text {
                             id: timeText
-                            anchors.centerIn: parent
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            // Centered above the whole border stroke, not just
+                            // its outer half: the inner half reads as edge, not
+                            // space, and centering on the full fill sat the time
+                            // visibly low.
+                            anchors.baseline: parent.verticalCenter
+                            anchors.baselineOffset: Theme.titleCapHeight / 2 - Theme.borderWidth / 2
                             text: root.time
                             color: Theme.brand
                             font.family: Theme.brandFont
-                            font.pixelSize: 22
-                            font.weight: Font.Bold
+                            font.pixelSize: Theme.titleSize
+                            font.weight: Theme.titleWeight
                             font.capitalization: Font.AllUppercase
                         }
                     }
@@ -292,20 +298,20 @@ Scope {
                             text: root.day
                             color: Theme.lightForeground
                             font.family: Theme.brandFont
-                            font.pixelSize: 30
-                            font.weight: Font.Bold
+                            font.pixelSize: Theme.headlineSize
+                            font.weight: Theme.titleWeight
                             font.capitalization: Font.AllUppercase
                         }
 
-                        // Formatted Date (Matched to Time: 22px, Bold, Brand color)
+                        // Formatted Date (matched to the time)
                         Text {
                             id: dateText
                             Layout.alignment: Qt.AlignHCenter
                             text: root.date
                             color: Theme.brand
                             font.family: Theme.brandFont
-                            font.pixelSize: 22
-                            font.weight: Font.Bold
+                            font.pixelSize: Theme.titleSize
+                            font.weight: Theme.titleWeight
                             font.capitalization: Font.AllUppercase
                         }
                     }

@@ -560,7 +560,7 @@ Scope {
                 y: root.hudVisible ? 0 : -(height + 20)
 
                 width: contentRow.implicitWidth + Theme.rounding + Theme.spacing * 4 + 4
-                height: 44 + Theme.rounding + 4
+                height: Theme.topIslandHeight + Theme.rounding
 
                 Behavior on y {
                     NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
@@ -586,7 +586,7 @@ Scope {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.rounding + 4
-                    height: 44
+                    height: Theme.topIslandHeight - 4
                     clip: true
 
                     RowLayout {
