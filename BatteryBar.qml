@@ -48,7 +48,7 @@ Scope{
 
     Timer {
         id: autoHide
-        interval: 3500
+        interval: Theme.hideDelay
         onTriggered: {
             root.hideBar = true
         }

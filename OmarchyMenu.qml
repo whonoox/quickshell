@@ -97,9 +97,10 @@ Scope {
     }
     property int visibleRowsHeight: 0
 
-    // The apps menu, browsed or searched, is laid out two to a line; every
-    // other menu is a single list.
-    readonly property bool gridMode: !root.dmenuActive && root.activeMenu === "apps"
+    // The apps menu, browsed or searched, is laid out two to a line unless
+    // two_column_app_grid is off in config.toml; every other menu is a
+    // single list.
+    readonly property bool gridMode: Theme.twoColumnAppGrid && !root.dmenuActive && root.activeMenu === "apps"
     readonly property int gridColumns: 2
     readonly property var activeView: root.gridMode ? resultGrid : resultList
     // One mouse-wheel notch scrolls this far; a touchpad scrolls by its

@@ -9,3 +9,17 @@
 # the islands and the windows keep the same curve. Range 0-20; larger
 # values are treated as 20, the most the islands are laid out for.
 rounding = 16
+
+# The apps menu (Super + Alt + Space, or Apps in the main menu) as a grid
+# two apps to a line. false gives the single list every other menu uses.
+two_column_app_grid = true
+
+# Seconds an island that popped up on its own (time, Wi-Fi, Bluetooth,
+# audio, brightness, battery) stays before it slides away. Decimals are
+# fine; 0.5-60. The toggle HUD waits 5/7 of this (2.5s at the default).
+hide_delay = 2
+
+# The workspace bar leaves sooner: this fraction of hide_delay, 0-1
+# (0.43 is 1.5s at the default). A value above 1 is read as a percentage,
+# so 43 means the same.
+workspace_hide_factor = 0.43

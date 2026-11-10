@@ -75,7 +75,10 @@ identifies it and `nooxshell doctor --fix` stops it.
 live as soon as the file is saved.
 
 ```toml
-rounding = 20   # corner radius in px for the islands, their scoops and the windows (0-20)
+rounding = 20                # corner radius in px for the islands, their scoops and the windows (0-20)
+two_column_app_grid = true   # the apps menu two to a line; false for a single list
+hide_delay = 3.5             # seconds an island stays after popping up on its own (0.5-60)
+workspace_hide_factor = 0.43 # the workspace bar's wait as a fraction of hide_delay (0-1, or 0-100 as %)
 ```
 
 Hyprland's window rounding follows the same value, so set it here rather
@@ -86,7 +89,7 @@ than in `looknfeel.lua`. Reinstalling keeps your copy.
 ```
 install.sh / uninstall.sh     one-click installer and rollback
 manifest.json                 declarative deployment manifest
-config.toml                   user settings (rounding)
+config.toml                   user settings (rounding, app grid, hide delays)
 bin/nooxshell           management CLI
 hypr/                         Hyprland bindings, layer rules, autostart
 shims/                        command interceptors for ~/.local/bin

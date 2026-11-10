@@ -117,7 +117,7 @@ To integrate cleanly with the host system without fighting existing Omarchy defa
 │   ├── quickshell/                           <- Active configuration workspace (This repo)
 │   │   ├── shell.qml                         <- Root Scope entry point
 │   │   ├── Theme.qml                         <- Live TOML theme synchronizer
-│   │   ├── config.toml                       <- User settings (rounding), shared with Hyprland
+│   │   ├── config.toml                       <- User settings (rounding, app grid, hide delays), shared with Hyprland
 │   │   ├── shims/                            <- Source copies of interception wrappers
 │   │   └── decorations/                      <- Vector SVG glyphs and assets
 │   └── omarchy/
@@ -189,7 +189,7 @@ Because Omarchy ships with built-in scripts and hotkeys that target `/usr/share/
 
 ### 3.3 Dynamic State & Theme Files (`~/.local/state/omarchy/`)
 - **`colors.toml` & `theme.name`**: `Theme.qml` attaches `Quickshell.Io.FileView` watchers with a 50ms debounce timer to these paths. Changing themes via the Omarchy CLI immediately updates all colors across every active bar without restarting Quickshell.
-- **`~/.config/quickshell/config.toml`**: `Theme.qml` watches this file too. `rounding` (0-20; larger values are capped, since the panels are laid out for radii up to `Theme.unit`) drives `Theme.rounding`, which every scoop, island corner and the screen bezel derive from, and on each load the shell pushes the same value to Hyprland with `hyprctl eval`, so window corners change live. Content sizing (padding, header heights, label sizes) uses the fixed `Theme.unit` instead, so only the curves and the room each panel leaves for them change with the rounding. `quickshell-islands.lua` reads it as well, so a `hyprctl reload` keeps the value. The installer ships a default but never overwrites an existing copy.
+- **`~/.config/quickshell/config.toml`**: `Theme.qml` watches this file too. `rounding` (0-20; larger values are capped, since the panels are laid out for radii up to `Theme.unit`) drives `Theme.rounding`, which every scoop, island corner and the screen bezel derive from, and on each load the shell pushes the same value to Hyprland with `hyprctl eval`, so window corners change live. Content sizing (padding, header heights, label sizes) uses the fixed `Theme.unit` instead, so only the curves and the room each panel leaves for them change with the rounding. `quickshell-islands.lua` reads it as well, so a `hyprctl reload` keeps the value. `two_column_app_grid` (`true`/`false`, default `true`) drives `Theme.twoColumnAppGrid`, which switches the apps menu between a two-column grid and the single list; it is shell-only. `hide_delay` (seconds, default 3.5) drives `Theme.hideDelay`, the auto-hide wait of the time, Wi-Fi, Bluetooth, audio, brightness and battery islands; the toggle HUD waits 5/7 of it (`Theme.toggleHideDelay`). `workspace_hide_factor` (0-1, or a percentage above 1, default 0.43) sets the workspace bar's wait as a fraction of it (`Theme.workspaceHideDelay`). The installer ships a default but never overwrites an existing copy.
 - **`current/background`**: the pickers read this symlink to open on the wallpaper on screen, and repoint it when they apply one.
 
 ### 3.4 The Pickers (`GridPicker.qml`)

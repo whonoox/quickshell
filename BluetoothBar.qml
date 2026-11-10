@@ -291,7 +291,7 @@ Scope {
     // Auto-hide Timer for Glance HUD (only active when collapsed)
     Timer {
         id: autoHideTimer
-        interval: 3500
+        interval: Theme.hideDelay
         running: root.hudVisible && !root.isExpanded
         onTriggered: {
             root.hudVisible = false

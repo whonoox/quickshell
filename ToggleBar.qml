@@ -22,7 +22,7 @@ Scope {
 
     Timer {
         id: autoHideTimer
-        interval: 2500
+        interval: Theme.toggleHideDelay
         onTriggered: {
             root.hideBar = true
             root.lastTriggered = "none"

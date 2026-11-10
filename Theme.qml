@@ -62,6 +62,21 @@ QtObject {
     // capped at unit: the panels are laid out so their scoops fit at any
     // radius up to it, and a wider curve would outgrow the content.
     property int rounding: 20
+    // two_column_app_grid in config.toml: the apps menu two to a line, or
+    // the single list every other menu uses.
+    property bool twoColumnAppGrid: true
+
+    // hide_delay in config.toml, in seconds: how long an island that popped
+    // up on its own (time, Wi-Fi, Bluetooth, audio, brightness, battery)
+    // stays before it slides away.
+    property int hideDelay: 3500
+    // workspace_hide_factor: the workspace bar leaves sooner, this fraction
+    // of hideDelay (1.5s of the default 3.5s).
+    property real workspaceHideFactor: 1500 / 3500
+    readonly property int workspaceHideDelay: Math.max(100, Math.round(hideDelay * workspaceHideFactor))
+    // The toggle HUD keeps its own shorter wait, 2.5s of the default 3.5s,
+    // and follows hide_delay in the same proportion.
+    readonly property int toggleHideDelay: Math.max(100, Math.round(hideDelay * 2500 / 3500))
     // Layout unit for island content: padding, header heights and label
     // sizes. The islands were laid out against a fixed 20px radius, so
     // this keeps their content the same size whatever rounding is. Only
@@ -163,6 +178,23 @@ QtObject {
     function loadConfig(text) {
         if (!text) return
         var d = parseToml(text)
+
+        // A missing or unreadable value keeps the default (true).
+        var twoColumns = String(d.two_column_app_grid || "").toLowerCase()
+        root.twoColumnAppGrid = twoColumns !== "false"
+
+        // Seconds, decimals allowed; 0.5 to 60. Missing or unreadable keeps 3.5.
+        var delay = parseFloat(d.hide_delay)
+        root.hideDelay = isFinite(delay) && delay > 0
+            ? Math.round(Math.min(60, Math.max(0.5, delay)) * 1000) : 3500
+
+        // A fraction of hide_delay, 0-1; a value above 1 is read as a
+        // percentage (43 = 0.43). Missing or unreadable keeps 1.5 / 3.5.
+        var factor = parseFloat(d.workspace_hide_factor)
+        if (isFinite(factor) && factor > 1) factor = factor / 100
+        root.workspaceHideFactor = isFinite(factor) && factor > 0
+            ? Math.min(1, factor) : 1500 / 3500
+
         var r = parseInt(d.rounding, 10)
         if (!isFinite(r) || r < 0) return
         r = Math.min(r, root.unit)

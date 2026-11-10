@@ -305,7 +305,7 @@ Scope {
     // Auto-hide Timer (1.5 seconds)
     Timer {
         id: autoHideTimer
-        interval: 1500
+        interval: Theme.workspaceHideDelay
         repeat: false
         onTriggered: {
             root.hudVisible = false

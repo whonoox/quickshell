@@ -77,7 +77,7 @@ Scope {
     // Auto-hide Timer: Active for both views, auto-collapsing and moving off-screen
     Timer {
         id: autoHideTimer
-        interval: 3500
+        interval: Theme.hideDelay
         running: !root.hideAll
         onTriggered: {
             root.isExpanded = false
