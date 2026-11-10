@@ -208,6 +208,22 @@ prune_backups() {
 # would not know about them either.
 remove_retired_shims() {
   local entry
+
+  # The awww wallpaper bridge ran as a daemon. Stop it, and the awww daemon
+  # it kept, before its script goes: Omarchy's background plugin and OWE
+  # draw the wallpaper now, and awww's layer would sit underneath unused.
+  local bridge_lock="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/nooxshell-awww-bridge.lock"
+  if [[ -e $bridge_lock ]] && ! ( exec 200>"$bridge_lock"; flock -n 200 ) 2>/dev/null; then
+    if (( DRY_RUN )); then
+      printf '  would stop the retired awww wallpaper bridge and awww-daemon\n'
+    else
+      pkill -f -- "$HOME/.local/bin/awww-omarchy-bridge" 2>/dev/null || true
+      pkill -x awww-daemon 2>/dev/null || true
+      rm -f "$bridge_lock" "$HOME/.local/state/nooxshell/awww-bridge.pid"
+      info "Stopped the retired awww wallpaper bridge"
+    fi
+  fi
+
   while IFS= read -r entry; do
     [[ -n $entry ]] || continue
     local dest
@@ -456,7 +472,8 @@ deconflict_hypr() {
   done
 
   # The module owns the quickshell:* dispatches, the X-Ray layer rule and the
-  # qs/awww autostart. Strip the previous hand-written equivalents.
+  # qs autostart. Strip the previous hand-written equivalents, including the
+  # retired awww wallpaper bridge's autostart.
   if [[ -f $bindings ]]; then
     sed -i \
       -e '/^hl\.unbind("SUPER + SPACE")$/d' \
@@ -520,14 +537,19 @@ deconflict_hypr() {
 }
 
 # Suppresses the stock Omarchy bar and popups by disabling the plugins our
-# shell replaces. Omarchy's own helper normalizes and commits shell.json.
+# shell replaces, and re-enables the ones an earlier version disabled but
+# this one relies on (the background plugin, which draws the wallpaper and
+# its intros through OWE). Omarchy's own helper normalizes and commits
+# shell.json.
 configure_omarchy() {
-  local plugins
+  local plugins enable
   plugins="$(manifest_list '.omarchy.disablePlugins')"
-  [[ -n $plugins ]] || return 0
+  enable="$(manifest_list '.omarchy.enablePlugins')"
+  [[ -n $plugins || -n $enable ]] || return 0
 
   if (( DRY_RUN )); then
     printf '  would disable omarchy plugins: %s\n' "$(echo "$plugins" | tr '\n' ' ')"
+    [[ -z $enable ]] || printf '  would enable omarchy plugins: %s\n' "$(echo "$enable" | tr '\n' ' ')"
     return 0
   fi
 
@@ -537,20 +559,23 @@ configure_omarchy() {
   if [[ -f $helper ]]; then
     # shellcheck source=/dev/null
     source "$helper"
-    # Keep the plugins Omarchy already disabled and add ours on top.
+    # Keep the plugins Omarchy already disabled and add ours on top, minus
+    # the ones this version needs enabled.
     # Also ensure omarchy.lock is NOT kept in disabledPlugins unless a custom lock is present.
     local program="$NORMALIZE"'
       | . as $root
       | .disabledPlugins = (
           ((.disabledPlugins // []) | array_or_empty)
           + $plugins
+          - $enable
           | unique
           | if (any(($root.plugins // [])[]; .id | endswith(".lock"))) then . else map(select(. != "omarchy.lock")) end
         )
     '
-    local plugin_json
-    plugin_json="$(printf '%s\n' "$plugins" | jq -R . | jq -s .)"
-    if commit "$program" --argjson plugins "$plugin_json" >/dev/null; then
+    local plugin_json enable_json
+    plugin_json="$(printf '%s\n' "$plugins" | jq -R 'select(length > 0)' | jq -s .)"
+    enable_json="$(printf '%s\n' "$enable" | jq -R 'select(length > 0)' | jq -s .)"
+    if commit "$program" --argjson plugins "$plugin_json" --argjson enable "$enable_json" >/dev/null; then
       ok "Configured Omarchy shell.json"
       # If notifications were disabled, restart the stock shell so it releases org.freedesktop.Notifications
       if [[ $plugins == *"omarchy.notifications"* ]] && command -v omarchy-restart-shell >/dev/null 2>&1; then

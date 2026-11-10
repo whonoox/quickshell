@@ -26,7 +26,6 @@ install -Dm755 shims/omarchy-brightness-display   ~/.local/bin/omarchy-brightnes
 install -Dm755 shims/omarchy-brightness-display-ddc ~/.local/bin/omarchy-brightness-display-ddc
 install -Dm755 shims/omarchy-menu-images           ~/.local/bin/omarchy-menu-images
 install -Dm755 shims/omarchy-theme-bg-next         ~/.local/bin/omarchy-theme-bg-next
-install -Dm755 shims/awww-omarchy-bridge           ~/.local/bin/awww-omarchy-bridge
 ```
 
 `~/.local/bin` must precede `/usr/bin` in `PATH`. `_omarchy-menu-shim` is
@@ -49,7 +48,7 @@ instead of the stock on-screen display.
 
 `omarchy-osd` — the same interception for the dedicated OSD entry point.
 
-`omarchy-theme-bg-next` — cycles to the next theme background, with JPEG-XL (`.jxl`) image format support enabled.
+`omarchy-theme-bg-next` — cycles to the next theme background, with JPEG-XL (`.jxl`) image format support enabled. A background with an intro is set instantly through `bin/picker-set-background`, which plays the intro; any other gets Omarchy's usual transition.
 
 `omarchy-menu-images` — image selector and thumbnail generator, with JPEG-XL (`.jxl`) discovery and caching enabled.
 
@@ -59,10 +58,6 @@ against the active physical sink, then opens and refreshes the audio HUD.
 `omarchy-brightness-display` / `omarchy-brightness-display-ddc` — apply the
 backlight step via `brightnessctl` or DDC/CI, then open the brightness HUD.
 
-`awww-omarchy-bridge` — a small daemon that keeps the `awww` wallpaper layer
-in sync with Omarchy's background state, including changes made by any
-switcher. It uses a non-blocking kernel lock (`flock`) in `$XDG_RUNTIME_DIR`
-so a second one is not started, avoiding stale PID collisions across reboots.
 
 ## The theme is left to Omarchy
 
@@ -70,10 +65,26 @@ The theme commands are **not** shadowed. `omarchy-theme-bg-set`,
 `omarchy-theme-bg-switcher` and `omarchy-theme-switcher` are Omarchy's own,
 so the stock switcher behaves exactly as it always did.
 
-The wallpaper is drawn by awww rather than by Omarchy's background plugin,
-so the bridge follows Omarchy's background symlink and redraws the
-wallpaper when it changes. The `omarchy-shell` shim forwards a theme
-change to this shell as well, so the islands follow the theme.
+The wallpaper is Omarchy's own too: its background plugin draws stills and
+OWE plays videos and background intros. The installer keeps
+`omarchy.background` enabled (`enablePlugins` in the manifest) and retires
+the awww wallpaper bridge an earlier version used.
+
+A background intro is a short video next to the still,
+`backgrounds/intros/<stem>.mp4`. Omarchy has OWE play it once at login
+and when a theme switch lands on that background, then settle on the
+still. This shell plays it every time that background is set: from the
+wallpaper picker, the theme picker and `omarchy-theme-bg-next`.
+`omarchy theme bg intro disable` turns intros off.
+
+This shell's own wallpaper and theme pickers apply through the same
+commands, but without Omarchy's background transition: their zoom is the
+transition, so they set the background instantly and run
+`omarchy-theme-set` with `OMARCHY_THEME_SKIP_BACKGROUND=1`, then start the
+intro themselves (see `bin/picker-*`).
+
+The `omarchy-shell` shim forwards a theme change to this shell as well, so
+the islands follow the theme.
 
 ## Behaviour
 

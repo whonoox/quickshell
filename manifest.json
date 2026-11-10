@@ -25,11 +25,9 @@
       "wireplumber",
       "libpulse",
       "upower",
-      "awww",
       "brightnessctl",
       "jq",
-      "fontconfig",
-      "inotify-tools"
+      "fontconfig"
     ],
     "commands": {
       "qs": "quickshell",
@@ -38,12 +36,9 @@
       "wpctl": "wireplumber",
       "pactl": "libpulse",
       "upower": "upower",
-      "awww": "awww",
-      "awww-daemon": "awww",
       "brightnessctl": "brightnessctl",
       "jq": "jq",
-      "fc-cache": "fontconfig",
-      "inotifywait": "inotify-tools"
+      "fc-cache": "fontconfig"
     }
   },
 
@@ -70,6 +65,7 @@
     { "src": "ScoopTestPanel.qml", "dest": "~/.config/quickshell/ScoopTestPanel.qml" },
     { "src": "ScoopV2.qml", "dest": "~/.config/quickshell/ScoopV2.qml" },
     { "src": "Theme.qml", "dest": "~/.config/quickshell/Theme.qml" },
+    { "src": "GridPicker.qml", "dest": "~/.config/quickshell/GridPicker.qml" },
     { "src": "ThemePicker.qml", "dest": "~/.config/quickshell/ThemePicker.qml" },
     { "src": "TimeBar.qml", "dest": "~/.config/quickshell/TimeBar.qml" },
     { "src": "ToggleBar.qml", "dest": "~/.config/quickshell/ToggleBar.qml" },
@@ -103,11 +99,15 @@
     { "src": "decorations/qr-code.svg", "dest": "~/.config/quickshell/decorations/qr-code.svg" },
     { "src": "decorations/signal.svg", "dest": "~/.config/quickshell/decorations/signal.svg" },
     { "src": "bin/cursor-tracker", "dest": "~/.config/quickshell/bin/cursor-tracker" },
-    { "src": "bin/cursor-tracker.py", "dest": "~/.config/quickshell/bin/cursor-tracker.py" }
+    { "src": "bin/cursor-tracker.py", "dest": "~/.config/quickshell/bin/cursor-tracker.py" },
+    { "src": "bin/picker-common.sh", "dest": "~/.config/quickshell/bin/picker-common.sh" },
+    { "src": "bin/picker-wallpapers", "dest": "~/.config/quickshell/bin/picker-wallpapers" },
+    { "src": "bin/picker-themes", "dest": "~/.config/quickshell/bin/picker-themes" },
+    { "src": "bin/picker-set-background", "dest": "~/.config/quickshell/bin/picker-set-background" },
+    { "src": "bin/picker-set-theme", "dest": "~/.config/quickshell/bin/picker-set-theme" }
   ],
 
   "shims": [
-    { "src": "shims/awww-omarchy-bridge", "dest": "~/.local/bin/awww-omarchy-bridge", "mode": "0755" },
     { "src": "shims/omarchy", "dest": "~/.local/bin/omarchy", "mode": "0755" },
     { "src": "shims/omarchy-audio-output-volume", "dest": "~/.local/bin/omarchy-audio-output-volume", "mode": "0755" },
     { "src": "shims/omarchy-brightness-display", "dest": "~/.local/bin/omarchy-brightness-display", "mode": "0755" },
@@ -123,6 +123,7 @@
   ],
 
   "retiredShims": [
+    "~/.local/bin/awww-omarchy-bridge",
     "~/.local/bin/omarchy-theme-bg-set",
     "~/.local/bin/omarchy-theme-bg-switcher"
   ],
@@ -143,9 +144,11 @@
     "shellConfig": "~/.config/omarchy/shell.json",
     "disablePlugins": [
       "omarchy.audio",
-      "omarchy.background",
       "omarchy.menu",
       "omarchy.notifications"
+    ],
+    "enablePlugins": [
+      "omarchy.background"
     ]
   },
 

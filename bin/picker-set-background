@@ -1,0 +1,41 @@
+#!/bin/bash
+# Puts a background on screen at once and plays its intro, if it has one.
+#
+# Usage: picker-set-background <path>
+#
+# The pickers zoom into the new background themselves, so Omarchy's own
+# reveal must not run behind them: this is omarchy-theme-bg-set with the
+# shell told to switch instantly (`background setInstant`).
+#
+# A background with an intro (backgrounds/intros/<stem>.<video>) hands
+# over to OWE every time it is set, not only on a theme change as Omarchy
+# does: OWE plays it from its first frame, which is the frame the picker's
+# zoom ended on. The script returns once the video is moving and prints
+# INTRO, so the picker can step aside at that moment.
+
+source "$(dirname "$(readlink -f "$0")")/picker-common.sh"
+
+path="${1:-}"
+[[ -n $path && -f $path ]] || exit 1
+
+# The link keeps the path it was given: a theme background points into the
+# current theme, as omarchy-theme-set leaves it.
+ln -nsf "$path" "$current_link"
+timeout 2 omarchy-shell -q background setInstant "$(realpath "$path")" >/dev/null 2>&1
+
+intros_enabled || exit 0
+resolve_intro "$path"
+intro="$REPLY"
+[[ -n $intro ]] || exit 0
+
+setsid -f owe intro --start first-frame "$intro" >/dev/null 2>&1 </dev/null
+
+deadline=$((SECONDS + 3))
+while (( SECONDS < deadline )); do
+  if owe render-status 2>/dev/null |
+    jq -e '.kind == "video" and .ready and (.has_transition | not) and .time_pos > 0' >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.02
+done
+echo INTRO

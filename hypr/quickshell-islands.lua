@@ -177,14 +177,23 @@ function M.apply()
     xray = true,
     ignore_alpha = 0.005,
   })
+
+  -- The pickers animate themselves: they open zoomed into the wallpaper on
+  -- screen and close zoomed into the new one, so any layer animation of
+  -- Hyprland's own shows up as a frame that pops in or fades out over a
+  -- desktop it already matches.
+  hl.layer_rule({
+    match = { namespace = "^(quickshell-wallpaper-grid|quickshell-theme-grid)$" },
+    no_anim = true,
+    animation = "none",
+  })
 end
 
--- The wallpaper bridge keeps awww in sync with Omarchy's background state,
--- and the shell itself is started here so the islands come up with the
--- session. --no-duplicate keeps a second launcher from spawning a rival
--- instance.
+-- The shell is started here so the islands come up with the session.
+-- --no-duplicate keeps a second launcher from spawning a rival instance.
+-- The wallpaper is Omarchy's own (its background plugin and OWE), which
+-- Omarchy starts itself.
 function M.autostart()
-  o.launch_on_start(os.getenv("HOME") .. "/.local/bin/awww-omarchy-bridge")
   o.launch_on_start("qs --no-duplicate")
 end
 

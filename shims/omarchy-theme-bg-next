@@ -44,5 +44,17 @@ else
     NEW_BACKGROUND="${BACKGROUNDS[$NEXT_INDEX]}"
   fi
 
-  omarchy-theme-bg-set "$NEW_BACKGROUND"
+  # A background with an intro plays it every time it is set, not only on a
+  # theme change. The intro is the transition, so the background switches
+  # instantly under it; one without an intro gets Omarchy's usual reveal.
+  SET_BACKGROUND="$HOME/.config/quickshell/bin/picker-set-background"
+  INTRO=""
+  if [[ -x $SET_BACKGROUND ]]; then
+    INTRO=$(omarchy-theme-bg-boot-intro --resolve-only "$NEW_BACKGROUND")
+  fi
+  if [[ -n $INTRO && ! -f $HOME/.local/state/omarchy/toggles/background-intros-off ]]; then
+    "$SET_BACKGROUND" "$NEW_BACKGROUND" >/dev/null
+  else
+    omarchy-theme-bg-set "$NEW_BACKGROUND"
+  fi
 fi

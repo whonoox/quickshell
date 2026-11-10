@@ -1,0 +1,63 @@
+#!/bin/bash
+# Lists the current theme's backgrounds for the wallpaper picker.
+#
+# Usage: picker-wallpapers <screen-size, e.g. 1920x1080>
+#
+# Output, tab separated:
+#   CURRENT <path> <thumbnail> <still> <landing>   the background on screen now
+#   <path> <thumbnail> <still> <landing>           one per background
+#
+# The thumbnail is what the grid card shows. The still is the background
+# itself, decoded at screen size: the grid opens out of it and a cancel
+# returns to it. The landing is what the zoom ends on when the background
+# is applied: the first frame of its intro when it has one and intros are
+# on (picker-set-background then plays the intro from that frame),
+# otherwise empty, meaning the still.
+
+source "$(dirname "$(readlink -f "$0")")/picker-common.sh"
+
+shopt -s nullglob
+
+screen="${1:-1920x1080}"
+card="880x496"
+
+intros=false
+intros_enabled && intros=true
+
+print_entry() {
+  local thumb still landing=""
+  displayable "$1" "$card"
+  thumb="$REPLY"
+  displayable "$1" "$screen"
+  still="$REPLY"
+  if [[ $intros == true ]]; then
+    resolve_intro "$1"
+    [[ -n $REPLY ]] && intro_first_frame "$REPLY" "$screen" && landing="$REPLY"
+  fi
+  printf '%s\t%s\t%s\t%s\n' "$1" "$thumb" "$still" "$landing"
+}
+
+current=$(readlink -f "$current_link" 2>/dev/null)
+if [[ -f $current ]] && is_image "$current"; then
+  printf 'CURRENT\t'
+  print_entry "$current"
+else
+  printf 'CURRENT\t%s\n' "$current"
+fi
+
+theme_name=$(cat "$state_dir/current/theme.name" 2>/dev/null)
+images=()
+list_images() {
+  local file
+  images=()
+  for file in "$1"/*; do
+    [[ -f $file ]] && is_image "$file" && [[ ${file,,} != *.bmp ]] && images+=("$file")
+  done
+}
+list_images "$HOME/.config/omarchy/backgrounds/$theme_name"
+(( ${#images[@]} > 0 )) || list_images "$state_dir/current/theme/backgrounds"
+(( ${#images[@]} > 0 )) || exit 0
+
+printf '%s\n' "${images[@]}" | sort -V | while IFS= read -r img; do
+  print_entry "$img"
+done

@@ -1,0 +1,20 @@
+#!/bin/bash
+# Applies a theme for the theme picker.
+#
+# Usage: picker-set-theme <theme> <background>
+#
+# omarchy-theme-set runs with OMARCHY_THEME_SKIP_BACKGROUND=1, so it applies
+# the palette and the app themes but leaves the wallpaper alone: its own
+# background transition and intro cover would otherwise play out behind the
+# picker's zoom. The picker already chose the background the theme lands on
+# (picker-themes), and it is set here once the theme is in place, playing
+# its intro when the theme changed, as omarchy-theme-set would have.
+
+theme="${1:-}"
+background="${2:-}"
+[[ -n $theme ]] || exit 1
+
+OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy-theme-set "$theme" </dev/null >/dev/null 2>&1 || exit 1
+
+[[ -n $background ]] || exit 0
+exec "$(dirname "$(readlink -f "$0")")/picker-set-background" "$background"

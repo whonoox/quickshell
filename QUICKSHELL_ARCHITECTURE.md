@@ -129,7 +129,7 @@ To integrate cleanly with the host system without fighting existing Omarchy defa
 │   │   ├── omarchy-audio-output-volume       <- Audio key wrapper routing to AudioBar HUD
 │   │   ├── omarchy-brightness-display        <- Brightness key wrapper routing to BrightnessBar HUD
 │   │   ├── omarchy-menu*                     <- Menu wrappers routing to OmarchyMenu.qml
-│   │   └── omarchy-theme-bg-set              <- Wallpaper switcher routing to awww
+│   │   └── omarchy-theme-bg-next             <- Cycles theme and user backgrounds
 │   └── state/
 │       └── omarchy/
 │           ├── current/theme/colors.toml     <- Read reactively by Theme.qml for live palette
@@ -145,9 +145,9 @@ To integrate cleanly with the host system without fighting existing Omarchy defa
 1. **`quickshell-islands.lua`** (installed by `install.sh`):
    - The single source of truth for everything the islands need from Hyprland.
    - Loaded from `hyprland.lua` with `require("hypr.quickshell-islands")`. The `hypr.` prefix is required: Omarchy's Lua bootstrap maps `hypr/x.lua` onto `~/.config/hypr/x.lua`, and only clears `package.loaded` for the `default.hypr`, `hypr` and `omarchy.current.theme` prefixes, so a top-level module name would never re-execute on `hyprctl reload`.
-   - Owns the global shortcuts, the hardware keys, the X-Ray layer rule and the autostart of the shell and the wallpaper bridge.
+   - Owns the global shortcuts, the hardware keys, the X-Ray layer rule and the autostart of the shell. The wallpaper is Omarchy's own (background plugin + OWE).
 2. **`autostart.lua` / `autostart.conf`**:
-   - Retained for the user's own extra autostart processes. The `qs` and wallpaper-bridge launches live in `quickshell-islands.lua` so they are not started twice.
+   - Retained for the user's own extra autostart processes. The `qs` launch lives in `quickshell-islands.lua` so it is not started twice.
 3. **`bindings.lua` / `bindings.conf`**:
    - Maps physical keybindings to Quickshell's internal `GlobalShortcut` handlers using Hyprland's `hl.dsp.global(...)` dispatcher:
       - `SUPER + SPACE`: `quickshell:menuToggle`
@@ -178,6 +178,7 @@ To integrate cleanly with the host system without fighting existing Omarchy defa
       })
       ```
    - The full-screen backdrops (`quickshell-wallpaper-grid`) and the transparent twin-dismiss catchers (`wifi-panel-twin-dismiss`, `bluetooth-panel-twin-dismiss`) are deliberately excluded: blurring them costs a pass and changes nothing.
+   - The picker grids (`quickshell-wallpaper-grid`, `quickshell-theme-grid`) get `no_anim`: they open zoomed into the wallpaper on screen and close zoomed into the new one, so a layer animation of Hyprland's own would show as a frame popping in or fading out over a desktop it already matches.
 
 ### 3.2 System Interception Shims (`~/.local/bin/`)
 Because Omarchy ships with built-in scripts and hotkeys that target `/usr/share/omarchy/shell`, executable wrapper shims are deployed in `~/.local/bin` (which is placed before `/usr/bin` in `$PATH`):
@@ -189,7 +190,16 @@ Because Omarchy ships with built-in scripts and hotkeys that target `/usr/share/
 ### 3.3 Dynamic State & Theme Files (`~/.local/state/omarchy/`)
 - **`colors.toml` & `theme.name`**: `Theme.qml` attaches `Quickshell.Io.FileView` watchers with a 50ms debounce timer to these paths. Changing themes via the Omarchy CLI immediately updates all colors across every active bar without restarting Quickshell.
 - **`~/.config/quickshell/config.toml`**: `Theme.qml` watches this file too. `rounding` (0-20; larger values are capped, since the panels are laid out for radii up to `Theme.unit`) drives `Theme.rounding`, which every scoop, island corner and the screen bezel derive from, and on each load the shell pushes the same value to Hyprland with `hyprctl eval`, so window corners change live. Content sizing (padding, header heights, label sizes) uses the fixed `Theme.unit` instead, so only the curves and the room each panel leaves for them change with the rounding. `quickshell-islands.lua` reads it as well, so a `hyprctl reload` keeps the value. The installer ships a default but never overwrites an existing copy.
-- **`current/background`**: `WallpaperPicker.qml` reads this symlink via `readlink -f` to highlight the current desktop wallpaper.
+- **`current/background`**: the pickers read this symlink to open on the wallpaper on screen, and repoint it when they apply one.
+
+### 3.4 The Pickers (`GridPicker.qml`)
+`WallpaperPicker.qml` and `ThemePicker.qml` share one zooming grid, `GridPicker.qml`. It opens zoomed into the wallpaper on screen and pulls back to the cards; choosing a card zooms into it until it fills the screen; cancelling zooms back into the card it opened on, wherever the selection has moved. Each card has a thumbnail for the grid and a still, decoded at screen size, that the zoom lands on, so the hand-off to the real desktop is seamless.
+
+The zoom is the only transition. Omarchy's own would otherwise replay underneath once the grid steps aside, so the pickers apply their choice through helpers in `bin/` that skip it:
+- **`picker-set-background`** is `omarchy-theme-bg-set` with `background setInstant` instead of `set`. A background with an intro hands over to OWE (`owe intro --start first-frame`) every time it is set, not only on a theme change as in Omarchy, and the script returns once the video is moving. `omarchy-theme-bg-next` uses it for backgrounds with an intro too.
+- **`picker-set-theme`** runs `omarchy-theme-set` with `OMARCHY_THEME_SKIP_BACKGROUND=1` (palette and app themes only, no reveal or intro cover), then sets the theme's background through `picker-set-background`.
+- **`picker-themes`** chooses the background a theme lands on the way `omarchy-theme-set` does (the user's backgrounds first, the one the theme was last left on, the next one when re-applying the current theme). A theme card's zoom lands on that background, or on the first frame of its intro, not on the theme's preview.
+- **`picker-wallpapers`** lists the current theme's backgrounds. A background with an intro gets the intro's first frame as its landing still, so applying it zooms into that frame and the video takes over from it; opening and cancelling still show the background itself (`openStill`). Both scanners cache JPEG-XL conversions and intro frames under `~/.cache/nooxshell/thumbnails`.
 
 ---
 
@@ -205,11 +215,9 @@ The following core packages, daemons, and system utilities power this setup:
 | **`NetworkManager`** | Networking | Backs `Quickshell.Networking` (Wi-Fi scans, signal strength, auth) and `nmcli` rescans |
 | **`pipewire` / `wireplumber`** | Audio Subsystem | Sink management and volume control (`pactl` / `wpctl`) |
 | **`upower`** | Power Management | Backs `Quickshell.Services.UPower` for battery tracking |
-| **`awww`** (`awww-daemon`) | Wallpaper Daemon | Manages animated desktop wallpaper transitions, kept in sync by `awww-omarchy-bridge` |
 | **`brightnessctl`** | Hardware Backlight | Adjusts internal display panel luminance |
 | **`jq`** | JSON Processor | Parses menu JSONC files, network dumps, and notification data |
 | **`fontconfig`** (`fc-cache`) | Font Cache | Rebuilds the user font cache after the brand font is installed |
-| **`inotify-tools`** (`inotifywait`) | File Watch | Watches Omarchy's background state for the wallpaper bridge |
 | **`uwsm`** (`uwsm-app`) | App Session Manager | Launches desktop apps in isolated systemd scopes |
 | **`Nuuxfont`** | Brand Typography | Headlines, logo glyphs, and title styling. Installed system-wide, not bundled with the shell; `Theme.qml` falls back to the system font when absent |
 
