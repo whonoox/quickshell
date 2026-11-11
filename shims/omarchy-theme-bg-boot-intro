@@ -1,0 +1,36 @@
+#!/bin/bash
+# Holds the login intro back until the Omarchy shell has finished loading,
+# then hands over to the packaged omarchy-theme-bg-boot-intro.
+#
+# The Omarchy shell runs this at startup, under its black startup cover. It
+# stops answering IPC for a few seconds while its plugins load, and if the
+# intro starts then, OWE plays the video while it waits for the shell to hide
+# its own wallpaper. A short intro is over before it shows, and the cover,
+# which only lifts once it sees the video moving, stays up until it ends.
+# Waiting for the shell to answer promptly lets the intro start in view.
+#
+# Only the startup call (no arguments) waits; every other mode is passed
+# straight through.
+
+real="${OMARCHY_PATH:-/usr/share/omarchy}/bin/omarchy-theme-bg-boot-intro"
+[[ -x $real ]] || real=/usr/share/omarchy/bin/omarchy-theme-bg-boot-intro
+
+if (( $# == 0 )); then
+  # Three prompt answers in a row, about a third of a second, so a shell
+  # that answers once before it starts loading does not count. The cover
+  # gives up on its own after 10s, so stop waiting well before that.
+  deadline=$((SECONDS + 6))
+  prompt=0
+  while (( prompt < 3 && SECONDS < deadline )); do
+    start=$EPOCHREALTIME
+    if [[ $(timeout 0.4 omarchy-shell shell ping 2>/dev/null) == ok ]] &&
+      (( (${EPOCHREALTIME/./} - ${start/./}) < 200000 )); then
+      prompt=$((prompt + 1))
+    else
+      prompt=0
+    fi
+    sleep 0.1
+  done
+fi
+
+exec "$real" "$@"

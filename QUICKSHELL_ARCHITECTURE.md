@@ -129,7 +129,8 @@ To integrate cleanly with the host system without fighting existing Omarchy defa
 │   │   ├── omarchy-audio-output-volume       <- Audio key wrapper routing to AudioBar HUD
 │   │   ├── omarchy-brightness-display        <- Brightness key wrapper routing to BrightnessBar HUD
 │   │   ├── omarchy-menu*                     <- Menu wrappers routing to OmarchyMenu.qml
-│   │   └── omarchy-theme-bg-next             <- Cycles theme and user backgrounds
+│   │   ├── omarchy-theme-bg-next             <- Cycles theme and user backgrounds
+│   │   └── omarchy-theme-bg-boot-intro       <- Starts the login intro once the Omarchy shell has loaded
 │   └── state/
 │       └── omarchy/
 │           ├── current/theme/colors.toml     <- Read reactively by Theme.qml for live palette

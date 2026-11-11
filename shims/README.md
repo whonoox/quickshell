@@ -24,8 +24,8 @@ install -Dm644 shims/_omarchy-menu-shim            ~/.local/bin/_omarchy-menu-sh
 install -Dm755 shims/omarchy-audio-output-volume  ~/.local/bin/omarchy-audio-output-volume
 install -Dm755 shims/omarchy-brightness-display   ~/.local/bin/omarchy-brightness-display
 install -Dm755 shims/omarchy-brightness-display-ddc ~/.local/bin/omarchy-brightness-display-ddc
-install -Dm755 shims/omarchy-menu-images           ~/.local/bin/omarchy-menu-images
 install -Dm755 shims/omarchy-theme-bg-next         ~/.local/bin/omarchy-theme-bg-next
+install -Dm755 shims/omarchy-theme-bg-boot-intro   ~/.local/bin/omarchy-theme-bg-boot-intro
 ```
 
 `~/.local/bin` must precede `/usr/bin` in `PATH`. `_omarchy-menu-shim` is
@@ -50,7 +50,11 @@ instead of the stock on-screen display.
 
 `omarchy-theme-bg-next` — cycles to the next theme background, with JPEG-XL (`.jxl`) image format support enabled. A background with an intro is set instantly through `bin/picker-set-background`, which plays the intro; any other gets Omarchy's usual transition.
 
-`omarchy-menu-images` — image selector and thumbnail generator, with JPEG-XL (`.jxl`) discovery and caching enabled.
+`omarchy-theme-bg-boot-intro` — the Omarchy shell runs this at login to play the
+current background's intro. The shell stops answering for a few seconds while
+its plugins load, and an intro started then plays out unseen under its black
+startup cover. This waits until the shell answers promptly, then hands over to
+the packaged script; its other modes pass straight through.
 
 `omarchy-audio-output-volume` — applies the volume change with `pactl`
 against the active physical sink, then opens and refreshes the audio HUD.
