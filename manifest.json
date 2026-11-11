@@ -159,6 +159,12 @@
     "mode": "0755"
   },
 
+  "theme": {
+    "name": "nooxnpaints",
+    "label": "Nooxnpaints",
+    "repo": "https://github.com/whonoox/omarchy-nooxnpaints-theme.git"
+  },
+
   "hooks": {
     "post_install": [
       "hyprctl reload",

@@ -22,7 +22,19 @@ From a checkout:
 ./install.sh              # interactive
 ./install.sh --dry-run    # show what would change, touch nothing
 ./install.sh --yes        # accept defaults
+./install.sh --theme      # also install the Nooxnpaints theme, no prompt
+./install.sh --no-theme   # do not offer the theme
 ```
+
+At the end, the installer offers the companion
+[Nooxnpaints theme](https://github.com/whonoox/omarchy-nooxnpaints-theme),
+which lives in its own repository. It is opt-in: the prompt defaults to no,
+and `--yes` leaves it out. On yes, it runs
+`omarchy theme install <repo>`, which clones the theme into
+`~/.config/omarchy/themes/nooxnpaints` and makes it the current theme. If
+the theme is already there, it is only made current with
+`omarchy theme set nooxnpaints`, so local changes in it are kept. The
+repository URL is set in `manifest.json` under `theme`.
 
 The installer backs up every file it touches to
 `~/.local/state/nooxshell/backups/<timestamp>/` and writes the

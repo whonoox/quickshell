@@ -7,6 +7,8 @@
 #   ./install.sh --yes           accept all defaults, no prompts
 #   ./install.sh --skip-deps     assume dependencies are already installed
 #   ./install.sh --no-start      do not start the shell afterwards
+#   ./install.sh --theme         also install the Nooxnpaints theme, no prompt
+#   ./install.sh --no-theme      do not offer the theme
 #
 # One-liner install:
 #   bash <(curl -fsSL https://raw.githubusercontent.com/whonoox/quickshell/master/install.sh)
@@ -33,6 +35,8 @@ DRY_RUN=0
 ASSUME_YES=0
 SKIP_DEPS=0
 NO_START=0
+# The companion theme: "" asks, "yes" installs it, "no" skips it.
+THEME_CHOICE=""
 
 # Per-run backup of everything touched, plus a one-time pristine copy of the
 # files that existed before the first install.
@@ -115,6 +119,8 @@ Options:
   --yes, -y     accept all defaults, no prompts
   --skip-deps   assume dependencies are already installed
   --no-start    do not start the shell afterwards
+  --theme       also install the Nooxnpaints theme and make it current
+  --no-theme    do not offer the theme
   -h, --help    show this help
 
 One-liner install:
@@ -683,6 +689,87 @@ check_decoration_blur() {
   warn "  check with: hyprctl getoption decoration:blur:enabled"
 }
 
+# Offers the companion theme named in the manifest. It lives in its own
+# repository and is opt-in: the prompt defaults to no, and --yes does not
+# count as a yes here, only --theme or an answer at the prompt does.
+#
+# A theme that is not installed yet goes through `omarchy theme install`,
+# which clones it into ~/.config/omarchy/themes and makes it current. One
+# that is already there is only made current: `omarchy theme install`
+# deletes the theme directory before cloning, which would throw away any
+# local work in it.
+offer_theme() {
+  local name label repo
+  name="$(manifest_get '.theme.name')"
+  label="$(manifest_get '.theme.label // .theme.name')"
+  repo="$(manifest_get '.theme.repo')"
+  [[ -n $name && -n $repo ]] || return 0
+
+  if [[ $THEME_CHOICE == "no" ]]; then
+    info "Skipping the $label theme (--no-theme)"
+    return 0
+  fi
+
+  # Setting a theme restyles the running desktop, which a test install
+  # pointed at a scratch HOME must not do.
+  if (( NO_START )); then
+    info "Skipping the $label theme (--no-start)"
+    return 0
+  fi
+
+  if ! command -v omarchy >/dev/null 2>&1; then
+    warn "omarchy not found; skipping the $label theme"
+    return 0
+  fi
+
+  local current=""
+  current="$(cat "$HOME_DIR/.local/state/omarchy/current/theme.name" 2>/dev/null || true)"
+  if [[ $current == "$name" ]]; then
+    ok "The $label theme is already the current theme"
+    return 0
+  fi
+
+  if [[ $THEME_CHOICE != "yes" ]]; then
+    if (( ASSUME_YES )) || ! [[ -t 0 ]]; then
+      info "Skipping the $label theme; install it later with:"
+      info "  omarchy theme install $repo"
+      return 0
+    fi
+    if (( ! DRY_RUN )); then
+      local reply
+      read -r -p "Also install the $label theme and make it the current theme? [y/N] " reply
+      if [[ $reply != "y" && $reply != "Y" ]]; then
+        info "Skipping the $label theme; install it later with:"
+        info "  omarchy theme install $repo"
+        return 0
+      fi
+    fi
+  fi
+
+  if [[ -d $HOME_DIR/.config/omarchy/themes/$name ]]; then
+    info "The $label theme is already installed; making it the current theme"
+    run omarchy theme set "$name" || {
+      warn "omarchy theme set $name failed"
+      return 0
+    }
+  else
+    info "Installing the $label theme from $repo"
+    run omarchy theme install "$repo" || {
+      warn "omarchy theme install failed; try it again with:"
+      warn "  omarchy theme install $repo"
+      return 0
+    }
+  fi
+
+  (( DRY_RUN )) && return 0
+  current="$(cat "$HOME_DIR/.local/state/omarchy/current/theme.name" 2>/dev/null || true)"
+  if [[ $current == "$name" ]]; then
+    ok "The $label theme is now the current theme"
+  else
+    warn "The $label theme did not become current (current: ${current:-unknown})"
+  fi
+}
+
 verify() {
   local failures=0
 
@@ -734,6 +821,14 @@ main() {
         # run with the wrong theme and keep drawing panels over the real
         # desktop.
         NO_START=1
+        shift
+        ;;
+      --theme)
+        THEME_CHOICE="yes"
+        shift
+        ;;
+      --no-theme)
+        THEME_CHOICE="no"
         shift
         ;;
       -h | --help)
@@ -801,6 +896,9 @@ main() {
     # directory would start a shell against the wrong tree.
     run env OMARCHY_ISLANDS_QS_PATH="$CONFIG_DIR" bash -c "$hook" || warn "hook failed: $hook"
   done < <(manifest_list '.hooks.post_install')
+
+  # After the hooks, so the theme lands on the shell they just started.
+  offer_theme
 
   if (( DRY_RUN )); then
     info "Dry run complete"
