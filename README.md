@@ -8,6 +8,11 @@ Managed with the `nooxshell` command.
 
 ## Install
 
+Needs Omarchy 4.0 or newer. Video wallpapers and background intros are
+played by OWE, whose handover with the Omarchy shell came with 4.5: on
+4.0.x the shell works with still wallpapers only, and the pickers skip
+intros. The installer says which of the two you have.
+
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/whonoox/quickshell/master/install.sh)
 ```

@@ -15,6 +15,11 @@
 real="${OMARCHY_PATH:-/usr/share/omarchy}/bin/omarchy-theme-bg-boot-intro"
 [[ -x $real ]] || real=/usr/share/omarchy/bin/omarchy-theme-bg-boot-intro
 
+# Omarchy before 4.5 has no intros. Nothing there runs this at startup, but
+# omarchy-theme-bg-next asks it for a background's intro, and the answer is
+# none.
+[[ -x $real ]] || exit 0
+
 if (( $# == 0 )); then
   # Three prompt answers in a row, about a third of a second, so a shell
   # that answers once before it starts loading does not count. The cover

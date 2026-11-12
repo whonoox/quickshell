@@ -32,8 +32,18 @@ displayable() {
   [[ -f $REPLY ]] || REPLY=""
 }
 
+# Intros need OWE and the background handover that came with Omarchy 4.5,
+# which also shipped omarchy-theme-bg-intro. On an older Omarchy an intro
+# never starts, and the picker would wait out its timeout for nothing.
+intros_supported() {
+  command -v owe >/dev/null 2>&1 &&
+    [[ -x ${OMARCHY_PATH:-/usr/share/omarchy}/bin/omarchy-theme-bg-intro ||
+      -x /usr/share/omarchy/bin/omarchy-theme-bg-intro ]]
+}
+
 intros_enabled() {
-  [[ ! -f $state_dir/toggles/background-intros-off ]] &&
+  intros_supported &&
+    [[ ! -f $state_dir/toggles/background-intros-off ]] &&
     [[ $(hyprctl -j getoption animations:enabled 2>/dev/null | jq -r '.bool' 2>/dev/null) != "false" ]]
 }
 

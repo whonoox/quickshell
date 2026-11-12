@@ -770,6 +770,38 @@ offer_theme() {
   fi
 }
 
+# The shell sits on the Omarchy shell, its plugins and the Lua Hyprland
+# config, which all came with Omarchy 4.0. Video wallpapers and background
+# intros are played by OWE, whose handover with the shell came with 4.5, so
+# on 4.0.x the shell works with still wallpapers only.
+check_omarchy_version() {
+  local version=""
+  version="$(pacman -Q omarchy 2>/dev/null | awk '{print $2}')"
+  [[ -n $version ]] || version="$(omarchy version 2>/dev/null | head -1)"
+  if [[ -z $version ]] || ! command -v vercmp >/dev/null 2>&1; then
+    warn "Could not read the Omarchy version; assuming 4.5 or newer"
+    return 0
+  fi
+
+  if (( $(vercmp "$version" 4.0.0) < 0 )); then
+    fail "Omarchy $version is too old: the shell needs Omarchy 4.0 or newer (run: omarchy update)"
+  fi
+
+  if (( $(vercmp "$version" 4.5.0) < 0 )); then
+    warn "Omarchy $version: the shell works, with still wallpapers only"
+    warn "  video wallpapers and intros need Omarchy 4.5 or newer (run: omarchy update)"
+    return 0
+  fi
+
+  if ! command -v owe >/dev/null 2>&1; then
+    warn "OWE is not installed: video wallpapers and intros will not play"
+    warn "  install it with: omarchy pkg add owe"
+    return 0
+  fi
+
+  ok "Omarchy $version with OWE: still and video wallpapers, and intros"
+}
+
 verify() {
   local failures=0
 
@@ -869,6 +901,7 @@ main() {
   fi
 
   check_dependencies
+  check_omarchy_version
   install_files
   install_shims
   remove_retired_shims

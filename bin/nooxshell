@@ -270,7 +270,16 @@ cmd_doctor() {
   # The wallpaper is drawn by Omarchy's background plugin (stills) and OWE
   # (videos and intros). With the plugin disabled nothing draws it.
   if jq -e '(.disabledPlugins // []) | index("omarchy.background") | not' "$HOME/.config/omarchy/shell.json" >/dev/null 2>&1; then
-    if owe status >/dev/null 2>&1; then
+    # OWE and its handover with the shell came with Omarchy 4.5, which also
+    # shipped omarchy-theme-bg-intro. Before that, stills are all there is.
+    if [[ ! -x ${OMARCHY_PATH:-/usr/share/omarchy}/bin/omarchy-theme-bg-intro &&
+      ! -x /usr/share/omarchy/bin/omarchy-theme-bg-intro ]]; then
+      echo "wallpaper: ready (omarchy.background enabled, stills only)"
+      echo "          video wallpapers and intros need Omarchy 4.5 or newer"
+    elif ! command -v owe >/dev/null 2>&1; then
+      echo "wallpaper: omarchy.background enabled, but OWE is not installed"
+      echo "          videos and intros will not play; install it with: omarchy pkg add owe"
+    elif owe status >/dev/null 2>&1; then
       echo "wallpaper: ready (omarchy.background enabled, OWE responsive)"
     else
       echo "wallpaper: omarchy.background enabled, but OWE is not answering"
