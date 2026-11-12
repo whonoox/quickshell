@@ -14,14 +14,23 @@ played by OWE, whose handover with the Omarchy shell came with 4.5: on
 intros. The installer says which of the two you have.
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/whonoox/quickshell/master/install.sh)
+git clone https://github.com/whonoox/quickshell.git nooxshell
+cd nooxshell
+./install.sh --dry-run    # optional: see every change first, touch nothing
+./install.sh
 ```
 
-The installer needs the whole shell — the manifest, the QML files, the
-shims — which a piped script does not carry. It fetches the repository
-into `~/.cache/nooxshell/repo` on first run and works from there.
+The installer asks before installing packages, backs up every file it
+changes, and `./uninstall.sh` puts them all back.
 
-From a checkout:
+Or in one line, which fetches the same repository into
+`~/.cache/nooxshell/repo` and runs the installer from there:
+
+```bash
+bash <(curl -fsSL https://github.com/whonoox/quickshell/raw/master/install.sh)
+```
+
+Options:
 
 ```bash
 ./install.sh              # interactive

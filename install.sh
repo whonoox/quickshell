@@ -11,7 +11,7 @@
 #   ./install.sh --no-theme      do not offer the theme
 #
 # One-liner install:
-#   bash <(curl -fsSL https://raw.githubusercontent.com/whonoox/quickshell/master/install.sh)
+#   bash <(curl -fsSL https://github.com/whonoox/quickshell/raw/master/install.sh)
 #
 # Every file this script touches is copied into a timestamped backup
 # directory first, and the exact list is written to a manifest so
@@ -124,7 +124,7 @@ Options:
   -h, --help    show this help
 
 One-liner install:
-  bash <(curl -fsSL https://raw.githubusercontent.com/whonoox/quickshell/master/install.sh)
+  bash <(curl -fsSL https://github.com/whonoox/quickshell/raw/master/install.sh)
 USAGE
 }
 
