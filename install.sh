@@ -836,6 +836,9 @@ verify() {
 }
 
 main() {
+  # The options as given, for bootstrap: the loop below shifts them away.
+  local args=("$@")
+
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --dry-run)
@@ -877,8 +880,9 @@ main() {
   done
 
   # A piped script has no checkout next to it, so fetch one and re-exec
-  # from there. The remaining arguments are passed through unchanged.
-  bootstrap "$@"
+  # from there with the same options, or a --dry-run piped in would be
+  # dropped and the clone would install for real.
+  bootstrap "${args[@]}"
 
   [[ -f $MANIFEST ]] || fail "manifest not found: $MANIFEST"
   require_tools
