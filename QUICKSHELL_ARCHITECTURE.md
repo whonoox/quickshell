@@ -147,6 +147,7 @@ To integrate cleanly with the host system without fighting existing Omarchy defa
    - The single source of truth for everything the islands need from Hyprland.
    - Loaded from `hyprland.lua` with `require("hypr.quickshell-islands")`. The `hypr.` prefix is required: Omarchy's Lua bootstrap maps `hypr/x.lua` onto `~/.config/hypr/x.lua`, and only clears `package.loaded` for the `default.hypr`, `hypr` and `omarchy.current.theme` prefixes, so a top-level module name would never re-execute on `hyprctl reload`.
    - Owns the global shortcuts, the hardware keys, the X-Ray layer rule and the autostart of the shell. The wallpaper is Omarchy's own (background plugin + OWE).
+   - Holds the Hyprland half of tile groups (§5.8): the global `QsTiles` table with `QsTiles.apply(tree)`, which rebuilds a workspace into a given dwindle tree, and the `SUPER + SHIFT + arrows` binds, which replace Omarchy's window swap with `QsTiles.key_move`.
 2. **`autostart.lua` / `autostart.conf`**:
    - Retained for the user's own extra autostart processes. The `qs` launch lives in `quickshell-islands.lua` so it is not started twice.
 3. **`bindings.lua` / `bindings.conf`**:
@@ -334,6 +335,15 @@ Directly requesting keyboard focus on a Wayland layer surface can trigger race c
 ### 5.7 Asynchronous Subprocess Execution (`Quickshell.Io`)
 All system commands run asynchronously using Quickshell's native `Process` and `StdioCollector` / `SplitParser` primitives. This ensures the 60fps render loop never stutters, even during long-running operations like Wi-Fi network scans or icon tree indexing. Polling guards (`if (!proc.running) proc.running = true`) prevent process stampedes under rapid key repeats.
 
+### 5.8 Tile Groups (`TileGroups.qml`, `TileTree.js`)
+Dwindle keeps each workspace as a binary tree of splits, but its own commands only act on the parent of one window, so a branch of several windows cannot be moved. Tile groups move whole branches.
+
+- **Reading the tree.** `TileTree.build` works the tree out from the window rects in `Hyprland.toplevels`: every dwindle split is a straight line from edge to edge of its box, so finding such a line through the gaps and recursing gives the tree back. Where two lines would do (a 2×2 grid), the tree the shell last built on that workspace decides, then the line nearest the middle.
+- **Dots.** One per split except the root, at the middle of its line (`TileTree.handles`), drawn on a full-screen `WlrLayer.Top` surface (`quickshell-tile-groups`). Its input mask is 24 fixed `Region`s that follow the dots (regions created on the fly are not picked up reliably), so the dots win the pointer over Hyprland's border resize grab while the rest of the screen stays click-through.
+- **Picking.** Hover picks for exactly as long as the hover; a click pins. `QsTiles.armed` in Hyprland mirrors the pick, so the `SUPER + SHIFT + arrows` binds call back into the shell (`quickshell:tilesMove*`) instead of swapping a window. A key move keeps the pick while Super is held; a one-shot `input.keyboard.key` listener in Lua reports the release (`quickshell:tilesHoldEnd`). Super is recognised by elimination (any release but Shift or an arrow), so a remapped Super works.
+- **Moving.** `TileTree.neighbour` finds what a group trades places with one step over, `TileTree.swapped` builds the new tree, and `QsTiles.apply` rebuilds the workspace into it in one Lua call: float every window but the first, then tile each back with `preselect`, unfloat and `splitratio … exact`, the same path dwindle takes for a new window.
+- **The joined look.** A second surface on `WlrLayer.Bottom` (`quickshell-tile-groups-fuse`), under the windows, fills the picked group's inner gaps and the window corners that face into the group (`TileTree.fusion`) in `Theme.background` at Hyprland's window opacity, so the group reads as one piece. Being underneath, nothing it draws can cover a window, and nothing reaches under one either: the windows are see-through, and a fill behind them darkens them. Where an inner seam meets the group's edge it ends in a round-tipped notch.
+
 ---
 
 ## 6. Component Map & Screen Geometry
@@ -377,6 +387,7 @@ The following diagram illustrates the screen positions of each component in this
 | [`WallpaperPicker.qml`](file:///WallpaperPicker.qml) | Center Modal | `SUPER + CTRL + SPACE` |
 | [`ThemePicker.qml`](file:///ThemePicker.qml) | Center Modal | `SUPER + SHIFT + CTRL + SPACE` |
 | [`CursorXRay.qml`](file:///CursorXRay.qml) | Dynamic Follower | `SUPER + ALT + C` or IPC (`cursorXRay toggle`) |
+| [`TileGroups.qml`](file:///TileGroups.qml) | Window Splits | Dots on tiled workspaces with three or more windows; hover, click or drag, `SUPER + SHIFT + arrows` |
 | [`RoundedOverlay.qml`](file:///RoundedOverlay.qml) | All Corners | Persistent inward bezel rounding across all connected monitors |
 
 ### 6.6 Bluetooth Bar Keys

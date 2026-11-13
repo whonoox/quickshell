@@ -48,6 +48,8 @@
     { "src": "AudioBar.qml", "dest": "~/.config/quickshell/AudioBar.qml" },
     { "src": "config.toml", "dest": "~/.config/quickshell/config.toml", "preserve": true },
     { "src": "BarVariants.qml", "dest": "~/.config/quickshell/BarVariants.qml" },
+    { "src": "TileGroups.qml", "dest": "~/.config/quickshell/TileGroups.qml" },
+    { "src": "TileTree.js", "dest": "~/.config/quickshell/TileTree.js" },
     { "src": "BatteryBar.qml", "dest": "~/.config/quickshell/BatteryBar.qml" },
     { "src": "BluetoothBar.qml", "dest": "~/.config/quickshell/BluetoothBar.qml" },
     { "src": "BluetoothModel.js", "dest": "~/.config/quickshell/BluetoothModel.js" },

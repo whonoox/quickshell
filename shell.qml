@@ -51,4 +51,5 @@ Scope {
     ThemePicker{}
     ToggleBar{}
     CursorXRay{}
+    TileGroups{}
 }

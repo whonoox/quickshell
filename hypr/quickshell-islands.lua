@@ -197,8 +197,204 @@ function M.autostart()
   o.launch_on_start("qs --no-duplicate")
 end
 
+-- Tile groups: moving a whole branch of the dwindle tree at once.
+--
+-- Dwindle keeps a binary tree of splits, but its own commands only ever act
+-- on the parent of one window, so a branch of several windows cannot be
+-- moved. The shell (TileGroups.qml) works the tree out from the window
+-- geometry, draws a dot on each split, and decides what the new tree should
+-- be. This side then rebuilds the workspace into exactly that tree.
+--
+-- The rebuild floats every window but the first, then tiles them back one at
+-- a time: each window is opened next to the window it was split from, with
+-- the side preselected and the ratio set right after, which is the same path
+-- dwindle takes for a new window. It all runs inside one call, so the
+-- compositor never draws the windows half rebuilt, only the windows sliding
+-- from their old places to the new ones.
+--
+-- A tree is { a = "<address>" } for a window, or
+-- { s = "v" | "h", r = <ratio>, c = { first, second } } for a split, where
+-- "v" puts the children side by side and "h" stacks them. The ratio is
+-- dwindle's own, where 1 is an even split.
+QsTiles = QsTiles or {}
+M.tiles = QsTiles
+
+-- Set by the shell while a dot is hovered or picked, so Super+Shift+arrows
+-- moves that group instead of the active window.
+QsTiles.armed = false
+
+-- A reload must not leave the previous Super listener behind.
+if QsTiles.super_watch then
+  pcall(function()
+    QsTiles.super_watch:remove()
+  end)
+  QsTiles.super_watch = nil
+end
+
+local function window_selector(address)
+  return "address:" .. address
+end
+
+local function first_window(node)
+  while node.c do
+    node = node.c[1]
+  end
+  return node.a
+end
+
+local function tree_windows(node, out)
+  out = out or {}
+  if node.c then
+    tree_windows(node.c[1], out)
+    tree_windows(node.c[2], out)
+  else
+    table.insert(out, node.a)
+  end
+  return out
+end
+
+local function tile_branch(node, window)
+  if not node.c then
+    return
+  end
+
+  local other = first_window(node.c[2])
+  hl.dispatch(hl.dsp.focus({ window = window_selector(window) }))
+  hl.dispatch(hl.dsp.layout("preselect " .. (node.s == "v" and "r" or "d")))
+  hl.dispatch(hl.dsp.window.float({ action = "disable", window = window_selector(other) }))
+  hl.dispatch(hl.dsp.focus({ window = window_selector(window) }))
+  hl.dispatch(hl.dsp.layout(string.format("splitratio %.4f exact", node.r or 1)))
+
+  tile_branch(node.c[1], window)
+  tile_branch(node.c[2], other)
+end
+
+-- Rebuild the workspace of the tree's windows into `tree`. The tree has to
+-- hold exactly that workspace's tiled windows; anything else means the shell
+-- worked from an old picture, and the call fails rather than guess.
+--
+-- Dwindle takes layout messages for the focused monitor's workspace only;
+-- focusing the tree's windows on the way makes that the right one.
+function QsTiles.apply(tree)
+  if type(tree) ~= "table" then
+    error("qs-tiles: nothing to rebuild")
+  end
+
+  local windows = tree_windows(tree)
+  local anchor = hl.get_window(window_selector(windows[1]))
+  local workspace = anchor and anchor.workspace
+  if not workspace or not workspace.visible then
+    error("qs-tiles: the workspace is not on screen")
+  end
+  if workspace.has_fullscreen then
+    error("qs-tiles: the workspace has a fullscreen window")
+  end
+
+  local wanted = {}
+  for _, address in ipairs(windows) do
+    wanted[address] = true
+  end
+
+  local tiled = 0
+  for _, window in ipairs(hl.get_workspace_windows(workspace.id)) do
+    if window.mapped and not window.floating then
+      if window.group then
+        error("qs-tiles: tabbed groups are not supported")
+      end
+      if not wanted[window.address] then
+        error("qs-tiles: the tree is out of date")
+      end
+      tiled = tiled + 1
+    end
+  end
+  if tiled ~= #windows then
+    error("qs-tiles: the tree is out of date")
+  end
+
+  local active = hl.get_active_window()
+  local cursor = hl.get_cursor_pos()
+
+  for index = 2, #windows do
+    hl.dispatch(hl.dsp.window.float({ action = "enable", window = window_selector(windows[index]) }))
+  end
+  tile_branch(tree, windows[1])
+
+  -- Focusing each window on the way warps the pointer; put both back.
+  if active then
+    hl.dispatch(hl.dsp.focus({ window = window_selector(active.address) }))
+  end
+  if cursor then
+    hl.dispatch(hl.dsp.cursor.move({ x = cursor.x, y = cursor.y }))
+  end
+end
+
+-- A group moved with the keys slides out from under the pointer, which would
+-- drop the pick at once. The shell keeps it while Super is held and is told
+-- here when Super comes up. The key listener only exists for that stretch.
+--
+-- Super is recognised by elimination, so a remapped Super (Caps Lock as
+-- Super, say) works too: during a key move only Super, Shift and the arrows
+-- are held, so a release of anything but Shift or an arrow is Super's.
+local KEEP_HOLD_KEYCODES = {
+  [50] = true, -- Shift_L
+  [62] = true, -- Shift_R
+  [111] = true, -- Up
+  [113] = true, -- Left
+  [114] = true, -- Right
+  [116] = true, -- Down
+}
+
+local function watch_super_release()
+  if QsTiles.super_watch then
+    return
+  end
+  QsTiles.super_watch = hl.on("input.keyboard.key", function(keycode, _, state)
+    if state ~= 0 or KEEP_HOLD_KEYCODES[keycode] then
+      return
+    end
+    local watch = QsTiles.super_watch
+    QsTiles.super_watch = nil
+    if watch then
+      pcall(function()
+        watch:remove()
+      end)
+    end
+    hl.dispatch(hl.dsp.global("quickshell:tilesHoldEnd"))
+  end)
+end
+
+-- Super+Shift+arrows swaps the active window, as in Omarchy, unless a group
+-- is armed: then the shell moves the group.
+function QsTiles.key_move(dir)
+  if QsTiles.armed then
+    watch_super_release()
+    local names = { l = "Left", r = "Right", u = "Up", d = "Down" }
+    hl.dispatch(hl.dsp.global("quickshell:tilesMove" .. names[dir]))
+  else
+    hl.dispatch(hl.dsp.window.swap({ direction = dir }))
+  end
+end
+
+function M.tile_bindings()
+  local directions = {
+    { key = "LEFT", dir = "l", desc = "left" },
+    { key = "RIGHT", dir = "r", desc = "right" },
+    { key = "UP", dir = "u", desc = "up" },
+    { key = "DOWN", dir = "d", desc = "down" },
+  }
+
+  for _, direction in ipairs(directions) do
+    local key = "SUPER + SHIFT + " .. direction.key
+    hl.unbind(key)
+    o.bind(key, "Swap window or tile group " .. direction.desc, function()
+      QsTiles.key_move(direction.dir)
+    end)
+  end
+end
+
 M.decorations()
 M.apply()
+M.tile_bindings()
 M.autostart()
 
 return M

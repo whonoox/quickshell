@@ -76,6 +76,26 @@ line, restores `shell.json`, and brings the stock Omarchy shell back up.
 | `Super+Ctrl+Space` | Wallpaper picker |
 | `Super+Shift+Ctrl+Space` | Theme picker |
 | Volume / Brightness keys | Island HUDs |
+| `Super+Shift+Arrows` | Swap the active window, or move the picked tile group |
+
+## Tile groups
+
+On a workspace with three or more tiled windows, a small dot sits on each
+split between them. A dot stands for the windows on both sides of its
+split, the way Hyprland's dwindle layout divided them. Picking a dot closes
+the gaps between those windows, so they read as one piece and it is clear
+which windows move together.
+
+- Hover a dot to pick its group for as long as the pointer stays on it.
+  Click the dot to keep the group picked; click it again to let go.
+- `Super+Shift+Arrows` moves the picked group one step, trading places with
+  its neighbour on that side. With nothing picked, the keys swap the active
+  window as in stock Omarchy. A group moved with the keys stays picked
+  until Super is released.
+- Drag a dot onto a window, or onto another dot, to trade the two.
+
+The dots stay away from a workspace with a fullscreen window, a special
+workspace on top, or a tabbed window group.
 
 ## Managing the shell
 
