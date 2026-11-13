@@ -30,6 +30,18 @@ Or in one line, which fetches the same repository into
 bash <(curl -fsSL https://github.com/whonoox/quickshell/raw/master/install.sh)
 ```
 
+### Nightly
+
+New features land on the `nightly` branch before they are in a release.
+It is the newest work and has had the least use. To install it:
+
+```bash
+NOOXSHELL_REPO_REF=nightly bash <(curl -fsSL https://github.com/whonoox/quickshell/raw/nightly/install.sh)
+```
+
+From a clone, `git checkout nightly` and run `./install.sh`. The plain
+one-line install above goes back to `master`.
+
 Options:
 
 ```bash
