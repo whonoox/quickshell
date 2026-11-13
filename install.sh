@@ -83,7 +83,10 @@ bootstrap() {
     info "Updating the cached checkout"
     git -C "$CACHE_DIR/repo" fetch --depth 1 origin "$REPO_REF" ||
       fail "could not fetch $REPO_URL"
-    git -C "$CACHE_DIR/repo" reset --hard "origin/$REPO_REF" ||
+    # FETCH_HEAD, not origin/$REPO_REF: the cache is a single-branch clone,
+    # so a ref other than the one it was cloned on (nightly after master,
+    # or back) never gets a remote-tracking branch.
+    git -C "$CACHE_DIR/repo" reset --hard FETCH_HEAD ||
       fail "could not update the cached checkout"
   else
     info "Cloning into $CACHE_DIR/repo"
